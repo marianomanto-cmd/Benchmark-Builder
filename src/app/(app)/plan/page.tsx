@@ -212,6 +212,18 @@ export default function PlanPage() {
         </div>
       </div>
 
+      {/* Sticky cost bar — mobile. El costo nunca se pierde de vista (handoff §4.5). */}
+      <div className="lg:hidden sticky bottom-[78px] -mx-6 mt-5 px-4 py-3 bg-white/95 backdrop-blur border-t border-n-200 flex items-center gap-3 z-20">
+        <div>
+          <div className="t-mono text-[10px] text-n-500 uppercase tracking-[0.08em]">total estimado</div>
+          <div className="font-mono tabular-nums text-[18px] font-semibold text-n-900">{formatCurrency(animatedCost)}</div>
+        </div>
+        <div className="flex-1" />
+        <Btn kind="accent" size="md" iconRight={IcBolt} onClick={() => setConfirmOpen(true)} disabled={enabled.size === 0}>
+          Aprobar
+        </Btn>
+      </div>
+
       <Modal
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}

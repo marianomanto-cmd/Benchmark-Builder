@@ -50,7 +50,11 @@ export default function ComparePage() {
         </div>
       </div>
 
-      <div className="bg-white border border-n-200 rounded-md overflow-x-auto">
+      {/* Mobile: una métrica = una card (handoff §4.3) */}
+      <MobileCompare />
+
+      {/* Desktop: matriz */}
+      <div className="hidden lg:block bg-white border border-n-200 rounded-md overflow-x-auto">
         <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr>
@@ -167,4 +171,76 @@ function Cell({
     );
   }
   return <span>{value}</span>;
+}
+
+function magnitude(v: string): number | null {
+  if (v.includes("USD") || v.includes("—")) return null;
+  const m = v.replace(/[~≥\s]/g, "").replace(",", ".").match(/([\d.]+)([kM]?)/);
+  if (!m) return null;
+  let n = parseFloat(m[1]!);
+  if (Number.isNaN(n)) return null;
+  if (m[2] === "k") n *= 1e3;
+  if (m[2] === "M") n *= 1e6;
+  return n;
+}
+
+function MobileCompare() {
+  return (
+    <div className="lg:hidden flex flex-col gap-3">
+      {COMPARE_ROWS.map((r) => {
+        const showBars = r.fmt === "bar" || r.fmt === "mono";
+        const mags = showBars ? r.vals.map(magnitude) : [];
+        const max = Math.max(...mags.filter((n): n is number => n !== null), 0);
+        return (
+          <div key={r.label} className="bg-white border border-n-200 rounded-md p-3.5">
+            <div className="t-micro mb-2.5">{r.label}</div>
+            <div className="flex flex-col gap-2">
+              {COMPARE_COLS.map((col, j) => {
+                const v = r.vals[j]!;
+                const mag = mags[j] ?? null;
+                const pct = showBars && mag !== null && max > 0 ? (mag / max) * 100 : null;
+                return (
+                  <div
+                    key={col.id}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-sm px-2 py-1.5",
+                      col.isClient && "bg-sa-soft",
+                    )}
+                  >
+                    <span
+                      className="size-5 rounded-[3px] grid place-items-center text-white text-[10px] font-semibold shrink-0"
+                      style={{ background: col.accent }}
+                    >
+                      {col.brand}
+                    </span>
+                    <span className={cn("text-[12px] w-[68px] shrink-0", col.isClient ? "text-sa-strong font-medium" : "text-n-700")}>
+                      {col.name}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      {pct !== null ? (
+                        <div className="h-1.5 bg-n-100 rounded-full overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ background: col.accent }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 0.6, ease: [0.2, 0.7, 0.3, 1] }}
+                          />
+                        </div>
+                      ) : (
+                        <Cell fmt={r.fmt} value={v} col={j} rowIndex={0} accent={col.accent} />
+                      )}
+                    </div>
+                    {pct !== null && (
+                      <span className="font-mono tabular-nums text-[12px] text-n-900 shrink-0">{v}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
