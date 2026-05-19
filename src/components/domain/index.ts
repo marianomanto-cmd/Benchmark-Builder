@@ -17,3 +17,4 @@ export { CompetitorCard, type CompetitorCardProps } from "./competitor-card";
 export { InsightCard, type InsightCardProps, type InsightKind } from "./insight-card";
 export { AlertCard, type AlertCardProps, type Severity } from "./alert-card";
 export { CostMeter, type CostMeterProps } from "./cost-meter";
+export { RankingBlock, type RankingBlockProps } from "./ranking-block";

@@ -12,6 +12,8 @@ import { useState, type ReactNode } from "react";
 import { motion } from "motion/react";
 import { Btn } from "@/components/ui";
 import { BBBarChart } from "@/components/charts/bb-bar-chart";
+import { RankingBlock } from "@/components/domain";
+import { TOP_ADS } from "@/lib/fixtures/rankings";
 import { cn } from "@/lib/cn";
 
 const IcPlus = (
@@ -35,7 +37,7 @@ const PAGES: [string, number, boolean][] = [
   ["Recomendaciones", 13, false], ["Anexo", 14, false],
 ];
 
-type BlockType = "h1" | "text" | "chart" | "quote";
+type BlockType = "h1" | "text" | "chart" | "quote" | "ranking";
 
 interface BlockMeta {
   id: string;
@@ -48,6 +50,7 @@ const BLOCK_TYPE_LABEL: Record<BlockType, string> = {
   text: "Texto · párrafo",
   chart: "Gráfico · barras apiladas",
   quote: "Cita / Hallazgo",
+  ranking: "Ranking · list",
 };
 
 function blockProps(type: BlockType): [string, string][] {
@@ -58,6 +61,8 @@ function blockProps(type: BlockType): [string, string][] {
       return [["Fuente", "Newsreader"], ["Tamaño", "42 px"], ["Balance", "sí"]];
     case "quote":
       return [["Estilo", "Border sangría"], ["Eyebrow", "HALLAZGO · 4.1"], ["Énfasis", "italic"]];
+    case "ranking":
+      return [["Layout", "list"], ["Métrica", "reach"], ["Top N", "5"], ["Origen", "ads"]];
     default:
       return [["Fuente", "Newsreader"], ["Tamaño", "16 px"], ["Columnas", "1"]];
   }
@@ -75,14 +80,19 @@ export default function EditorPage() {
     { id: "b3", type: "chart", label: "GRÁFICO" },
     { id: "b4", type: "text", label: "TEXTO" },
     { id: "b5", type: "quote", label: "CITA" },
+    { id: "b6", type: "ranking", label: "RANKING" },
   ];
   const selectedBlock = blocks.find((b) => b.id === selected) ?? null;
 
   return (
-    <div className="p-4 h-[calc(100vh-3.5rem)]">
-      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_280px] gap-3.5 h-full">
+    <div className="p-4 lg:h-[calc(100vh-3.5rem)]">
+      {/* Mobile: viewer (editor full sólo en desktop) */}
+      <EditorMobile activePage={activePage} onPage={setActivePage} />
+
+      {/* Desktop: 3 columnas */}
+      <div className="hidden lg:grid grid-cols-[220px_1fr_280px] gap-3.5 h-full">
         {/* Outline */}
-        <div className="bg-white border border-n-200 rounded-md p-3.5 overflow-auto hidden lg:block">
+        <div className="bg-white border border-n-200 rounded-md p-3.5 overflow-auto">
           <div className="t-micro">ÍNDICE · 14 PÁGINAS</div>
           <div className="mt-3 flex flex-col">
             {PAGES.map(([name, p]) => {
@@ -157,11 +167,15 @@ export default function EditorPage() {
                 </div>
               </div>
             </Block>
+
+            <Block id="b6" label="RANKING" selected={selected === "b6"} onSelect={setSelected}>
+              <RankingBlock layout="list" eyebrow="RANKING · LIST" title="Top 5 anuncios pagos · reach" items={TOP_ADS} />
+            </Block>
           </div>
         </div>
 
         {/* Properties */}
-        <div className="bg-white border border-n-200 rounded-md p-3.5 flex flex-col gap-3.5 overflow-auto hidden lg:flex">
+        <div className="bg-white border border-n-200 rounded-md p-3.5 flex flex-col gap-3.5 overflow-auto">
           <div>
             <div className="t-micro">BLOQUE SELECCIONADO</div>
             {selectedBlock ? (
@@ -277,6 +291,74 @@ function Block({
         </span>
       )}
       <div className="relative">{children}</div>
+    </div>
+  );
+}
+
+function EditorMobile({ activePage, onPage }: { activePage: number; onPage: (p: number) => void }) {
+  return (
+    <div className="lg:hidden flex flex-col gap-3">
+      {/* Desktop notice */}
+      <div className="bg-sa-soft border border-sa-base rounded-md p-3 flex gap-2.5">
+        <span className="size-6 rounded-full bg-sa-base text-white grid place-items-center shrink-0">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 9v4m0 4h.01M10.3 4.3 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" /></svg>
+        </span>
+        <div className="flex-1">
+          <div className="text-[13px] font-semibold text-sa-strong">Editor disponible en desktop</div>
+          <div className="text-[12px] text-sa-strong/90 mt-0.5 leading-[17px]">
+            Acá podés previsualizar páginas y exportar. Para editar bloques abrí el proyecto en escritorio.
+          </div>
+        </div>
+      </div>
+
+      {/* Page index */}
+      <div className="t-micro">ÍNDICE · 14 PÁGINAS</div>
+      <div className="bg-white border border-n-200 rounded-md overflow-hidden">
+        {PAGES.slice(0, 9).map(([name, p], i) => {
+          const active = p === activePage;
+          return (
+            <button
+              key={name}
+              onClick={() => onPage(p)}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3.5 py-3 text-left transition-colors",
+                i > 0 && "border-t border-n-100",
+                active ? "bg-n-50 border-l-[3px] border-l-sa-base pl-[11px]" : "border-l-[3px] border-l-transparent",
+              )}
+            >
+              <span className="font-mono text-[11px] text-n-400 w-6">{String(p).padStart(2, "0")}</span>
+              <span className={cn("text-[13px] flex-1", active && "font-semibold")}>{name}</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-n-400"><path d="m9 6 6 6-6 6" /></svg>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Preview */}
+      <div>
+        <div className="t-micro mb-2">PREVIEW · PÁGINA {String(activePage).padStart(2, "0")}</div>
+        <div className="bg-white border border-n-200 rounded-sm shadow-2 px-5 py-4">
+          <div className="t-mono text-[9px] text-sa-base tracking-[0.12em] uppercase font-semibold">SECCIÓN 04</div>
+          <div className="t-serif text-[24px] leading-[28px] font-medium tracking-[-0.02em] my-2 text-n-900 text-balance">
+            Volumen y share of voice
+          </div>
+          <p className="t-serif text-[13px] leading-[19px] text-n-800 mb-2.5 text-pretty">
+            Entre el 1 de marzo y el 30 de abril, las cinco aerolíneas produjeron{" "}
+            <span className="font-mono text-[12px]">2.418</span> piezas. <em>Avianca</em> concentra el{" "}
+            <span className="bg-sa-soft px-1 font-mono text-[12px] text-sa-strong">41,3 %</span>…
+          </p>
+          <BBBarChart height={150} />
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <Btn kind="secondary" size="md" icon={IcEye} className="flex-1">
+          Vista previa
+        </Btn>
+        <Btn kind="accent" size="md" icon={IcDownload} className="flex-1">
+          PDF
+        </Btn>
+      </div>
     </div>
   );
 }

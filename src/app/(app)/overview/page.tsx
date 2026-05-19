@@ -24,14 +24,14 @@ export default function OverviewPage() {
   return (
     <div className="p-6 max-w-[1400px] mx-auto flex flex-col gap-6">
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-n-200 -mx-6 px-6">
+      <div className="flex items-center gap-1 border-b border-n-200 -mx-6 px-6 overflow-x-auto">
         {TABS.map((t) => (
           <button
             key={t.key}
             className={
               t.active
-                ? "px-3 py-2.5 text-[13px] font-medium text-sa-base relative"
-                : "px-3 py-2.5 text-[13px] font-medium text-n-500 hover:text-n-900 transition"
+                ? "px-3 py-2.5 text-[13px] font-medium text-sa-base relative shrink-0 whitespace-nowrap"
+                : "px-3 py-2.5 text-[13px] font-medium text-n-500 hover:text-n-900 transition shrink-0 whitespace-nowrap"
             }
           >
             {t.label}
@@ -41,7 +41,7 @@ export default function OverviewPage() {
       </div>
 
       {/* Hero */}
-      <header className="flex items-end justify-between gap-6">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
         <div className="max-w-2xl">
           <div className="t-micro text-sa-base mb-2">PROYECTO · ACTIVO</div>
           <h1 className="t-display mb-2">
@@ -63,7 +63,7 @@ export default function OverviewPage() {
       </header>
 
       {/* KPI row */}
-      <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {OVERVIEW_KPIS.map((k) => (
           <KPI
             key={k.label}

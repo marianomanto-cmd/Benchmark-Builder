@@ -132,12 +132,13 @@ export default function FeedPage() {
   }, [enabled]);
 
   const isFiltered = chips.length > 0;
+  const [showFilters, setShowFilters] = useState(false);
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-4">
-        {/* Filters */}
-        <aside className="flex flex-col gap-3.5">
+        {/* Filters — colapsable en mobile, fijo en desktop */}
+        <aside className={cn("flex-col gap-3.5", showFilters ? "flex" : "hidden", "lg:flex")}>
           <FilterGroup dim="competitor" enabled={enabled.competitor} onToggle={toggle} />
           <FilterGroup dim="platform" enabled={enabled.platform} onToggle={toggle} platforms />
           <FilterGroup dim="sentiment" enabled={enabled.sentiment} onToggle={toggle} />
@@ -165,6 +166,17 @@ export default function FeedPage() {
               en vivo
             </span>
             <div className="flex-1" />
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              aria-expanded={showFilters}
+              className={cn(
+                "lg:hidden inline-flex items-center gap-1.5 h-8 px-2.5 rounded-sm border text-[12px] font-medium transition-colors",
+                isFiltered ? "border-sa-base text-sa-strong bg-sa-soft" : "border-n-300 text-n-700 bg-white",
+              )}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
+              Filtros{chips.length ? ` · ${chips.length}` : ""}
+            </button>
             <label className="flex items-center gap-2 text-[12px] text-n-600">
               <span className="text-n-500">{Ic.sort}</span>
               Ordenar

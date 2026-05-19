@@ -11,6 +11,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Btn } from "@/components/ui";
 import { MediaThumb, PlatformBadge, PLATFORM_NAMES } from "@/components/domain";
 import { ORGANIC_GROUPS, AD_GROUPS, type GalleryGroup, type GalleryItem } from "@/lib/fixtures/gallery";
+import { cn } from "@/lib/cn";
 
 const IcFilter = (
   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -52,10 +53,14 @@ export default function GalleryPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Desktop: dos columnas */}
+      <div className="hidden lg:grid grid-cols-2 gap-4">
         <GalleryColumn kind="organic" groups={ORGANIC_GROUPS} onOpen={open} />
         <GalleryColumn kind="ad" groups={AD_GROUPS} onOpen={open} />
       </div>
+
+      {/* Mobile: tabs segmentados */}
+      <MobileGallery onOpen={open} />
 
       <Lightbox items={flat} index={lightbox} onClose={() => setLightbox(null)} onNav={setLightbox} />
     </div>
@@ -107,6 +112,53 @@ function GalleryColumn({
             <span className={isAd ? "t-mono text-[10px] text-sa-strong" : "t-mono text-[10px] text-n-500"}>{g.count} piezas</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
+            {g.items.map((it) => (
+              <MediaThumb
+                key={it.id}
+                kind={it.kind}
+                platform={it.platform}
+                label={it.label}
+                metrics={it.metrics}
+                isAd={it.isAd}
+                onClick={() => onOpen(it.id)}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MobileGallery({ onOpen }: { onOpen: (id: string) => void }) {
+  const [tab, setTab] = useState<"organic" | "ad">("organic");
+  const groups = tab === "organic" ? ORGANIC_GROUPS : AD_GROUPS;
+
+  return (
+    <div className="lg:hidden flex flex-col gap-3">
+      {/* Segmented */}
+      <div className="flex gap-1.5 p-1.5 bg-n-100 rounded-sm">
+        {([["organic", "Orgánico · 218", "var(--color-organic)"], ["ad", "Pagos · 84", "var(--color-ad)"]] as const).map(([k, label, dot]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className={cn(
+              "flex-1 px-2.5 py-1.5 rounded-sm text-[12px] inline-flex items-center justify-center gap-1.5 transition-colors",
+              tab === k ? "bg-white shadow-1 text-n-900 font-medium" : "text-n-600",
+            )}
+          >
+            <span className="size-2 rounded-[2px]" style={{ background: dot }} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {groups.map((g) => (
+        <div key={g.name}>
+          <div className="flex justify-between items-baseline mb-2">
+            <div className="text-[13px] font-semibold">{g.name} · {g.count} piezas</div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
             {g.items.map((it) => (
               <MediaThumb
                 key={it.id}
