@@ -13,13 +13,29 @@ import { cn } from "@/lib/cn";
 import { Skel } from "./skel";
 import { Sparkline } from "./sparkline";
 
+export type KPIFormatKind = "integer" | "compact" | "percent" | "currency";
+
+const FORMATTERS: Record<KPIFormatKind, (n: number) => string> = {
+  integer: (n) => Math.round(n).toLocaleString("es-AR"),
+  compact: (n) => {
+    const v = Math.round(n);
+    if (v >= 1_000_000) return (v / 1_000_000).toFixed(1).replace(".", ",") + "M";
+    if (v >= 1000) return (v / 1000).toFixed(1).replace(".", ",") + "k";
+    return v.toLocaleString("es-AR");
+  },
+  percent: (n) => `${n.toFixed(1).replace(".", ",")} %`,
+  currency: (n) => `USD ${n.toFixed(2).replace(".", ",")}`,
+};
+
 export interface KPIProps {
   label: string;
   /** Valor numérico para animar. Si pasás `value` ya formateado, animación se omite. */
   numericValue?: number;
   /** Valor pre-formateado (mono). Tiene prioridad sobre numericValue para display. */
   value?: string;
-  /** Función para formatear el numericValue mientras anima. Default: `Math.round`. */
+  /** Cómo formatear el numericValue mientras anima. */
+  formatKind?: KPIFormatKind;
+  /** Override programático del formatter (sólo en componentes cliente). */
   format?: (n: number) => string;
   delta?: string;
   up?: boolean;
@@ -63,7 +79,8 @@ export function KPI({
   label,
   numericValue,
   value,
-  format = (n) => Math.round(n).toLocaleString("es-AR"),
+  formatKind = "integer",
+  format,
   delta,
   up = true,
   sparkData,
@@ -74,6 +91,7 @@ export function KPI({
   className,
 }: KPIProps) {
   const isInk = tone === "ink";
+  const fmt = format ?? FORMATTERS[formatKind];
 
   if (skeleton) {
     return (
@@ -122,7 +140,7 @@ export function KPI({
         )}
       >
         {value ?? (numericValue !== undefined ? (
-          <AnimatedNumber target={numericValue} format={format} />
+          <AnimatedNumber target={numericValue} format={fmt} />
         ) : (
           "—"
         ))}
