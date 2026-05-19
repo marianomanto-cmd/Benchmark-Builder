@@ -1,34 +1,47 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
   const t = useTranslations("auth");
   const params = useSearchParams();
   const from = params.get("from") ?? "/overview";
+  const urlError = params.get("error");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    urlError === "unauthorized" ? t("errorUnauthorized") : null,
+  );
   const [pending, setPending] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPending(true);
     setError(null);
-    const res = await signIn("credentials", {
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
-      redirect: false,
     });
-    setPending(false);
-    if (!res || res.error) {
+    if (signInError) {
+      setPending(false);
       setError(t("errorInvalidCredentials"));
       return;
     }
     window.location.href = from;
+  };
+
+  const onGoogle = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(from)}`,
+      },
+    });
   };
 
   return (
@@ -84,7 +97,7 @@ export function LoginForm() {
 
         <button
           type="button"
-          onClick={() => signIn("google", { callbackUrl: from })}
+          onClick={onGoogle}
           className="h-9 px-4 rounded-sm bg-white border border-n-300 text-[13px] font-medium hover:bg-n-50 transition"
         >
           {t("signInWithGoogle")}
