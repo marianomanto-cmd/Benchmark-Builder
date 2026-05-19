@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { fontVariables } from "@/lib/fonts";
 import { defaultLocale } from "@/i18n/config";
+import { Providers } from "./providers";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={defaultLocale} className={fontVariables}>
       <body className="bg-paper text-n-900 font-sans antialiased">
         <NextIntlClientProvider messages={messages} locale={defaultLocale}>
-          {children}
+          <Providers>{children}</Providers>
         </NextIntlClientProvider>
       </body>
     </html>
