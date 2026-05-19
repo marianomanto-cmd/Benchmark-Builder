@@ -1,0 +1,200 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* Tailwind v4 theme — mapeá los tokens a utilities (`bg-paper`, `text-n-900`, `bg-sa-base`, `shadow-2`, etc.) */
+@theme {
+  --font-sans: var(--font-geist), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-serif: var(--font-newsreader), "Source Serif Pro", Georgia, serif;
+
+  /* Default font for everything */
+  --default-font-family: var(--font-sans);
+
+  /* Neutros */
+  --color-paper: var(--color-paper);
+  --color-n-50: var(--color-n-50);
+  --color-n-100: var(--color-n-100);
+  --color-n-200: var(--color-n-200);
+  --color-n-300: var(--color-n-300);
+  --color-n-400: var(--color-n-400);
+  --color-n-500: var(--color-n-500);
+  --color-n-600: var(--color-n-600);
+  --color-n-700: var(--color-n-700);
+  --color-n-800: var(--color-n-800);
+  --color-n-900: var(--color-n-900);
+
+  /* Sangría */
+  --color-sa-soft: var(--color-sa-soft);
+  --color-sa-light: var(--color-sa-light);
+  --color-sa-base: var(--color-sa-base);
+  --color-sa-strong: var(--color-sa-strong);
+  --color-sa-violet: var(--color-sa-violet);
+
+  /* Estados */
+  --color-success: var(--color-success);
+  --color-success-soft: var(--color-success-soft);
+  --color-warn: var(--color-warn);
+  --color-warn-soft: var(--color-warn-soft);
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
+  --color-info: var(--color-info);
+  --color-info-soft: var(--color-info-soft);
+
+  /* Plataformas */
+  --color-pf-instagram: var(--color-pf-instagram);
+  --color-pf-tiktok: var(--color-pf-tiktok);
+  --color-pf-youtube: var(--color-pf-youtube);
+  --color-pf-facebook: var(--color-pf-facebook);
+  --color-pf-x: var(--color-pf-x);
+  --color-pf-reddit: var(--color-pf-reddit);
+  --color-pf-mastodon: var(--color-pf-mastodon);
+  --color-pf-bluesky: var(--color-pf-bluesky);
+  --color-pf-web: var(--color-pf-web);
+  --color-pf-meta-ads: var(--color-pf-meta-ads);
+
+  /* Org vs Ad */
+  --color-organic: var(--color-organic);
+  --color-ad: var(--color-ad);
+
+  /* Radius */
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  /* Shadows */
+  --shadow-1: var(--shadow-1);
+  --shadow-2: var(--shadow-2);
+  --shadow-3: var(--shadow-3);
+  --shadow-4: var(--shadow-4);
+}
+
+/* === Globals === */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-paper);
+  color: var(--color-n-900);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* Párrafos por defecto: prose pretty (handoff §1.12) */
+p {
+  text-wrap: pretty;
+}
+
+/* === Type utilities — espejo del handoff §2.2 === */
+.t-display {
+  font-size: 36px;
+  line-height: 40px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.t-h1 {
+  font-size: 24px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.t-h2 {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.t-h3 {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+}
+.t-body {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+.t-small {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+}
+.t-micro {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-n-500);
+}
+.t-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.t-serif {
+  font-family: var(--font-serif);
+}
+
+/* === Skeleton shimmer — §3.1 (gap del mock, lo hacemos bien) === */
+@keyframes bb-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.bb-skel {
+  background: linear-gradient(
+    90deg,
+    var(--color-n-100) 0%,
+    var(--color-n-200) 50%,
+    var(--color-n-100) 100%
+  );
+  background-size: 200% 100%;
+  animation: bb-shimmer 1.4s var(--ease-in-out) infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* === Live dot pulse — §6.3 === */
+@keyframes bb-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.bb-pulse {
+  animation: bb-pulse 1.6s var(--ease-in-out) infinite;
+}
+
+/* === prefers-reduced-motion — §6.4 === */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* === Focus visible global — §3.1 === */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(24, 20, 16, 0.08);
+  border-radius: var(--radius-sm);
+}

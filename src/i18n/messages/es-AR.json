@@ -1,0 +1,39 @@
+{
+  "common": {
+    "loading": "Cargando…",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "search": "Buscar",
+    "all": "Todos",
+    "none": "Ninguno",
+    "yes": "Sí",
+    "no": "No",
+    "back": "Volver",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "close": "Cerrar",
+    "retry": "Reintentar"
+  },
+  "auth": {
+    "loginTitle": "Iniciar sesión",
+    "loginSubtitle": "Acceso restringido al operador autorizado.",
+    "email": "Email",
+    "password": "Contraseña",
+    "signInWithGoogle": "Continuar con Google",
+    "signInWithCredentials": "Ingresar",
+    "errorUnauthorized": "Este email no tiene acceso al producto.",
+    "errorInvalidCredentials": "Email o contraseña incorrectos."
+  },
+  "nav": {
+    "overview": "Resumen",
+    "feed": "Live feed",
+    "compare": "Comparativa",
+    "gallery": "Galería",
+    "plan": "Plan",
+    "editor": "Editor",
+    "report": "Reporte"
+  }
+}

@@ -1,0 +1,81 @@
+/* Benchmark Builder design tokens — port de Design files/_shared/tokens.css
+ * Single source of truth. Tailwind v4 expone estos vars como utilities vía @theme en globals.css. */
+
+:root {
+  /* === NEUTRALS · stone, warm === */
+  --color-paper: #faf8f4;
+  --color-n-50: #f4f1eb;
+  --color-n-100: #ece7dd;
+  --color-n-200: #ddd6c7;
+  --color-n-300: #c7bdab;
+  --color-n-400: #a89e8b;
+  --color-n-500: #847a68;
+  --color-n-600: #635a4b;
+  --color-n-700: #3d352a;
+  --color-n-800: #2a241c;
+  --color-n-900: #181410;
+
+  /* === ACCENT · sangría (burgundy → violet) === */
+  --color-sa-soft: #f6e6ec;
+  --color-sa-light: #c3517a;
+  --color-sa-base: #6b1a36;
+  --color-sa-strong: #4a0f24;
+  --color-sa-violet: #8a2a5f;
+
+  /* === SEMANTIC STATES === */
+  --color-success: #1f7a3a;
+  --color-success-soft: #e3f1e7;
+  --color-warn: #9a4a14;
+  --color-warn-soft: #f5e8d8;
+  --color-danger: #b8261d;
+  --color-danger-soft: #fbe5e3;
+  --color-info: #1d3fb8;
+  --color-info-soft: #e1e6f7;
+
+  /* === PLATFORMS · solo dataviz por plataforma === */
+  --color-pf-instagram: #c13584;
+  --color-pf-tiktok: #111111;
+  --color-pf-youtube: #c4302b;
+  --color-pf-facebook: #1877f2;
+  --color-pf-x: #0f0f0f;
+  --color-pf-reddit: #ff4500;
+  --color-pf-mastodon: #6364ff;
+  --color-pf-bluesky: #1083fe;
+  --color-pf-web: #6b6b6b;
+  --color-pf-meta-ads: #4267b2;
+
+  /* === ORG vs AD === */
+  --color-organic: var(--color-n-700);
+  --color-ad: var(--color-sa-base);
+
+  /* === SPACING · 4pt scale === */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+
+  /* === RADIUS === */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 16px;
+
+  /* === SHADOWS === */
+  --shadow-1: 0 1px 0 rgba(24, 20, 16, 0.04), 0 1px 2px rgba(24, 20, 16, 0.04);
+  --shadow-2: 0 1px 2px rgba(24, 20, 16, 0.06), 0 4px 12px rgba(24, 20, 16, 0.04);
+  --shadow-3: 0 4px 12px rgba(24, 20, 16, 0.08), 0 12px 32px rgba(24, 20, 16, 0.06);
+  --shadow-4: 0 8px 24px rgba(24, 20, 16, 0.12), 0 24px 64px rgba(24, 20, 16, 0.1);
+
+  /* === EASINGS · §6.1 del handoff === */
+  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
