@@ -1,4 +1,4 @@
-import { ScreenShell } from "@/components/shells";
+import { ScreenShell, OfflineBanner } from "@/components/shells";
 import { Btn, BBBadge } from "@/components/ui";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -26,6 +26,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }
     >
       {children}
+      <OfflineBanner />
     </ScreenShell>
   );
 }
