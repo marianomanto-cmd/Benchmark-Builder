@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/* ============================================================
+ * Benchmark Builder — design tokens
+ * Mirror of design/_shared/tokens.css, wired to next/font variables.
+ * Components reference these raw CSS variables directly (var(--n900) …),
+ * so the visual contract stays 1:1 with the design mocks.
+ * ========================================================== */
+
+:root {
+  /* === NEUTRALS · stone, warm === */
+  --paper: #faf8f4;
+  --n50:   #f4f1eb;
+  --n100:  #ece7dd;
+  --n200:  #ddd6c7;
+  --n300:  #c7bdab;
+  --n400:  #a89e8b;
+  --n500:  #847a68;
+  --n600:  #635a4b;
+  --n700:  #3d352a;
+  --n800:  #2a241c;
+  --n900:  #181410;
+
+  /* === ACCENT · sangría (burgundy → violet) === */
+  --sa-soft:   #f6e6ec;
+  --sa-light:  #c3517a;
+  --sa-base:   #6b1a36;
+  --sa-strong: #4a0f24;
+  --sa-violet: #8a2a5f;
+
+  /* === SEMANTIC STATES === */
+  --success: #1f7a3a;
+  --success-soft: #e3f1e7;
+  --warn:    #9a4a14;
+  --warn-soft: #f5e8d8;
+  --danger:  #b8261d;
+  --danger-soft: #fbe5e3;
+  --info:    #1d3fb8;
+  --info-soft: #e1e6f7;
+
+  /* === PLATFORMS · dataviz only === */
+  --pf-instagram: #c13584;
+  --pf-tiktok:    #111111;
+  --pf-youtube:   #c4302b;
+  --pf-facebook:  #1877f2;
+  --pf-x:         #0f0f0f;
+  --pf-reddit:    #ff4500;
+  --pf-mastodon:  #6364ff;
+  --pf-bluesky:   #1083fe;
+  --pf-web:       #6b6b6b;
+  --pf-meta-ads:  #4267b2;
+
+  /* === ORG vs AD === */
+  --organic: var(--n700);
+  --ad: var(--sa-base);
+
+  /* === TYPE === wired to next/font (see app/layout.tsx) === */
+  --font-sans: var(--font-geist), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jbmono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-serif: var(--font-newsreader), "Source Serif Pro", Georgia, serif;
+
+  /* === SPACING · 4pt scale === */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
+  --sp-12: 48px; --sp-16: 64px;
+
+  /* === RADIUS === */
+  --r-xs: 2px; --r-sm: 4px; --r-md: 6px; --r-lg: 10px; --r-xl: 16px;
+
+  /* === SHADOWS === */
+  --sh-1: 0 1px 0 rgba(24,20,16,.04), 0 1px 2px rgba(24,20,16,.04);
+  --sh-2: 0 1px 2px rgba(24,20,16,.06), 0 4px 12px rgba(24,20,16,.04);
+  --sh-3: 0 4px 12px rgba(24,20,16,.08), 0 12px 32px rgba(24,20,16,.06);
+  --sh-4: 0 8px 24px rgba(24,20,16,.12), 0 24px 64px rgba(24,20,16,.10);
+}
+
+/* Expose a handful of tokens to Tailwind utilities (optional convenience). */
+@theme inline {
+  --font-sans: var(--font-geist);
+  --font-mono: var(--font-jbmono);
+  --font-serif: var(--font-newsreader);
+  --color-paper: var(--paper);
+  --color-ink: var(--n900);
+  --color-sangria: var(--sa-base);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--paper);
+  font-family: var(--font-sans);
+  color: var(--n900);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* ============================================================
+ * Type utilities (mirror of tokens.css)
+ * ========================================================== */
+.t-display { font-size: 36px; line-height: 40px; font-weight: 600; letter-spacing: -0.02em; text-wrap: balance; }
+.t-h1 { font-size: 24px; line-height: 28px; font-weight: 600; letter-spacing: -0.02em; text-wrap: balance; }
+.t-h2 { font-size: 18px; line-height: 24px; font-weight: 600; letter-spacing: -0.01em; }
+.t-h3 { font-size: 15px; line-height: 20px; font-weight: 600; }
+.t-body { font-size: 14px; line-height: 20px; font-weight: 400; }
+.t-small { font-size: 13px; line-height: 18px; font-weight: 400; }
+.t-micro { font-size: 11px; line-height: 14px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--n500); }
+.t-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.t-serif { font-family: var(--font-serif); }
+
+/* Respect reduced motion globally (HANDOFF §6.4). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
