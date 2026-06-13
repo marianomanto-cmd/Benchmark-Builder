@@ -72,6 +72,33 @@
   --sh-2: 0 1px 2px rgba(24,20,16,.06), 0 4px 12px rgba(24,20,16,.04);
   --sh-3: 0 4px 12px rgba(24,20,16,.08), 0 12px 32px rgba(24,20,16,.06);
   --sh-4: 0 8px 24px rgba(24,20,16,.12), 0 24px 64px rgba(24,20,16,.10);
+
+  /* === SEMANTIC (theme-aware) — components should use these for dark mode === */
+  --bg: var(--paper);
+  --surface: #ffffff;
+  --surface-2: var(--n50);
+  --border: var(--n200);
+  --border-strong: var(--n300);
+  --text: var(--n900);
+  --text-muted: var(--n500);
+  --text-faint: var(--n400);
+  --accent: var(--sa-base);
+  --accent-soft: var(--sa-soft);
+}
+
+/* Dark theme — warm stone mirror (HANDOFF dark tokens) */
+.dark {
+  --bg: #0e0c09;
+  --surface: #1a1612;
+  --surface-2: #221c15;
+  --border: #2a241c;
+  --border-strong: #3d352a;
+  --text: #ece7dd;
+  --text-muted: #a89e8b;
+  --text-faint: #847a68;
+  --accent: var(--sa-light);
+  --accent-soft: #2a1620;
+  color-scheme: dark;
 }
 
 /* Expose a handful of tokens to Tailwind utilities (optional convenience). */
@@ -88,9 +115,9 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  background: var(--paper);
+  background: var(--bg);
   font-family: var(--font-sans);
-  color: var(--n900);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-feature-settings: "cv11", "ss01";

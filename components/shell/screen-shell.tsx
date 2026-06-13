@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Ic, NavIc } from "@/components/ui/icons";
 import { Btn } from "@/components/ui/primitives";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 // Nav maps the compact sidebar glyphs to the project screens.
 const NAV: { href: string; icon: (s?: number) => ReactNode; title: string }[] = [
@@ -29,12 +30,12 @@ export function ScreenShell({
 }) {
   const pathname = usePathname();
   const colors = {
-    bg: "var(--paper)",
+    bg: "var(--bg)",
     sb: "#181410",
-    tb: "#fff",
-    border: "var(--n200)",
-    text: "var(--n900)",
-    muted: "var(--n500)",
+    tb: "var(--surface)",
+    border: "var(--border)",
+    text: "var(--text)",
+    muted: "var(--text-muted)",
   };
   return (
     <div style={{ width: "100%", height: "100vh", display: "flex", background: colors.bg, color: colors.text, overflow: "hidden" }}>
@@ -102,11 +103,12 @@ export function ScreenShell({
             {runMeta && <span style={{ color: "var(--n400)", fontFamily: "var(--font-mono)", fontSize: 11, marginLeft: 6 }}>· {runMeta}</span>}
           </div>
           <div style={{ flex: 1 }} />
-          <div style={{ display: "flex", alignItems: "center", border: `1px solid ${colors.border}`, borderRadius: "var(--r-sm)", padding: "4px 10px", background: "var(--n50)", width: 280 }}>
+          <div style={{ display: "flex", alignItems: "center", border: `1px solid ${colors.border}`, borderRadius: "var(--r-sm)", padding: "4px 10px", background: "var(--surface-2)", width: 280 }}>
             <span style={{ color: "var(--n400)" }}><Ic.search s={12} /></span>
             <span style={{ marginLeft: 8, fontSize: 12, color: "var(--n500)" }}>Buscar…</span>
             <span style={{ marginLeft: "auto", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--n400)", padding: "1px 5px", border: `1px solid ${colors.border}`, borderRadius: 3 }}>⌘K</span>
           </div>
+          <ThemeToggle />
           <Btn kind="ghost" size="sm" icon={<Ic.presentation s={12} />}>Presentación</Btn>
           <Btn kind="primary" size="sm" icon={<Ic.bolt s={11} />}>Nuevo run</Btn>
         </header>
