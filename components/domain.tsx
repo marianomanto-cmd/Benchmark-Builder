@@ -122,7 +122,7 @@ function Stat({ label, value, raw }: { label: string; value: ReactNode; raw?: bo
   return (
     <div>
       <div style={{ fontSize: 10, letterSpacing: ".08em", color: "var(--n500)", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>{label}</div>
-      <div style={{ fontSize: raw ? 12 : 15, fontFamily: raw ? "inherit" : "var(--font-mono)", fontWeight: 500, color: "var(--n900)", marginTop: 3 }}>{value}</div>
+      <div style={{ fontSize: raw ? 12 : 15, fontFamily: raw ? "inherit" : "var(--font-mono)", fontWeight: 500, color: "var(--text)", marginTop: 3 }}>{value}</div>
     </div>
   );
 }
@@ -149,7 +149,7 @@ export function CompetitorCard({
   accent?: string;
 }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid var(--n200)", borderRadius: "var(--r-md)", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ width: 36, height: 36, borderRadius: "var(--r-sm)", background: accent || "var(--n200)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 13, fontFamily: "var(--font-sans)" }}>{brand}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -236,7 +236,7 @@ export function CostMeter({ used, soft, hard, period }: { used: number; soft: nu
   const softPct = (soft / hard) * 100;
   const tone = used >= hard ? "var(--danger)" : used >= soft ? "var(--warn)" : "var(--success)";
   return (
-    <div style={{ background: "#fff", border: "1px solid var(--n200)", borderRadius: "var(--r-md)", padding: 14 }}>
+    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 14 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div className="t-micro">Costo · {period}</div>
         <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: tone, fontWeight: 500 }}>{used >= soft ? "WARN" : "OK"}</span>
@@ -245,7 +245,7 @@ export function CostMeter({ used, soft, hard, period }: { used: number; soft: nu
         <span style={{ fontSize: 22, fontFamily: "var(--font-mono)", fontWeight: 500 }}>USD {used.toFixed(2)}</span>
         <span style={{ fontSize: 11, color: "var(--n500)", fontFamily: "var(--font-mono)" }}>/ {hard.toFixed(0)} cap</span>
       </div>
-      <div style={{ height: 6, background: "var(--n100)", borderRadius: 3, marginTop: 10, position: "relative" }}>
+      <div style={{ height: 6, background: "var(--surface-2)", borderRadius: 3, marginTop: 10, position: "relative" }}>
         <div style={{ height: "100%", width: `${pct}%`, background: tone, borderRadius: 3, transition: "background 300ms ease" }} />
         <div style={{ position: "absolute", left: `${softPct}%`, top: -3, bottom: -3, width: 1, background: "var(--n400)" }} />
         <div style={{ position: "absolute", left: `${softPct}%`, top: -12, fontSize: 9, color: "var(--n500)", fontFamily: "var(--font-mono)", transform: "translateX(-50%)" }}>soft · {soft}</div>
@@ -294,8 +294,8 @@ export function MiniInsight({ kind, t, s }: { kind: InsightKind; t: string; s: s
     <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: c, marginTop: 7, flexShrink: 0 }} />
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--n900)", lineHeight: "18px" }}>{t}</div>
-        <div style={{ fontSize: 11, color: "var(--n500)", fontFamily: "var(--font-mono)", marginTop: 2 }}>{s}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)", lineHeight: "18px" }}>{t}</div>
+        <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: 2 }}>{s}</div>
       </div>
     </div>
   );

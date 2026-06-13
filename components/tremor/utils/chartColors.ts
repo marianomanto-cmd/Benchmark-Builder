@@ -57,6 +57,12 @@ export const chartColors = {
     fill: "fill-fuchsia-500",
     text: "text-fuchsia-500",
   },
+  // Benchmark Builder brand palette (ink + warm greys + sangría for the client)
+  ink: { bg: "bg-[#181410]", stroke: "stroke-[#181410]", fill: "fill-[#181410]", text: "text-[#181410]" },
+  graphite: { bg: "bg-[#3d352a]", stroke: "stroke-[#3d352a]", fill: "fill-[#3d352a]", text: "text-[#3d352a]" },
+  taupe: { bg: "bg-[#847a68]", stroke: "stroke-[#847a68]", fill: "fill-[#847a68]", text: "text-[#847a68]" },
+  sand: { bg: "bg-[#c7bdab]", stroke: "stroke-[#c7bdab]", fill: "fill-[#c7bdab]", text: "text-[#c7bdab]" },
+  sangria: { bg: "bg-[#6b1a36]", stroke: "stroke-[#6b1a36]", fill: "fill-[#6b1a36]", text: "text-[#6b1a36]" },
 } as const satisfies {
   [color: string]: {
     [key in ColorUtility]: string

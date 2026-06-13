@@ -328,8 +328,8 @@ export function KPI({
     );
   }
   return (
-    <div style={{ height: 108, padding: 14, border: ink ? "none" : "1px solid var(--n200)", borderRadius: "var(--r-sm)", background: ink ? "var(--n900)" : "#fff", color: ink ? "#fff" : "var(--n900)", position: "relative", overflow: "hidden" }}>
-      <div className="t-micro" style={{ color: ink ? "rgba(255,255,255,.6)" : "var(--n500)" }}>{label}</div>
+    <div style={{ height: 108, padding: 14, border: ink ? "none" : "1px solid var(--border)", borderRadius: "var(--r-sm)", background: ink ? "var(--n900)" : "var(--surface)", color: ink ? "#fff" : "var(--text)", position: "relative", overflow: "hidden" }}>
+      <div className="t-micro" style={{ color: ink ? "rgba(255,255,255,.6)" : "var(--text-muted)" }}>{label}</div>
       <div style={{ fontFamily: "var(--font-mono)", fontSize: 30, fontWeight: 500, marginTop: 6, letterSpacing: "-0.01em" }}>{value}</div>
       {delta && (
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6, fontSize: 12, color: up ? "var(--success)" : "var(--danger)" }}>

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Drive Tailwind's dark: variant from the .dark class (next-themes), not OS preference */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ============================================================
  * Benchmark Builder — design tokens
  * Mirror of design/_shared/tokens.css, wired to next/font variables.
