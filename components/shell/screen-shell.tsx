@@ -93,7 +93,7 @@ export function ScreenShell({
       </aside>
 
       {/* main */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <header style={{ height: 56, background: colors.tb, borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", padding: "0 24px", gap: 12, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, minWidth: 0 }}>
             {breadcrumb.map((b, i) => (
@@ -119,7 +119,7 @@ export function ScreenShell({
           <Btn kind="ghost" size="sm" icon={<Ic.presentation s={12} />} onClick={() => router.push("/reporte")}>Presentación</Btn>
           <Btn kind="primary" size="sm" icon={<Ic.bolt s={11} />} onClick={() => router.push("/research-plan")}>Nuevo run</Btn>
         </header>
-        <div style={{ flex: 1, overflow: "auto", padding: 24 }}>{children}</div>
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 24 }}>{children}</div>
       </main>
     </div>
   );
