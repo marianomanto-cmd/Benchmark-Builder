@@ -375,7 +375,7 @@
 .marqueeSep { color: var(--accent); font-style: normal; padding: 0 0.45em; opacity: 0.85; }
 
 /* ---------- Sections ---------- */
-.section { padding: clamp(64px, 12vh, 140px) 0; }
+.section { padding: clamp(84px, 14vh, 180px) 0; }
 .sectionHead { max-width: 760px; }
 .sectionHead .eyebrow { margin-bottom: 18px; }
 .statement { margin-top: 10px; }

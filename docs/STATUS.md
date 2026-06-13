@@ -1,4 +1,4 @@
-# Benchmark Builder — Estado de desarrollo
+# Phema — Estado de desarrollo (repo: Benchmark-Builder)
 
 > Documento de contexto para consultar en otra conversación. Última actualización: 2026‑06‑13.
 > App de **research competitivo y social listening asistido por IA**. Caso demo: **Copa Airlines vs Avianca / LATAM / Wingo / Arajet · ruta Cartagena**.

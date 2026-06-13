@@ -31,18 +31,18 @@ const newsreader = Newsreader({
 export const metadata: Metadata = {
   metadataBase: new URL("https://benchmark-builder.vercel.app"),
   title: {
-    default: "Benchmark Builder — De mil señales, una sola lectura.",
-    template: "%s · Benchmark Builder",
+    default: "Phema — De mil señales, una sola lectura.",
+    template: "%s · Phema",
   },
   description:
     "Toda la conversación de tu categoría —redes, prensa y anuncios— analizada con IA y convertida en un reporte que se vende.",
   openGraph: {
-    title: "Benchmark Builder — De mil señales, una sola lectura.",
+    title: "Phema — De mil señales, una sola lectura.",
     description:
       "Inteligencia competitiva y social listening asistido por IA. El reporte que se vende, en un clic.",
     type: "website",
     locale: "es_AR",
-    images: [{ url: "/og.svg", width: 1200, height: 630, alt: "Benchmark Builder" }],
+    images: [{ url: "/og.svg", width: 1200, height: 630, alt: "Phema" }],
   },
   twitter: { card: "summary_large_image" },
 };

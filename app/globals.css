@@ -164,6 +164,10 @@ body { background: transparent; }
 .bb-btn:not(:disabled):hover { filter: brightness(1.08); }
 .bb-btn:not(:disabled):active { transform: translateY(1px); }
 
+/* Card hover elevation (runs, proyectos, galería). */
+.bb-lift { transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease; }
+.bb-lift:hover { transform: translateY(-3px); box-shadow: var(--sh-3); border-color: var(--border-strong); }
+
 /* ============================================================
  * Type utilities (mirror of tokens.css)
  * ========================================================== */
@@ -191,8 +195,8 @@ body { background: transparent; }
 .t-section {
   font-family: var(--font-serif);
   font-weight: 400;
-  font-size: clamp(2rem, 5vw, 4rem);
-  line-height: 1.0;
+  font-size: clamp(2.2rem, 5.6vw, 4.6rem);
+  line-height: 1.02;
   letter-spacing: -0.02em;
   text-wrap: balance;
 }
@@ -204,8 +208,8 @@ body { background: transparent; }
   color: var(--text-muted);
 }
 .t-lead {
-  font-size: clamp(1rem, 1.4vw, 1.18rem);
-  line-height: 1.55;
+  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+  line-height: 1.6;
   color: var(--text-muted);
 }
 /* eyebrow accent dot */

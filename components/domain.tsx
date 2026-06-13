@@ -285,7 +285,7 @@ export function CostMeter({ used, soft, hard, period }: { used: number; soft: nu
 // ============================================================
 export function MediaThumb({ kind, platform, isAd, label, metrics, ratio = "4/5", src, video }: { kind: ThumbKind; platform: PlatformKey; isAd?: boolean; label?: string; metrics?: string[]; ratio?: "4/5" | "1/1" | "9/16"; src?: string; video?: string }) {
   return (
-    <div style={{ position: "relative", borderRadius: "var(--r-sm)", overflow: "hidden", aspectRatio: ratio, background: "var(--surface-2)", border: isAd ? "1px solid var(--accent)" : "1px solid var(--border)" }}>
+    <div className="bb-lift" style={{ position: "relative", borderRadius: "var(--r-sm)", overflow: "hidden", aspectRatio: ratio, background: "var(--surface-2)", border: isAd ? "1px solid var(--accent)" : "1px solid var(--border)" }}>
       <ThumbPlaceholder kind={kind} label={label} src={src} video={video} />
       <div style={{ position: "absolute", top: 6, left: 6, zIndex: 2 }}>
         <PlatformBadge platform={platform} size="sm" />

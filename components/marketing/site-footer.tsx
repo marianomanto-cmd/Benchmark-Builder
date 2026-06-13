@@ -16,7 +16,7 @@ export function SiteFooter() {
             <a href="#faq">FAQ</a>
             <Link href="/overview">Demo</Link>
           </div>
-          <div className={s.footerMeta}>Benchmark Builder · Inteligencia de marca, presentable.</div>
+          <div className={s.footerMeta}>Phema · Inteligencia de marca, presentable.</div>
         </div>
       </div>
     </footer>

@@ -1,39 +1,86 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 // Global immersive video background — the cover animation that stays behind the
-// hero, the wizard and the run dashboard ("siempre en el fondo"). Muted + looped,
-// fixed at z-index -1 (the body is transparent so it shows). Paused under
-// prefers-reduced-motion, where the poster frame remains.
+// hero, the wizard and the run dashboard ("siempre en el fondo"). Lives in the
+// root layout so it persists across navigation (never re-mounts / cuts).
+//
+// Seamless loop via crossfade: two stacked <video> elements ping-pong — as one
+// nears its end the other starts and we crossfade opacity, so there's no hard
+// cut and no dark dip ("fade y vuelve a empezar"). Muted; paused under
+// prefers-reduced-motion (poster stays).
 export function SiteBackground() {
-  const ref = useRef<HTMLVideoElement>(null);
+  const aRef = useRef<HTMLVideoElement>(null);
+  const bRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    const v = ref.current;
-    if (!v) return;
+    const a = aRef.current;
+    const b = bRef.current;
+    if (!a || !b) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      v.pause();
+      a.pause();
+      b.pause();
       return;
     }
-    v.play().catch(() => {});
+
+    const FADE = 0.9; // seconds
+    let cur = a;
+    let nxt = b;
+    let swapping = false;
+
+    cur.style.opacity = "1";
+    nxt.style.opacity = "0";
+    cur.play().catch(() => {});
+
+    const onTime = (e: Event) => {
+      if (swapping || e.target !== cur) return;
+      const d = cur.duration;
+      if (!d || Number.isNaN(d)) return;
+      if (cur.currentTime >= d - FADE) {
+        swapping = true;
+        nxt.currentTime = 0;
+        nxt.play().catch(() => {});
+        cur.style.opacity = "0";
+        nxt.style.opacity = "1";
+        const finishing = cur;
+        window.setTimeout(() => {
+          finishing.pause();
+          const t = cur;
+          cur = nxt;
+          nxt = t;
+          swapping = false;
+        }, FADE * 1000);
+      }
+    };
+
+    a.addEventListener("timeupdate", onTime);
+    b.addEventListener("timeupdate", onTime);
+    return () => {
+      a.removeEventListener("timeupdate", onTime);
+      b.removeEventListener("timeupdate", onTime);
+    };
   }, []);
+
+  const vid = (r: RefObject<HTMLVideoElement | null>, first: boolean) => (
+    <video
+      ref={r}
+      src="/hero/hero.mp4"
+      poster={first ? "/hero/hero-poster.jpg" : undefined}
+      muted
+      playsInline
+      autoPlay={first}
+      preload="auto"
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: first ? 1 : 0, transition: "opacity 0.9s ease-in-out" }}
+    />
+  );
 
   return (
     <div aria-hidden style={{ position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none", overflow: "hidden", background: "var(--bg)" }}>
-      <video
-        ref={ref}
-        src="/hero/hero.mp4"
-        poster="/hero/hero-poster.jpg"
-        muted
-        loop
-        playsInline
-        autoPlay
-        preload="auto"
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-      />
+      {vid(aRef, true)}
+      {vid(bRef, false)}
       {/* legibility scrim — lighter at the top (hero), darker lower (sections) */}
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(10,8,16,0.42) 0%, rgba(10,8,16,0.62) 55%, rgba(10,8,16,0.8) 100%)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(10,8,16,0.3) 0%, rgba(10,8,16,0.56) 55%, rgba(10,8,16,0.82) 100%)" }} />
     </div>
   );
 }

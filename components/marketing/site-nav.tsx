@@ -19,7 +19,7 @@ export function SiteNav() {
     <header className={s.nav}>
       <div className={`${s.container} ${s.navInner}`}>
         <Link href="/" className={s.logo}>
-          <span className={s.logoDot} /> Benchmark <span>· Builder</span>
+          <span className={s.logoDot} /> Phema
         </Link>
         <nav className={s.menu} aria-label="Principal">
           {LINKS.map((l) => (

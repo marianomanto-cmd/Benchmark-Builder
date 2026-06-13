@@ -29,6 +29,7 @@ export function RunsHistory({ runs }: { runs: Run[] }) {
           <Link
             key={r.number}
             href="/overview"
+            className="bb-lift"
             style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", gap: 10, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 16, boxShadow: "var(--sh-1)" }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

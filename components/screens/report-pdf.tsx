@@ -17,7 +17,7 @@ export function ReportPDF() {
     <div style={{ minHeight: "100vh", background: "var(--surface-2)", display: "flex", justifyContent: "center", padding: 24 }}>
       <div style={{ width: 816, minHeight: 1056, background: "#fff", boxShadow: "var(--sh-4)", padding: "72px 88px", position: "relative", fontFamily: "var(--font-serif)", color: "var(--n900)" }}>
         <div style={{ position: "absolute", top: 36, left: 88, right: 88, display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--n500)", fontFamily: "var(--font-mono)", letterSpacing: ".08em", textTransform: "uppercase" }}>
-          <span>Benchmark Builder · Cartagena Q2 2026</span>
+          <span>Phema · Cartagena Q2 2026</span>
           <span>04 / 14</span>
         </div>
         <div style={{ position: "absolute", top: 36, left: 88, width: 6, height: 24, background: "var(--sa-base)" }} />
@@ -77,7 +77,7 @@ export function ReportPDF() {
 
         <div style={{ position: "absolute", bottom: 36, left: 88, right: 88, display: "flex", justifyContent: "space-between", fontSize: 9, color: "var(--n400)", fontFamily: "var(--font-mono)", letterSpacing: ".08em", textTransform: "uppercase" }}>
           <span>preparado para Copa Airlines · uso interno</span>
-          <span>generado con Benchmark Builder</span>
+          <span>generado con Phema</span>
         </div>
       </div>
     </div>

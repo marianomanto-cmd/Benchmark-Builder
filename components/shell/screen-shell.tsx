@@ -47,7 +47,7 @@ export function ScreenShell({
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   return (
-    <div style={{ width: "100%", height: "100dvh", display: "flex", background: "color-mix(in srgb, var(--bg) 86%, transparent)", color: colors.text, overflow: "hidden" }}>
+    <div style={{ width: "100%", height: "100dvh", display: "flex", background: "transparent", color: colors.text, overflow: "hidden" }}>
       <CommandPalette />
       <RunAssistant />
 
@@ -59,7 +59,7 @@ export function ScreenShell({
           <nav style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: "min(78vw, 280px)", background: colors.sb, borderRight: `1px solid ${colors.border}`, display: "flex", flexDirection: "column", padding: "16px 12px", gap: 4, overflowY: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px 12px" }}>
               <Link href="/" onClick={() => setNavOpen(false)} style={{ display: "inline-flex", alignItems: "center", gap: 9, color: "#fff", textDecoration: "none", fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase" }}>
-                <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--accent)" }} /> Benchmark
+                <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--accent)" }} /> Phema
               </Link>
               <button type="button" onClick={() => setNavOpen(false)} aria-label="Cerrar menú" style={{ border: "none", background: "transparent", color: "#847a68", cursor: "pointer", display: "inline-flex" }}><X size={18} /></button>
             </div>
@@ -139,7 +139,7 @@ export function ScreenShell({
           <span className="bb-hide-sm"><Btn kind="ghost" size="sm" icon={<Ic.presentation s={12} />} onClick={() => router.push("/reporte")}>Presentación</Btn></span>
           <Btn kind="primary" size="sm" icon={<Ic.bolt s={11} />} onClick={() => router.push("/")}>Nuevo run</Btn>
         </header>
-        <div className="bb-shell-content" style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 24 }}>{children}</div>
+        <div className="bb-shell-content" style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 24, background: "color-mix(in srgb, var(--bg) 60%, transparent)", backdropFilter: "blur(22px)", WebkitBackdropFilter: "blur(22px)" }}>{children}</div>
       </main>
     </div>
   );
