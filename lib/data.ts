@@ -115,6 +115,35 @@ export async function getRecentRuns(
   }
 }
 
+// Full run history for the /runs page.
+export async function getRuns(
+  slug: string = DEMO_PROJECT_SLUG,
+  limit = 24,
+): Promise<{ number: number; mentions: number; cost: number; when: string; status: string }[]> {
+  const fallback = DEMO_RUNS.map((r) => ({ ...r, status: "done" }));
+  try {
+    const supabase = await createClient();
+    const pid = await projectId(slug);
+    if (!pid) return fallback;
+    const { data } = await supabase
+      .from("runs")
+      .select("number, cost_used, mentions_count, created_at, status")
+      .eq("project_id", pid)
+      .order("number", { ascending: false })
+      .limit(limit);
+    if (!data || data.length === 0) return fallback;
+    return data.map((r) => ({
+      number: r.number,
+      mentions: r.mentions_count,
+      cost: Number(r.cost_used),
+      when: relativeTime(r.created_at),
+      status: r.status,
+    }));
+  } catch {
+    return fallback;
+  }
+}
+
 // Per-section AI analysis (hero block). Seeded demo content until a real run
 // generates it with Claude + Grok.
 export async function getSectionAnalysis(section: string, slug: string = DEMO_PROJECT_SLUG): Promise<AnalysisVM | null> {

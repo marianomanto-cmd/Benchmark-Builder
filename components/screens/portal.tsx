@@ -148,7 +148,10 @@ export function Portal({ runs }: { runs: RunSummary[] }) {
         {/* recent runs */}
         {runs.length > 0 && (
           <motion.div {...fade(0.4)} style={{ width: "100%", maxWidth: 720, marginTop: 48 }}>
-            <div className="t-micro" style={{ textAlign: "left", marginBottom: 10 }}>RUNS RECIENTES</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+              <div className="t-micro" style={{ textAlign: "left" }}>RUNS RECIENTES</div>
+              <Link href="/runs" style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500, textDecoration: "none" }}>Ver todos →</Link>
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
               {runs.slice(0, 3).map((r) => (
                 <Link
