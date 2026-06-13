@@ -11,7 +11,7 @@ import { PLATFORMS, type PlatformKey, type SentimentKind } from "@/lib/platforms
 // ============================================================
 export function PlatformBadge({ platform, size = "md", label }: { platform: PlatformKey; size?: "sm" | "md" | "lg"; label?: boolean }) {
   const p = PLATFORMS[platform] ?? PLATFORMS.web;
-  const glyph = PlatformGlyph[platform] ?? PlatformGlyph.web;
+  const glyph = PlatformGlyph[platform] ?? PlatformGlyph.web ?? (() => null);
   const sz = { sm: 14, md: 18, lg: 24 }[size];
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>

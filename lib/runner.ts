@@ -1,16 +1,18 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sourceFor } from "@/lib/sources";
+import { sourceFor, metaAdsOfficial } from "@/lib/sources";
 import { relativeTime, type RawMention, type SourceResult } from "@/lib/sources/types";
 import { scoreSentiments, scoreToSentiment, generateInsights } from "@/lib/ai";
 import { formatCompact } from "@/lib/format";
-import { demoRawMentions, demoScores, demoInsightDrafts } from "@/lib/runner-fixtures";
+import { demoRawMentions, demoAdMentions, demoScores, demoInsightDrafts } from "@/lib/runner-fixtures";
 import type { PlatformKey, SentimentKind } from "@/lib/platforms";
 import { estimateRunCost, type RunPlan, type SourceProvider } from "@/lib/cost/estimate";
 import { apifyCostUSD, grokSearchCostUSD, synthesisCostUSD, cents } from "@/lib/cost/rates";
 import { guardedCall, type GuardReason } from "@/lib/cost/guarded";
 import { releaseExpiredCharges } from "@/lib/cost/ledger";
 import { LIMITS } from "@/lib/cost/config";
+import { inferPlanHeuristic, type ResearchPlan } from "@/lib/discovery/schema";
+import { planToJobs, type ExtractionJob, type SettingRow } from "@/lib/discovery/jobs";
 
 export type RunResult = {
   ok: boolean;
@@ -22,37 +24,26 @@ export type RunResult = {
   estimateLow?: number;
   estimateHigh?: number;
   paused?: GuardReason;
-  platforms?: { platform: PlatformKey; status: string; count: number; error?: string }[];
+  scope?: ResearchPlan["scope"];
+  platforms?: { platform: PlatformKey; scope: string; status: string; count: number; error?: string }[];
 };
 
-type Admin = NonNullable<ReturnType<typeof createAdminClient>>;
+export type RunOptions = { scope?: ResearchPlan["scope"]; adIntent?: ResearchPlan["ad_intent"]; plan?: ResearchPlan };
 
-// Which provider backs each platform — drives cost line, kill-switch flag and
-// whether an API key is required (free providers need none).
-const SOURCE_PROVIDER: Record<PlatformKey, SourceProvider> = {
-  instagram: "apify",
-  tiktok: "apify",
-  youtube: "apify",
-  facebook: "apify",
-  web: "apify",
-  x: "grok",
-  meta_ads: "meta_ads",
-  reddit: "reddit",
-  mastodon: "mastodon",
-  bluesky: "bluesky",
-};
+const FREE_NOKEY = new Set(["reddit", "mastodon", "bluesky"]);
 
-const FREE_PROVIDERS = new Set<SourceProvider>(["reddit", "mastodon", "bluesky", "meta_ads", "free"]);
-
-// guardedCall provider string (what the ledger/flags key on) for a source.
-function ledgerProvider(p: SourceProvider): string {
-  return p === "apify" ? "apify" : p === "grok" ? "grok" : p;
+// Estimated cost of a job by provider (apify per item, grok per search, free=0).
+function jobCost(job: ExtractionJob): number {
+  if (job.provider === "apify") return apifyCostUSD(job.items);
+  if (job.provider === "grok") return grokSearchCostUSD(Math.max(1, Math.ceil(job.items / 25)));
+  return 0; // reddit/mastodon/bluesky/meta_api
 }
 
-function sourceCost(provider: SourceProvider, items: number): number {
-  if (provider === "apify") return apifyCostUSD(items);
-  if (provider === "grok") return grokSearchCostUSD(Math.max(1, Math.ceil(items / 25)));
-  return 0; // free APIs
+// Map a job provider to the estimate's SourceProvider bucket.
+function estProvider(job: ExtractionJob): SourceProvider {
+  if (job.provider === "apify") return "apify";
+  if (job.provider === "grok") return "grok";
+  return "free";
 }
 
 function metricsFromEngagement(e: RawMention["engagement"]): [string, string][] {
@@ -65,28 +56,36 @@ function metricsFromEngagement(e: RawMention["engagement"]): [string, string][] 
   return out.slice(0, 3);
 }
 
-const DOMINANT_FALLBACK: SentimentKind = "neu";
+// Ad metrics surfaced on the card (spend / impressions when present).
+function metricsFromAd(ad: NonNullable<RawMention["ad"]>): [string, string][] {
+  const out: [string, string][] = [];
+  if (ad.spendRange) out.push(["€", ad.spendRange]);
+  if (ad.impressions) out.push(["👁", `est. ${ad.impressions}`]);
+  if (!out.length && ad.cta) out.push(["▶", ad.cta]);
+  return out.slice(0, 3);
+}
 
+const DOMINANT_FALLBACK: SentimentKind = "neu";
 function dominant(counts: Record<SentimentKind, number>): SentimentKind {
-  const entries = Object.entries(counts) as [SentimentKind, number][];
   let best: SentimentKind = DOMINANT_FALLBACK;
   let max = -1;
-  for (const [k, v] of entries) {
-    if (v > max) {
-      max = v;
-      best = k;
-    }
+  for (const [k, v] of Object.entries(counts) as [SentimentKind, number][]) {
+    if (v > max) { max = v; best = k; }
   }
   return best;
 }
 
-// Executes a research run. Every paid (or simulated-paid) step goes through the
-// cost engine: reserve → call/fixture → commit, writing run_steps + cost_ledger.
-// In mock mode (PIPELINE_MODE!=="live") connectors and AI return deterministic
-// fixtures with simulated costs, so the full flow validates at zero real cost.
-// "Real" fires only when PIPELINE_MODE=live AND the provider flag is on AND the
-// API key is present — enforced inside guardedCall.
-export async function executeRun(slug?: string, platforms?: PlatformKey[], keywordOverride?: string[]): Promise<RunResult> {
+// Executes a research run from a ResearchPlan (organic + paid jobs). Every paid
+// (or simulated-paid) step goes through the cost engine. In mock mode connectors
+// return deterministic fixtures with simulated cost → full validation at zero
+// real cost. "Real" fires only when PIPELINE_MODE=live AND the provider flag is
+// on AND the key is present (enforced in guardedCall).
+export async function executeRun(
+  slug?: string,
+  platforms?: PlatformKey[],
+  keywordOverride?: string[],
+  opts: RunOptions = {},
+): Promise<RunResult> {
   const admin = createAdminClient();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SERVICE_ROLE_KEY para escribir resultados." };
 
@@ -100,12 +99,8 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
     .eq("project_id", project.id);
   const comps = competitors ?? [];
 
-  // Resolve target platforms.
-  const fromComps = Array.from(
-    new Set(comps.flatMap((c) => (c.competitor_platforms ?? []).map((p) => p.platform as PlatformKey))),
-  );
-  const targets = platforms && platforms.length ? platforms : fromComps.length ? fromComps : (Object.keys(SOURCE_PROVIDER) as PlatformKey[]);
-
+  // Resolve the plan to execute: explicit plan from the wizard, else derive one.
+  const fromComps = Array.from(new Set(comps.flatMap((c) => (c.competitor_platforms ?? []).map((p) => p.platform as PlatformKey))));
   const keywords =
     keywordOverride && keywordOverride.length
       ? keywordOverride
@@ -113,33 +108,42 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
         ? project.keywords
         : Array.from(new Set([project.name.split("·")[0].trim(), ...comps.map((c) => c.name)]));
 
-  // Source config (Apify actor ids, enabled, limits) — editable from the app.
-  const { data: settingsRows } = await admin.from("source_settings").select("*");
-  const settings = new Map((settingsRows ?? []).map((s) => [s.platform as PlatformKey, s]));
+  let plan: ResearchPlan;
+  if (opts.plan) {
+    plan = opts.plan;
+  } else {
+    const base = inferPlanHeuristic("");
+    const targetPlatforms = platforms && platforms.length ? platforms : fromComps.length ? fromComps : base.platforms;
+    plan = {
+      ...base,
+      client_brand: "",
+      competitors: comps.map((c) => c.name),
+      platforms: targetPlatforms,
+      scope: opts.scope ?? "organic",
+      ad_intent: opts.adIntent ?? "commercial",
+    };
+  }
 
-  // Build the plan we are about to execute (sources + the AI synthesis calls:
-  // one sentiment pass + one insights pass). The estimate is computed from this
-  // exact plan so test:run-mock can assert ledger total ≈ estimate.
-  const planSources = targets
-    .filter((p) => settings.get(p)?.enabled !== false)
-    .map((p) => {
-      const provider = SOURCE_PROVIDER[p];
-      const items = Math.min(settings.get(p)?.results_limit ?? 25, LIMITS.maxItemsPerSource);
-      return { platform: p, items, provider };
-    });
-  const plan: RunPlan = {
-    sources: planSources,
+  // Source registry (actor ids, provider, scope, enabled, limits) — editable in /settings.
+  const { data: settingsRows } = await admin.from("source_settings").select("*");
+  const settings = (settingsRows ?? []) as SettingRow[];
+  const jobs = planToJobs(plan, settings, LIMITS.maxItemsPerSource);
+  if (jobs.length === 0) return { ok: false, error: "El plan no produjo jobs (revisá fuentes habilitadas y scope)." };
+
+  // Estimate from the exact jobs we will run.
+  const runPlan: RunPlan = {
+    sources: jobs.map((j) => ({ platform: `${j.platform}:${j.scope}`, items: j.items, provider: estProvider(j) })),
     images: 0,
     videos: 0,
     framesPerVideo: 0,
     avgVideoMinutes: 0,
     transcribeVideos: false,
     useWhisper: false,
-    synthesisSections: 2, // sentiment + insights
+    synthesisSections: 2,
   };
-  const estimate = estimateRunCost(plan);
+  const estimate = estimateRunCost(runPlan);
 
-  // Create the run row with the budget band recorded.
+  // Create the run row.
   const { data: last } = await admin
     .from("runs")
     .select("number")
@@ -157,78 +161,113 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
       started_at: new Date().toISOString(),
       cost_estimated_low: estimate.total_low,
       cost_estimated_high: estimate.total_high,
+      plan: plan as never,
+      scope: plan.scope,
+      ad_intent: plan.ad_intent,
     })
     .select("id")
     .single();
   if (runErr || !run) return { ok: false, error: `No se pudo crear el run: ${runErr?.message}` };
   const runId = run.id;
 
-  // Free any reservations left dangling by a previous interrupted run.
   await releaseExpiredCharges(admin);
 
   const collected: RawMention[] = [];
   const summary: NonNullable<RunResult["platforms"]> = [];
   let paused: GuardReason | undefined;
 
-  // ---- Scrape each source under the cost guard --------------------------------
-  for (const s of planSources) {
-    if (paused) break;
-    const provider = SOURCE_PROVIDER[s.platform];
-    const source = sourceFor(s.platform);
-    const handles = Array.from(
-      new Set(
-        comps
-          .filter((c) => (c.competitor_platforms ?? []).some((p) => p.platform === s.platform))
-          .flatMap((c) => [c.handle, ...(c.targets ?? [])]),
-      ),
-    );
-    const cfg = settings.get(s.platform);
-    const est = sourceCost(provider, s.items);
+  const handlesForJob = (job: ExtractionJob): string[] => {
+    if (job.scope === "organic") {
+      return Array.from(
+        new Set(
+          comps
+            .filter((c) => (c.competitor_platforms ?? []).some((p) => p.platform === job.platform))
+            .flatMap((c) => [c.handle, ...(c.targets ?? [])]),
+        ),
+      );
+    }
+    // paid: ad libraries search by advertiser/keyword across all competitors.
+    return Array.from(new Set(comps.flatMap((c) => [c.handle, c.name, ...(c.targets ?? [])])));
+  };
 
+  const runJob = async (
+    job: ExtractionJob,
+    source: NonNullable<ReturnType<typeof sourceFor>>,
+    label: string,
+    fixture: () => RawMention[],
+    providerOverride?: string,
+  ): Promise<boolean> => {
+    const est = jobCost(job);
     const out = await guardedCall<SourceResult>({
       admin,
       runId,
-      provider: ledgerProvider(provider),
-      operation: `scrape:${s.platform}`,
-      label: `Recolección · ${s.platform}`,
+      provider: providerOverride ?? job.provider,
+      operation: `${job.scope}:${job.platform}`,
+      label,
       estimatedCost: est,
-      freeProvider: FREE_PROVIDERS.has(provider),
+      freeProvider: FREE_NOKEY.has(providerOverride ?? job.provider),
       call: () =>
         source.fetch({
-          platform: s.platform,
-          handles,
+          platform: job.platform,
+          scope: job.scope,
+          handles: handlesForJob(job),
           keywords,
           languages: project.languages,
           geo: project.geo,
           sinceDays: project.period_days,
-          limit: s.items,
-          actorId: cfg?.actor_id ?? undefined,
+          limit: job.items,
+          actorId: job.actorId,
+          political: job.political,
         }),
-      fixture: () => ({ mentions: demoRawMentions(s.platform), cost: est }),
+      fixture: () => ({ mentions: fixture(), cost: est }),
       realCost: (r) => r.cost,
       mockCost: est,
     });
-
     if (!out.ok) {
       if (out.reason === "api_disabled" || out.reason === "budget_hard") {
         paused = out.reason;
-        await admin.from("run_sources").insert({ run_id: runId, platform: s.platform, status: "skipped", error: out.reason });
-        summary.push({ platform: s.platform, status: "paused", count: 0, error: out.reason });
-        break;
+        await admin.from("run_sources").insert({ run_id: runId, platform: job.platform, status: "skipped", error: out.reason });
+        summary.push({ platform: job.platform, scope: job.scope, status: "paused", count: 0, error: out.reason });
+        return false;
       }
-      await admin.from("run_sources").insert({ run_id: runId, platform: s.platform, status: "error", error: out.message ?? out.reason });
-      summary.push({ platform: s.platform, status: "error", count: 0, error: out.message ?? out.reason });
+      // call failed → fallback to declared fallback actor or mark degraded; never break the run.
+      await admin.from("run_sources").insert({ run_id: runId, platform: job.platform, status: "degraded", error: out.message ?? out.reason });
+      summary.push({ platform: job.platform, scope: job.scope, status: "degraded", count: 0, error: out.message ?? out.reason });
+      return true;
+    }
+    for (const m of out.result.mentions) collected.push({ ...m, platform: job.platform });
+    await admin.from("run_sources").insert({ run_id: runId, platform: job.platform, status: "done", mentions_count: out.result.mentions.length, cost: cents(out.cost) });
+    summary.push({ platform: job.platform, scope: job.scope, status: out.mode, count: out.result.mentions.length });
+    return true;
+  };
+
+  // ---- Extraction jobs (organic + paid) under the cost guard ------------------
+  for (const job of jobs) {
+    if (paused) break;
+    const source = sourceFor(job.platform, job.scope);
+    if (!source) {
+      await admin.from("run_sources").insert({ run_id: runId, platform: job.platform, status: "skipped", error: "sin adaptador" });
+      summary.push({ platform: job.platform, scope: job.scope, status: "skipped", count: 0, error: "sin adaptador" });
       continue;
     }
+    const fixture = job.scope === "paid" ? () => demoAdMentions(job.platform) : () => demoRawMentions(job.platform);
+    const ok = await runJob(job, source, `${job.scope === "paid" ? "Anuncios" : "Recolección"} · ${job.platform}`, fixture);
+    if (!ok) break;
 
-    for (const m of out.result.mentions) collected.push({ ...m, platform: s.platform });
-    await admin
-      .from("run_sources")
-      .insert({ run_id: runId, platform: s.platform, status: "done", mentions_count: out.result.mentions.length, cost: cents(out.cost) });
-    summary.push({ platform: s.platform, status: out.mode, count: out.result.mentions.length });
+    // Political routing for Meta paid: additionally pull the official Ad Library
+    // API (spend/impressions/funder) when intent is political.
+    if (!paused && job.platform === "meta_ads" && job.scope === "paid" && job.political) {
+      await runJob(
+        { ...job, provider: "meta_api", actorId: undefined },
+        metaAdsOfficial,
+        "Anuncios · meta_ads (API oficial · político)",
+        () => demoAdMentions("meta_ads"),
+        "meta_api",
+      );
+    }
   }
 
-  // ---- Sentiment scoring under the cost guard ---------------------------------
+  // ---- Sentiment scoring (IA) under the guard --------------------------------
   let scores: number[] = [];
   if (!paused && collected.length) {
     const out = await guardedCall<number[]>({
@@ -243,14 +282,16 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
     });
     if (out.ok) scores = out.result;
     else if (out.reason === "api_disabled" || out.reason === "budget_hard") paused = out.reason;
-    else scores = demoScores(collected.map((m) => m.text)); // soft-fail: keep going with neutral-ish
+    else scores = demoScores(collected.map((m) => m.text));
   }
 
-  // ---- Persist mentions (idempotent upsert → re-runs don't duplicate) ---------
+  // ---- Persist mentions (idempotent upsert) ----------------------------------
   const rows = collected.map((m, i) => {
     const comp = comps.find(
       (c) => m.handle.toLowerCase().includes(c.handle.toLowerCase()) || m.author.toLowerCase() === c.name.toLowerCase(),
     );
+    const engagement = { ...(m.engagement ?? {}), ...(m.ad ? { ad: m.ad } : {}) };
+    const metrics = m.ad ? metricsFromAd(m.ad) : metricsFromEngagement(m.engagement);
     return {
       project_id: project.id,
       run_id: runId,
@@ -268,8 +309,8 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
       permalink: m.url ?? null,
       external_id: m.externalId,
       published_at: m.publishedAt ?? null,
-      engagement: m.engagement ?? {},
-      metrics: metricsFromEngagement(m.engagement),
+      engagement: engagement as never,
+      metrics: metrics as never,
       sort_order: i,
     };
   });
@@ -302,7 +343,7 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
     }
   }
 
-  // ---- Insights generation under the cost guard -------------------------------
+  // ---- Insights generation (IA) under the guard ------------------------------
   if (!paused && collected.length) {
     const byComp = comps
       .map((c) => {
@@ -310,7 +351,7 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
         return `${c.name}: ${n} menciones`;
       })
       .join("; ");
-    const samples = collected.slice(0, 30).map((m) => `[${m.platform}] ${m.text.slice(0, 160)}`).join("\n");
+    const samples = collected.slice(0, 30).map((m) => `[${m.platform}${m.isAd ? "·ad" : ""}] ${m.text.slice(0, 160)}`).join("\n");
     const out = await guardedCall<{ kind: "opp" | "thr" | "pat" | "ano"; title: string; body: string; sources: number; confidence: number }[]>({
       admin,
       runId,
@@ -318,7 +359,7 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
       operation: "insights",
       label: "Generación de insights (IA)",
       estimatedCost: synthesisCostUSD(),
-      call: () => generateInsights(`Proyecto: ${project.name}. Volumen por competidor: ${byComp}.\nMuestras:\n${samples}`),
+      call: () => generateInsights(`Proyecto: ${project.name}. Scope: ${plan.scope}/${plan.ad_intent}. Volumen: ${byComp}.\nMuestras:\n${samples}`),
       fixture: () => demoInsightDrafts(),
     });
     const drafts = out.ok ? out.result : [];
@@ -340,7 +381,7 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
     }
   }
 
-  // ---- Finalize: real cost from the ledger ------------------------------------
+  // ---- Finalize ---------------------------------------------------------------
   const { data: ledgerRows } = await admin.from("cost_ledger").select("cost_usd").eq("run_id", runId);
   const costActual = cents((ledgerRows ?? []).reduce((a, r) => a + (r.cost_usd ?? 0), 0));
 
@@ -364,9 +405,7 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
     estimateLow: estimate.total_low,
     estimateHigh: estimate.total_high,
     paused,
+    scope: plan.scope,
     platforms: summary,
   };
 }
-
-// Re-exported for the admin helper type used by callers.
-export type { Admin };

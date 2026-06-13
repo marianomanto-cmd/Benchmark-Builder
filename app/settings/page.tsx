@@ -3,39 +3,41 @@ import { createClient } from "@/lib/supabase/server";
 import { SourceSettingsForm, type SourceSettingVM } from "@/components/source-settings-form";
 import { PLATFORMS, type PlatformKey } from "@/lib/platforms";
 
-// Apify-backed platforms (X uses Grok live search instead, so it has no Apify actor).
-const APIFY: PlatformKey[] = ["instagram", "tiktok", "youtube", "facebook", "web"];
-const DEFAULT_ACTOR: Partial<Record<PlatformKey, string>> = {
-  instagram: "apify~instagram-scraper",
-  tiktok: "clockworks~tiktok-scraper",
-  youtube: "streamers~youtube-scraper",
-  facebook: "apify~facebook-posts-scraper",
-  x: "apidojo~tweet-scraper",
-  web: "apify~google-search-scraper",
+type DbRow = {
+  platform: PlatformKey;
+  scope: string;
+  provider: string | null;
+  actor_id: string | null;
+  enabled: boolean;
+  results_limit: number;
 };
 
-function buildRows(map: Map<PlatformKey, { actor_id: string | null; enabled: boolean; results_limit: number }>): SourceSettingVM[] {
-  return (Object.keys(PLATFORMS) as PlatformKey[]).map((p) => {
-    const s = map.get(p);
-    return {
-      platform: p,
-      name: PLATFORMS[p].name,
-      actorId: s?.actor_id ?? DEFAULT_ACTOR[p] ?? "",
-      enabled: s?.enabled ?? true,
-      resultsLimit: s?.results_limit ?? 25,
-      usesActor: APIFY.includes(p),
-    };
-  });
+function toVM(r: DbRow): SourceSettingVM {
+  const scope = r.scope === "paid" ? "paid" : "organic";
+  const provider = r.provider ?? "apify";
+  return {
+    platform: r.platform,
+    scope,
+    provider,
+    name: PLATFORMS[r.platform]?.name ?? r.platform,
+    actorId: r.actor_id ?? "",
+    enabled: r.enabled,
+    resultsLimit: r.results_limit ?? 25,
+    usesActor: provider === "apify", // only Apify rows expose an editable actor id
+  };
 }
 
 export default async function Page() {
-  let rows: SourceSettingVM[];
+  let rows: SourceSettingVM[] = [];
   try {
     const supabase = await createClient();
     const { data } = await supabase.from("source_settings").select("*");
-    rows = buildRows(new Map((data ?? []).map((s) => [s.platform as PlatformKey, s])));
+    rows = ((data ?? []) as DbRow[])
+      .map(toVM)
+      // organic first, then paid; stable by platform name within a scope.
+      .sort((a, b) => (a.scope === b.scope ? a.name.localeCompare(b.name) : a.scope === "organic" ? -1 : 1));
   } catch {
-    rows = buildRows(new Map());
+    rows = [];
   }
   return (
     <ScreenShell breadcrumb={["Settings", "Fuentes"]}>

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { executeRun } from "@/lib/runner";
+import { executeRun, type RunOptions } from "@/lib/runner";
 import type { PlatformKey } from "@/lib/platforms";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 // POST /api/runs — triggers a research run.
-// Body: { slug?: string, platforms?: PlatformKey[] }
+// Body: { slug?, platforms?, keywords?, scope?, adIntent?, plan? }
 // Optional auth: set RUN_TRIGGER_SECRET and send it as the x-run-secret header.
 export async function POST(req: Request) {
   const secret = process.env.RUN_TRIGGER_SECRET;
@@ -14,13 +14,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
-  let body: { slug?: string; platforms?: PlatformKey[]; keywords?: string[] } = {};
+  let body: { slug?: string; platforms?: PlatformKey[]; keywords?: string[] } & RunOptions = {};
   try {
     body = (await req.json()) as typeof body;
   } catch {
     // empty body is fine — defaults apply
   }
 
-  const result = await executeRun(body.slug, body.platforms, body.keywords);
+  const result = await executeRun(body.slug, body.platforms, body.keywords, {
+    scope: body.scope,
+    adIntent: body.adIntent,
+    plan: body.plan,
+  });
   return NextResponse.json(result, { status: result.ok ? 200 : 400 });
 }

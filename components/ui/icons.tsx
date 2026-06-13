@@ -107,7 +107,7 @@ export const NavIc = {
 // Platform glyphs (abstract marks — original, not literal logos)
 // Called as functions: PlatformGlyph.instagram(12)
 // ============================================================
-export const PlatformGlyph: Record<PlatformKey, (s?: number) => ReactElement> = {
+export const PlatformGlyph: Partial<Record<PlatformKey, (s?: number) => ReactElement>> = {
   instagram: (s = 12) => (
     <svg width={s} height={s} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="1.5" y="1.5" width="9" height="9" rx="2.5" /><circle cx="6" cy="6" r="2" /><circle cx="8.7" cy="3.3" r=".5" fill="currentColor" /></svg>
   ),

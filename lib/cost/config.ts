@@ -24,6 +24,7 @@ const PROVIDER_KEY_ENV: Record<string, string> = {
   whisper: "OPENAI_API_KEY",
   transcription: "OPENAI_API_KEY",
   brave: "BRAVE_API_KEY",
+  meta_api: "META_AD_LIBRARY_TOKEN",
   grok: "XAI_API_KEY",
   xai: "XAI_API_KEY",
   x: "XAI_API_KEY",

@@ -9,6 +9,8 @@ import type { PlatformKey } from "@/lib/platforms";
 
 export type SourceSettingVM = {
   platform: PlatformKey;
+  scope: "organic" | "paid";
+  provider: string;
   name: string;
   actorId: string;
   enabled: boolean;
@@ -22,8 +24,8 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
   const [state, setState] = useState<"idle" | "saving" | "done" | "error">("idle");
   const [msg, setMsg] = useState("");
 
-  function patch(platform: PlatformKey, p: Partial<SourceSettingVM>) {
-    setRows((rs) => rs.map((r) => (r.platform === platform ? { ...r, ...p } : r)));
+  function patch(platform: PlatformKey, scope: string, p: Partial<SourceSettingVM>) {
+    setRows((rs) => rs.map((r) => (r.platform === platform && r.scope === scope ? { ...r, ...p } : r)));
     setState("idle");
   }
 
@@ -37,6 +39,8 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
         body: JSON.stringify({
           rows: rows.map((r) => ({
             platform: r.platform,
+            scope: r.scope,
+            provider: r.provider,
             actor_id: r.usesActor ? r.actorId : null,
             enabled: r.enabled,
             results_limit: r.resultsLimit,
@@ -92,34 +96,35 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
           ))}
         </div>
         {rows.map((r) => (
-          <div key={r.platform} style={{ display: "grid", gridTemplateColumns: "1.4fr 2fr 0.8fr 0.8fr", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border)", alignItems: "center", opacity: r.enabled ? 1 : 0.55 }}>
+          <div key={`${r.platform}-${r.scope}`} style={{ display: "grid", gridTemplateColumns: "1.4fr 2fr 0.8fr 0.8fr", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border)", alignItems: "center", opacity: r.enabled ? 1 : 0.55 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <PlatformBadge platform={r.platform} size="md" />
               <span style={{ fontSize: 13, fontWeight: 500 }}>{r.name}</span>
+              <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", letterSpacing: ".08em", textTransform: "uppercase", padding: "1px 6px", borderRadius: 99, border: `1px solid ${r.scope === "paid" ? "var(--accent)" : "var(--border-strong)"}`, color: r.scope === "paid" ? "var(--accent)" : "var(--text-muted)" }}>{r.scope === "paid" ? "paid" : "org"}</span>
             </div>
             {r.usesActor ? (
               <input
                 value={r.actorId}
-                onChange={(e) => patch(r.platform, { actorId: e.target.value })}
+                onChange={(e) => patch(r.platform, r.scope, { actorId: e.target.value })}
                 placeholder="usuario~actor"
                 style={inputStyle}
               />
             ) : (
-              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>API pública / oficial · sin actor</span>
+              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{r.provider === "meta_api" ? "API oficial · sin actor" : "API pública · sin actor"}</span>
             )}
             <input
               type="number"
               min={1}
               max={200}
               value={r.resultsLimit}
-              onChange={(e) => patch(r.platform, { resultsLimit: Number(e.target.value) })}
+              onChange={(e) => patch(r.platform, r.scope, { resultsLimit: Number(e.target.value) })}
               style={{ ...inputStyle, width: 72 }}
             />
             <label style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
               <input
                 type="checkbox"
                 checked={r.enabled}
-                onChange={(e) => patch(r.platform, { enabled: e.target.checked })}
+                onChange={(e) => patch(r.platform, r.scope, { enabled: e.target.checked })}
                 style={{ width: 16, height: 16, accentColor: "var(--accent)" }}
               />
             </label>

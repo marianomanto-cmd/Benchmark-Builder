@@ -17,6 +17,7 @@ const PROVIDER_FLAG: Record<string, string> = {
   whisper: "openai_enabled",
   transcription: "openai_enabled",
   brave: "brave_enabled",
+  meta_api: "meta_api_enabled",
   grok: "xai_enabled",
   xai: "xai_enabled",
   x: "xai_enabled",

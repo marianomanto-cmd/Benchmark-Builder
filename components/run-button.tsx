@@ -9,7 +9,21 @@ type RunState = "idle" | "running" | "done" | "error";
 
 // Triggers POST /api/runs and surfaces inline status. Wired to the
 // "Aprobar y ejecutar" CTA on the Research Plan screen.
-export function RunButton({ slug, platforms, keywords, label = "Aprobar y ejecutar" }: { slug?: string; platforms?: string[]; keywords?: string[]; label?: string }) {
+export function RunButton({
+  slug,
+  platforms,
+  keywords,
+  scope,
+  adIntent,
+  label = "Aprobar y ejecutar",
+}: {
+  slug?: string;
+  platforms?: string[];
+  keywords?: string[];
+  scope?: "organic" | "paid" | "both";
+  adIntent?: "commercial" | "political" | "mixed";
+  label?: string;
+}) {
   const router = useRouter();
   const [state, setState] = useState<RunState>("idle");
   const [msg, setMsg] = useState("");
@@ -21,7 +35,7 @@ export function RunButton({ slug, platforms, keywords, label = "Aprobar y ejecut
       const res = await fetch("/api/runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, platforms, keywords }),
+        body: JSON.stringify({ slug, platforms, keywords, scope, adIntent }),
       });
       const json = (await res.json()) as {
         ok: boolean;
@@ -47,7 +61,7 @@ export function RunButton({ slug, platforms, keywords, label = "Aprobar y ejecut
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       {msg && (
-        <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: state === "error" ? "var(--danger)" : "var(--n500)", maxWidth: 260, textAlign: "right" }}>
+        <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: state === "error" ? "var(--danger)" : "var(--text-muted)", maxWidth: 260, textAlign: "right" }}>
           {msg}
         </span>
       )}

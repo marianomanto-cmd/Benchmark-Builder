@@ -1,5 +1,20 @@
 import type { PlatformKey, ThumbKind } from "@/lib/platforms";
 
+// Ad-specific fields captured from paid sources (ad libraries). Surfaced in the
+// mention's engagement/metrics jsonb. spend/impressions/funder only exist on the
+// official Meta API (political routing).
+export type AdMeta = {
+  creativeUrl?: string;
+  cta?: string;
+  landingUrl?: string;
+  startedAt?: string;
+  activeStatus?: string;
+  adType?: string;
+  spendRange?: string;
+  impressions?: string;
+  fundingEntity?: string;
+};
+
 // A normalized mention emitted by any source adapter.
 export type RawMention = {
   platform: PlatformKey;
@@ -11,6 +26,7 @@ export type RawMention = {
   text: string;
   isAd?: boolean;
   thumbType?: ThumbKind;
+  ad?: AdMeta;
   engagement?: {
     likes?: number;
     comments?: number;
@@ -20,8 +36,11 @@ export type RawMention = {
   };
 };
 
+export type Scope = "organic" | "paid";
+
 export type SourceQuery = {
   platform: PlatformKey;
+  scope?: Scope; // organic feed vs paid ad library
   handles: string[]; // competitor handles / target accounts
   keywords: string[]; // project keywords
   languages: string[];
@@ -29,6 +48,7 @@ export type SourceQuery = {
   sinceDays: number;
   limit: number;
   actorId?: string; // Apify actor override resolved from source_settings (DB)
+  political?: boolean; // ad_intent==='political' → use official APIs when available
 };
 
 export type SourceResult = { mentions: RawMention[]; cost: number };

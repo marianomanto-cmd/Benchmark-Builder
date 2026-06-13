@@ -449,6 +449,7 @@ export type Database = {
       };
       runs: {
         Row: {
+          ad_intent: string | null;
           budget_usd: number;
           cost_actual: number | null;
           cost_estimated_high: number | null;
@@ -462,11 +463,14 @@ export type Database = {
           id: string;
           mentions_count: number;
           number: number;
+          plan: Json | null;
           project_id: string;
+          scope: string | null;
           started_at: string | null;
           status: string;
         };
         Insert: {
+          ad_intent?: string | null;
           budget_usd?: number;
           cost_actual?: number | null;
           cost_estimated_high?: number | null;
@@ -480,11 +484,14 @@ export type Database = {
           id?: string;
           mentions_count?: number;
           number: number;
+          plan?: Json | null;
           project_id: string;
+          scope?: string | null;
           started_at?: string | null;
           status?: string;
         };
         Update: {
+          ad_intent?: string | null;
           budget_usd?: number;
           cost_actual?: number | null;
           cost_estimated_high?: number | null;
@@ -498,7 +505,9 @@ export type Database = {
           id?: string;
           mentions_count?: number;
           number?: number;
+          plan?: Json | null;
           project_id?: string;
+          scope?: string | null;
           started_at?: string | null;
           status?: string;
         };
@@ -514,24 +523,36 @@ export type Database = {
       };
       source_settings: {
         Row: {
+          actor_build: string | null;
           actor_id: string | null;
           enabled: boolean;
+          fallback_actor_id: string | null;
           platform: Database["public"]["Enums"]["platform"];
+          provider: string | null;
           results_limit: number;
+          scope: string;
           updated_at: string;
         };
         Insert: {
+          actor_build?: string | null;
           actor_id?: string | null;
           enabled?: boolean;
+          fallback_actor_id?: string | null;
           platform: Database["public"]["Enums"]["platform"];
+          provider?: string | null;
           results_limit?: number;
+          scope?: string;
           updated_at?: string;
         };
         Update: {
+          actor_build?: string | null;
           actor_id?: string | null;
           enabled?: boolean;
+          fallback_actor_id?: string | null;
           platform?: Database["public"]["Enums"]["platform"];
+          provider?: string | null;
           results_limit?: number;
+          scope?: string;
           updated_at?: string;
         };
         Relationships: [];
@@ -611,7 +632,9 @@ export type Database = {
         | "mastodon"
         | "bluesky"
         | "web"
-        | "meta_ads";
+        | "meta_ads"
+        | "google_ads"
+        | "linkedin_ads";
       project_status: "active" | "draft" | "archived";
       sentiment_kind: "pos" | "neu" | "neg" | "mix";
       thumb_kind: "photo" | "video" | "article" | "ad";

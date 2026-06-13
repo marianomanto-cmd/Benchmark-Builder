@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import { ScreenShell } from "@/components/shell/screen-shell";
 import { Ic } from "@/components/ui/icons";
@@ -19,14 +19,17 @@ const COMPETITORS: Comp[] = [
   { name: "Arajet", handle: "arajetdom", followers: 210_000, followersLabel: "210k", platforms: ["instagram", "x", "web"] },
 ];
 
-const SOURCES: { key: PlatformKey; label: string; cost: number; note: string }[] = [
-  { key: "instagram", label: "Instagram", cost: 0.42, note: "orgánico · Apify" },
-  { key: "tiktok", label: "TikTok", cost: 0.28, note: "orgánico · Apify" },
-  { key: "youtube", label: "YouTube", cost: 0.18, note: "orgánico · Apify" },
-  { key: "x", label: "X / Grok", cost: 0.14, note: "live search · Grok" },
-  { key: "reddit", label: "Reddit", cost: 0.12, note: "API pública" },
-  { key: "web", label: "Web · prensa", cost: 0.42, note: "Apify" },
-  { key: "meta_ads", label: "Meta Ad Library", cost: 0.28, note: "API oficial" },
+type Family = "organic" | "paid";
+const SOURCES: { key: PlatformKey; label: string; cost: number; note: string; family: Family }[] = [
+  { key: "instagram", label: "Instagram", cost: 0.42, note: "orgánico · Apify", family: "organic" },
+  { key: "tiktok", label: "TikTok", cost: 0.28, note: "orgánico · Apify", family: "organic" },
+  { key: "youtube", label: "YouTube", cost: 0.18, note: "orgánico · Apify", family: "organic" },
+  { key: "x", label: "X / Grok", cost: 0.14, note: "live search · Grok", family: "organic" },
+  { key: "reddit", label: "Reddit", cost: 0.12, note: "API pública", family: "organic" },
+  { key: "web", label: "Web · prensa", cost: 0.42, note: "Apify", family: "organic" },
+  { key: "meta_ads", label: "Meta Ad Library", cost: 0.3, note: "paid · scraper / API oficial", family: "paid" },
+  { key: "google_ads", label: "Google Ads Transparency", cost: 0.28, note: "paid · Apify", family: "paid" },
+  { key: "linkedin_ads", label: "LinkedIn Ad Library", cost: 0.22, note: "paid · Apify", family: "paid" },
 ];
 
 const MAG = [
@@ -46,10 +49,31 @@ export function ResearchPlan() {
   const [step, setStep] = useState(0);
   const [problem, setProblem] = useState(initialQ);
   const [comps, setComps] = useState<Set<string>>(new Set(COMPETITORS.map((c) => c.handle)));
-  const [src, setSrc] = useState<Set<PlatformKey>>(new Set(SOURCES.map((s) => s.key)));
+  const [src, setSrc] = useState<Set<PlatformKey>>(new Set(SOURCES.filter((s) => s.family === "organic").map((s) => s.key)));
+  const [scope, setScope] = useState<"organic" | "both">("organic");
+  const [adIntent, setAdIntent] = useState<"commercial" | "political" | "mixed">("commercial");
   const [period, setPeriod] = useState("60 días");
   const [dates, setDates] = useState("");
   const [geo, setGeo] = useState<Set<string>>(new Set(["CO", "PA", "US"]));
+
+  const PAID_KEYS = SOURCES.filter((s) => s.family === "paid").map((s) => s.key);
+
+  // Discovery: infer scope/ad_intent from the prompt and pre-select (mock-safe).
+  useEffect(() => {
+    if (!initialQ.trim()) return;
+    let active = true;
+    fetch("/api/discovery", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q: initialQ }) })
+      .then((r) => r.json())
+      .then((d: { plan?: { scope?: string; ad_intent?: "commercial" | "political" | "mixed" } }) => {
+        if (!active || !d?.plan) return;
+        const sc = d.plan.scope === "organic" ? "organic" : "both";
+        chooseScope(sc);
+        setAdIntent(d.plan.ad_intent ?? "commercial");
+      })
+      .catch(() => {});
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQ]);
 
   function toggle<T>(set: Set<T>, v: T): Set<T> {
     const n = new Set(set);
@@ -57,17 +81,37 @@ export function ResearchPlan() {
     return n;
   }
 
+  // Choosing scope also adds/removes the paid sources from the selection.
+  function chooseScope(sc: "organic" | "both") {
+    setScope(sc);
+    setSrc((p) => {
+      const n = new Set(p);
+      if (sc === "both") PAID_KEYS.forEach((k) => n.add(k));
+      else PAID_KEYS.forEach((k) => n.delete(k));
+      return n;
+    });
+  }
+
   function applyMagnitude(min: number) {
     setComps(new Set(COMPETITORS.filter((c) => c.followers >= min || c.isClient).map((c) => c.handle)));
   }
 
+  // Sources that actually count: organic always, paid only when scope includes it.
+  const activeSources = SOURCES.filter((s) => src.has(s.key) && (s.family === "organic" || scope === "both"));
+
   const estimate = useMemo(() => {
-    const srcCost = SOURCES.filter((s) => src.has(s.key)).reduce((a, s) => a + s.cost, 0);
     const factor = Math.max(1, comps.size) / COMPETITORS.length;
-    const total = Math.round(srcCost * (0.4 + 0.6 * factor) * 100) / 100;
-    const minutes = Math.max(1, Math.round((src.size * comps.size) / 3));
-    return { total, minutes, srcCount: src.size };
-  }, [src, comps]);
+    const active = SOURCES.filter((s) => src.has(s.key) && (s.family === "organic" || scope === "both"));
+    const total = Math.round(active.reduce((a, s) => a + s.cost, 0) * (0.4 + 0.6 * factor) * 100) / 100;
+    const paidDelta = Math.round(
+      SOURCES.filter((s) => s.family === "paid" && src.has(s.key) && scope === "both").reduce((a, s) => a + s.cost, 0) * (0.4 + 0.6 * factor) * 100,
+    ) / 100;
+    const minutes = Math.max(1, Math.round((active.length * comps.size) / 3));
+    return { total, minutes, srcCount: active.length, paidDelta };
+  }, [src, comps, scope]);
+
+  const selectedPlatforms = activeSources.map((s) => s.key);
+  const runScope: "organic" | "both" = scope;
 
   const keywords = problem.trim()
     ? [problem.trim()]
@@ -179,11 +223,39 @@ export function ResearchPlan() {
         {/* STEP 3 — estimate */}
         {step === 3 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* organic / paid toggle */}
+            <div style={card}>
+              <div className="t-micro" style={{ color: "var(--accent)" }}>ALCANCE DE FUENTES</div>
+              <div className="t-h2" style={{ marginTop: 8, color: "var(--text)" }}>¿Solo orgánico, o también paid media?</div>
+              <div className="t-small" style={{ color: "var(--text-muted)", marginTop: 6, marginBottom: 14 }}>
+                Paid suma las bibliotecas de anuncios (Meta, Google, LinkedIn). Cada actor agrega costo por anuncio.
+                {adIntent === "political" && " · Intención política detectada: para Meta se usa la API oficial (gasto e impresiones) si hay token."}
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {([["organic", "Solo orgánico"], ["both", "Orgánico + paid"]] as const).map(([val, label]) => {
+                  const on = scope === val;
+                  return (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => chooseScope(val)}
+                      style={{ flex: 1, minWidth: 200, textAlign: "left", padding: "12px 14px", borderRadius: "var(--r-sm)", cursor: "pointer", border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`, background: on ? "var(--accent-soft)" : "var(--surface)" }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 600, color: on ? "var(--accent)" : "var(--text)" }}>{label}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: 3 }}>
+                        {val === "organic" ? "posts y conversación" : `+ anuncios · est. +USD ${estimate.paidDelta.toFixed(2)}`}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div style={card}>
               <div className="t-micro" style={{ color: "var(--accent)" }}>PASO 4 · FUENTES Y COSTO</div>
               <div className="t-h2" style={{ marginTop: 8, color: "var(--text)" }}>Antes de gastar tokens, revisalo</div>
               <div style={{ display: "flex", flexDirection: "column", marginTop: 12 }}>
-                {SOURCES.map((s, i) => {
+                {SOURCES.filter((s) => s.family === "organic" || scope === "both").map((s, i) => {
                   const on = src.has(s.key);
                   return (
                     <label key={s.key} style={{ display: "flex", alignItems: "center", gap: 14, padding: "11px 0", borderTop: i ? "1px solid var(--border)" : "none", opacity: on ? 1 : 0.5, cursor: "pointer" }}>
@@ -191,7 +263,7 @@ export function ResearchPlan() {
                       <PlatformBadge platform={s.key} size="md" />
                       <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text)", minWidth: 130 }}>{s.label}</span>
                       <span style={{ flex: 1, fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{s.note}</span>
-                      <span style={{ fontSize: 11, color: "var(--text)", fontFamily: "var(--font-mono)" }}>USD {s.cost.toFixed(2)}</span>
+                      <span style={{ fontSize: 11, color: s.family === "paid" ? "var(--accent)" : "var(--text)", fontFamily: "var(--font-mono)" }}>USD {s.cost.toFixed(2)}</span>
                     </label>
                   );
                 })}
@@ -202,10 +274,13 @@ export function ResearchPlan() {
               <div>
                 <div className="t-micro" style={{ color: "var(--accent)" }}>COSTO ESTIMADO DEL RUN</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 30, fontWeight: 600, color: "var(--text)", marginTop: 4 }}>USD {estimate.total.toFixed(2)}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: 2 }}>{comps.size} competidores · {estimate.srcCount} fuentes · ~{estimate.minutes} min</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: 2 }}>
+                  {comps.size} competidores · {estimate.srcCount} fuentes · {scope === "both" ? "orgánico + paid" : "orgánico"} · ~{estimate.minutes} min
+                  {scope === "both" && estimate.paidDelta > 0 && <> · paid +USD {estimate.paidDelta.toFixed(2)}</>}
+                </div>
               </div>
               <div style={{ flex: 1 }} />
-              <RunButton slug="cartagena-q2-2026" platforms={Array.from(src)} keywords={keywords} label="Aprobar y ejecutar" />
+              <RunButton slug="cartagena-q2-2026" platforms={selectedPlatforms} keywords={keywords} scope={runScope} adIntent={adIntent} label="Aprobar y ejecutar" />
             </div>
           </div>
         )}

@@ -4,7 +4,7 @@ import type { PlatformKey } from "@/lib/platforms";
 
 export const runtime = "nodejs";
 
-type Row = { platform: PlatformKey; actor_id: string | null; enabled: boolean; results_limit: number };
+type Row = { platform: PlatformKey; scope?: string; provider?: string | null; actor_id: string | null; enabled: boolean; results_limit: number };
 
 // POST /api/settings/sources — upsert source configuration (Apify actor ids, on/off, limits).
 export async function POST(req: Request) {
@@ -27,12 +27,14 @@ export async function POST(req: Request) {
   const { error } = await admin.from("source_settings").upsert(
     rows.map((r) => ({
       platform: r.platform,
+      scope: r.scope === "paid" ? "paid" : "organic",
+      provider: r.provider ?? null,
       actor_id: r.actor_id && r.actor_id.trim() ? r.actor_id.trim() : null,
       enabled: r.enabled,
       results_limit: Math.max(1, Math.min(200, Math.round(r.results_limit) || 25)),
       updated_at: new Date().toISOString(),
     })),
-    { onConflict: "platform" },
+    { onConflict: "platform,scope" },
   );
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });

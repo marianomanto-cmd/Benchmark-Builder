@@ -27,6 +27,30 @@ export function demoScores(texts: string[]): number[] {
   return texts.map((t) => SENTIMENT_SCORE[BODY_SENTIMENT.get(t) ?? "neu"]);
 }
 
+// Canned paid-ad mentions per platform (mock mode for the paid pipeline).
+const AD_BRANDS = ["Avianca", "LATAM", "Copa Airlines", "Wingo"];
+export function demoAdMentions(platform: PlatformKey): RawMention[] {
+  return AD_BRANDS.slice(0, 3).map((brand, i) => ({
+    platform,
+    externalId: `demo-ad-${platform}-${i}`,
+    author: brand,
+    handle: brand.toLowerCase().replace(/\s+/g, ""),
+    text: `Vuelos a Cartagena desde USD ${79 + i * 10}. Reservá hoy. (${platform})`,
+    isAd: true,
+    thumbType: "ad" as const,
+    ad: {
+      cta: "Reservar",
+      landingUrl: "https://example.com/cartagena",
+      startedAt: new Date(Date.now() - (i + 2) * 86400_000).toISOString(),
+      activeStatus: "active",
+      adType: platform === "google_ads" ? "search" : "image",
+      spendRange: platform === "meta_ads" ? `USD ${4 + i}k–${8 + i}k` : undefined,
+      impressions: platform === "meta_ads" ? `${600 + i * 200}k` : undefined,
+    },
+    engagement: {},
+  }));
+}
+
 // Canned insight drafts (matches the shape generateInsights returns).
 export function demoInsightDrafts(): { kind: InsightKind; title: string; body: string; sources: number; confidence: number }[] {
   return DEMO_INSIGHTS.map((d) => ({
