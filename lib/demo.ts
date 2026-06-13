@@ -140,3 +140,11 @@ export const DEMO_RUNS = [
   { number: 38, mentions: 14, cost: 1.4, when: "hace 1 sem", title: "Café · especialidad LatAm" },
   { number: 37, mentions: 26, cost: 2.32, when: "hace 2 sem", title: "Bebidas · campañas de verano" },
 ];
+
+// Proyectos = carpetas que agrupan runs (feature que maneja el usuario).
+export const DEMO_PROJECTS = [
+  { slug: "cartagena-q2-2026", name: "Copa · Cartagena Q2", category: "Aerolíneas", runs: 6, lastRun: "hace 12 min", budget: 30, accent: "var(--series-client)" },
+  { slug: "moda-zara-hm", name: "Moda · Zara vs H&M", category: "Retail / Moda", runs: 3, lastRun: "hace 3 d", budget: 25, accent: "var(--series-1)" },
+  { slug: "fintech-uala", name: "Fintech · Ualá vs Brubank", category: "Fintech", runs: 2, lastRun: "hace 5 d", budget: 40, accent: "var(--series-2)" },
+  { slug: "cafe-latam", name: "Café de especialidad LatAm", category: "Food & Bev", runs: 4, lastRun: "hace 1 sem", budget: 20, accent: "var(--series-3)" },
+];

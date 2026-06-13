@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { confLabel, sparkFor, type OverviewData, type MentionVM, type AnalysisVM } from "@/lib/view-models";
-import { DEMO_OVERVIEW, DEMO_MENTIONS, DEMO_RUNS, DEMO_ANALYSIS_BY_SECTION, DEMO_PROJECT_SLUG } from "@/lib/demo";
+import { DEMO_OVERVIEW, DEMO_MENTIONS, DEMO_RUNS, DEMO_ANALYSIS_BY_SECTION, DEMO_PROJECT_SLUG, DEMO_PROJECTS } from "@/lib/demo";
 import { relativeTime } from "@/lib/sources/types";
 import type { PlatformKey, SentimentKind, ThumbKind } from "@/lib/platforms";
 
@@ -141,6 +141,27 @@ export async function getRuns(
     }));
   } catch {
     return fallback;
+  }
+}
+
+// Projects = user-managed folders that group runs. Prefers the DB when it holds
+// a real multi-project workspace; otherwise shows the demo directory.
+export async function getProjects(): Promise<
+  Array<{ slug: string; name: string; category: string; runs: number; lastRun: string; budget: number; accent: string }>
+> {
+  try {
+    const supabase = await createClient();
+    const { data: projects } = await supabase.from("projects").select("id, name, slug, budget_monthly_usd").order("created_at", { ascending: false });
+    if (!projects || projects.length < 2) return DEMO_PROJECTS;
+    const out: Array<{ slug: string; name: string; category: string; runs: number; lastRun: string; budget: number; accent: string }> = [];
+    for (const p of projects) {
+      const { count } = await supabase.from("runs").select("id", { count: "exact", head: true }).eq("project_id", p.id);
+      const { data: last } = await supabase.from("runs").select("created_at").eq("project_id", p.id).order("number", { ascending: false }).limit(1).maybeSingle();
+      out.push({ slug: p.slug, name: p.name, category: "Research", runs: count ?? 0, lastRun: last ? relativeTime(last.created_at) : "—", budget: Number(p.budget_monthly_usd), accent: "var(--series-client)" });
+    }
+    return out;
+  } catch {
+    return DEMO_PROJECTS;
   }
 }
 

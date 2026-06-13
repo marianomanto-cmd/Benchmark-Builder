@@ -3,7 +3,7 @@
 import { type ReactNode, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Layers } from "lucide-react";
 import { Ic, NavIc } from "@/components/ui/icons";
 import { Btn } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -12,6 +12,7 @@ import { RunAssistant } from "@/components/run-assistant";
 
 // Nav maps the compact sidebar glyphs to the project screens.
 const NAV: { href: string; icon: (s?: number) => ReactNode; title: string }[] = [
+  { href: "/proyectos", icon: (s = 15) => <Layers size={s} />, title: "Proyectos" },
   { href: "/overview", icon: NavIc.grid, title: "Overview" },
   { href: "/live-feed", icon: NavIc.folder, title: "Live feed" },
   { href: "/comparativa", icon: NavIc.users, title: "Comparativa" },
