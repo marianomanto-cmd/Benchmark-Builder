@@ -14,7 +14,7 @@ const tableRows: [string, string, string][] = [
 
 export function ReportPDF() {
   return (
-    <div style={{ minHeight: "100vh", background: "var(--n100)", display: "flex", justifyContent: "center", padding: 24 }}>
+    <div style={{ minHeight: "100vh", background: "var(--surface-2)", display: "flex", justifyContent: "center", padding: 24 }}>
       <div style={{ width: 816, minHeight: 1056, background: "#fff", boxShadow: "var(--sh-4)", padding: "72px 88px", position: "relative", fontFamily: "var(--font-serif)", color: "var(--n900)" }}>
         <div style={{ position: "absolute", top: 36, left: 88, right: 88, display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--n500)", fontFamily: "var(--font-mono)", letterSpacing: ".08em", textTransform: "uppercase" }}>
           <span>Benchmark Builder · Cartagena Q2 2026</span>

@@ -14,9 +14,9 @@ const outline: [string, number, boolean][] = [
 
 function PropRow({ k, v }: { k: string; v: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 10px", background: "var(--n50)", borderRadius: "var(--r-sm)" }}>
-      <span style={{ fontSize: 11, color: "var(--n500)" }}>{k}</span>
-      <span style={{ fontSize: 12, fontWeight: 500 }}>{v} <Ic.arrowDown s={8} /></span>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 10px", background: "var(--surface-2)", borderRadius: "var(--r-sm)" }}>
+      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{k}</span>
+      <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text)" }}>{v} <Ic.arrowDown s={8} /></span>
     </div>
   );
 }
@@ -26,23 +26,23 @@ export function Editor() {
     <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Reportes", "Cartagena Q2 · v3"]} badges={<BBBadge tone="info" size="sm">borrador</BBBadge>} runMeta="autoguardado hace 4 s">
       <div style={{ display: "grid", gridTemplateColumns: "220px 1fr 280px", gap: 14, height: "100%" }}>
         {/* outline */}
-        <div style={{ background: "#fff", border: "1px solid var(--n200)", borderRadius: "var(--r-md)", padding: 14, overflow: "auto" }}>
+        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 14, overflow: "auto" }}>
           <div className="t-micro">ÍNDICE · 14 PÁGINAS</div>
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column" }}>
             {outline.map(([n, p, active]) => (
-              <a key={n} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: "var(--r-sm)", background: active ? "var(--n50)" : "transparent", borderLeft: active ? "2px solid var(--sa-base)" : "2px solid transparent", fontSize: 12, color: active ? "var(--n900)" : "var(--n600)", fontWeight: active ? 500 : 400 }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--n400)", width: 18 }}>{String(p).padStart(2, "0")}</span>
+              <a key={n} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: "var(--r-sm)", background: active ? "var(--surface-2)" : "transparent", borderLeft: active ? "2px solid var(--accent)" : "2px solid transparent", fontSize: 12, color: active ? "var(--text)" : "var(--text-muted)", fontWeight: active ? 500 : 400 }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-faint)", width: 18 }}>{String(p).padStart(2, "0")}</span>
                 <span style={{ flex: 1 }}>{n}</span>
               </a>
             ))}
-            <div style={{ borderTop: "1px solid var(--n100)", marginTop: 8, paddingTop: 8 }}>
+            <div style={{ borderTop: "1px solid var(--border)", marginTop: 8, paddingTop: 8 }}>
               <Btn kind="ghost" size="sm" icon={<Ic.plus s={10} />}>Agregar sección</Btn>
             </div>
           </div>
         </div>
 
         {/* canvas */}
-        <div style={{ background: "var(--n100)", borderRadius: "var(--r-md)", padding: 24, overflow: "auto" }}>
+        <div style={{ background: "var(--surface-2)", borderRadius: "var(--r-md)", padding: 24, overflow: "auto" }}>
           <div style={{ width: 680, margin: "0 auto", background: "#fff", boxShadow: "var(--sh-3)", minHeight: "100%", padding: "56px 64px", position: "relative" }}>
             <div style={{ position: "absolute", top: 24, left: 24, right: 24, display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--n400)", fontFamily: "var(--font-mono)" }}>
               <span>BENCHMARK BUILDER · CARTAGENA Q2 2026</span>
@@ -80,19 +80,19 @@ export function Editor() {
         </div>
 
         {/* properties / blocks */}
-        <div style={{ background: "#fff", border: "1px solid var(--n200)", borderRadius: "var(--r-md)", padding: 14, display: "flex", flexDirection: "column", gap: 14, overflow: "auto" }}>
+        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 14, display: "flex", flexDirection: "column", gap: 14, overflow: "auto" }}>
           <div>
             <div className="t-micro">BLOQUE SELECCIONADO</div>
-            <div style={{ marginTop: 8, padding: "10px 12px", border: "1px solid var(--sa-base)", borderRadius: "var(--r-sm)", background: "var(--sa-soft)" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--sa-strong)" }}>Gráfico · barras apiladas</div>
-              <div style={{ fontSize: 11, color: "var(--sa-strong)", fontFamily: "var(--font-mono)", marginTop: 2 }}>fig. 4.1 · 5 series · 12 meses</div>
+            <div style={{ marginTop: 8, padding: "10px 12px", border: "1px solid var(--accent)", borderRadius: "var(--r-sm)", background: "var(--accent-soft)" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>Gráfico · barras apiladas</div>
+              <div style={{ fontSize: 11, color: "var(--accent)", fontFamily: "var(--font-mono)", marginTop: 2 }}>fig. 4.1 · 5 series · 12 meses</div>
             </div>
           </div>
           <div>
             <div className="t-micro">FUENTE DE DATOS</div>
-            <div style={{ marginTop: 8, padding: "8px 12px", border: "1px solid var(--n200)", borderRadius: "var(--r-sm)", display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12 }}>run #042</span>
-              <span style={{ fontSize: 11, color: "var(--n500)", fontFamily: "var(--font-mono)" }}>vigente · 12 min</span>
+            <div style={{ marginTop: 8, padding: "8px 12px", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 12, color: "var(--text)" }}>run #042</span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>vigente · 12 min</span>
             </div>
           </div>
           <div>
@@ -109,7 +109,7 @@ export function Editor() {
             <div className="t-micro">INSERTAR BLOQUE</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
               {["Texto", "H2", "Cita", "Gráfico", "Tabla", "KPI", "Galería", "Ranking"].map((b) => (
-                <button key={b} type="button" style={{ padding: "8px 6px", border: "1px solid var(--n200)", background: "#fff", borderRadius: "var(--r-sm)", fontSize: 11, color: "var(--n700)", cursor: "pointer" }}>{b}</button>
+                <button key={b} type="button" style={{ padding: "8px 6px", border: "1px solid var(--border)", background: "var(--surface)", borderRadius: "var(--r-sm)", fontSize: 11, color: "var(--text)", cursor: "pointer" }}>{b}</button>
               ))}
             </div>
           </div>
