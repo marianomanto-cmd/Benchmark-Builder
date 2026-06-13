@@ -25,20 +25,20 @@ function GalleryColumn({ kind }: { kind: "organic" | "ad" }) {
   const isAd = kind === "ad";
   const groups = isAd ? adGroups : organicGroups;
   return (
-    <div style={{ background: isAd ? "var(--sa-soft)" : "#fff", border: `1px solid ${isAd ? "var(--sa-base)" : "var(--n200)"}`, borderRadius: "var(--r-md)", padding: 18 }}>
+    <div style={{ background: isAd ? "var(--accent-soft)" : "var(--surface)", border: `1px solid ${isAd ? "var(--accent)" : "var(--border)"}`, borderRadius: "var(--r-md)", padding: 18, boxShadow: "var(--sh-1)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ width: 10, height: 10, background: isAd ? "var(--ad)" : "var(--organic)", borderRadius: 2 }} />
-            <div className="t-h2" style={{ color: isAd ? "var(--sa-strong)" : "var(--n900)" }}>{isAd ? "Anuncios pagos · Meta Ad Library" : "Contenido orgánico"}</div>
+            <div className="t-h2" style={{ color: isAd ? "var(--accent)" : "var(--text)" }}>{isAd ? "Anuncios pagos · Meta Ad Library" : "Contenido orgánico"}</div>
           </div>
-          <div className="t-small" style={{ color: isAd ? "var(--sa-strong)" : "var(--n500)", marginTop: 4 }}>
+          <div className="t-small" style={{ color: isAd ? "var(--accent)" : "var(--text-muted)", marginTop: 4 }}>
             {isAd ? "84 creativos activos · USD 18–28k spend estimado" : "218 piezas en últimos 60 días"}
           </div>
         </div>
-        <div style={{ display: "flex", border: `1px solid ${isAd ? "var(--sa-base)" : "var(--n300)"}`, borderRadius: "var(--r-sm)", overflow: "hidden", background: "#fff" }}>
+        <div style={{ display: "flex", border: `1px solid ${isAd ? "var(--accent)" : "var(--border-strong)"}`, borderRadius: "var(--r-sm)", overflow: "hidden", background: "var(--surface)" }}>
           {["Engagement", "Reciente", "Plataforma"].map((t, i) => (
-            <span key={t} style={{ padding: "4px 10px", fontSize: 11, fontFamily: "var(--font-mono)", background: i === 0 ? (isAd ? "var(--sa-base)" : "var(--n900)") : "#fff", color: i === 0 ? "#fff" : "var(--n700)", borderLeft: i ? "1px solid var(--n200)" : "none" }}>{t}</span>
+            <span key={t} style={{ padding: "4px 10px", fontSize: 11, fontFamily: "var(--font-mono)", background: i === 0 ? (isAd ? "var(--accent)" : "var(--n900)") : "var(--surface)", color: i === 0 ? "#fff" : "var(--text-muted)", borderLeft: i ? "1px solid var(--border)" : "none" }}>{t}</span>
           ))}
         </div>
       </div>
@@ -46,8 +46,8 @@ function GalleryColumn({ kind }: { kind: "organic" | "ad" }) {
       {groups.map((g, gi) => (
         <div key={gi} style={{ marginBottom: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: isAd ? "var(--sa-strong)" : "var(--n800)" }}>{g.name}</div>
-            <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: isAd ? "var(--sa-strong)" : "var(--n500)" }}>{g.count} piezas</span>
+            <div style={{ fontSize: 12, fontWeight: 500, color: isAd ? "var(--accent)" : "var(--text)" }}>{g.name}</div>
+            <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: isAd ? "var(--accent)" : "var(--text-muted)" }}>{g.count} piezas</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
             {g.items.map((it, i) => (
@@ -65,8 +65,8 @@ export function Galeria() {
     <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Galería"]} runMeta="218 piezas orgánicas · 84 anuncios pagos">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
         <div>
-          <div className="t-micro" style={{ color: "var(--sa-base)" }}>GALERÍA · ORGÁNICO VS PAGO</div>
-          <div className="t-h1" style={{ marginTop: 6 }}>Lo que la competencia muestra y lo que paga por mostrar</div>
+          <div className="t-micro" style={{ color: "var(--accent)" }}>GALERÍA · ORGÁNICO VS PAGO</div>
+          <div className="t-h1" style={{ marginTop: 6, color: "var(--text)" }}>Lo que la competencia muestra y lo que paga por mostrar</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Btn kind="ghost" size="sm" icon={<Ic.filter s={11} />}>Filtros</Btn>
