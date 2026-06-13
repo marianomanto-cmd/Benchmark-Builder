@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Ic, NavIc } from "@/components/ui/icons";
 import { Btn } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -30,6 +30,7 @@ export function ScreenShell({
   runMeta?: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const colors = {
     bg: "var(--bg)",
     sb: "#181410",
@@ -115,8 +116,8 @@ export function ScreenShell({
             <span style={{ marginLeft: "auto", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)", padding: "1px 5px", border: `1px solid ${colors.border}`, borderRadius: 3 }}>⌘K</span>
           </button>
           <ThemeToggle />
-          <Btn kind="ghost" size="sm" icon={<Ic.presentation s={12} />}>Presentación</Btn>
-          <Btn kind="primary" size="sm" icon={<Ic.bolt s={11} />}>Nuevo run</Btn>
+          <Btn kind="ghost" size="sm" icon={<Ic.presentation s={12} />} onClick={() => router.push("/reporte")}>Presentación</Btn>
+          <Btn kind="primary" size="sm" icon={<Ic.bolt s={11} />} onClick={() => router.push("/research-plan")}>Nuevo run</Btn>
         </header>
         <div style={{ flex: 1, overflow: "auto", padding: 24 }}>{children}</div>
       </main>

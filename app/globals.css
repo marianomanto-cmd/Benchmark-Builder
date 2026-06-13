@@ -150,6 +150,14 @@ html, body {
 .t-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .t-serif { font-family: var(--font-serif); }
 
+/* Skeleton shimmer (HANDOFF §3.1) */
+@keyframes bb-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.bb-shimmer {
+  background-image: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%);
+  background-size: 200% 100%;
+  animation: bb-shimmer 1.4s ease-in-out infinite;
+}
+
 /* Respect reduced motion globally (HANDOFF §6.4). */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
