@@ -2,14 +2,27 @@
 
 > Documento de contexto para consultar en otra conversación. Última actualización: 2026‑06‑13.
 > App de **research competitivo y social listening asistido por IA**. Caso demo: **Copa Airlines vs Avianca / LATAM / Wingo / Arajet · ruta Cartagena**.
+>
+> ⚠️ **Mantené este documento actualizado en cada cambio** (regla en `AGENTS.md` → "Documentation discipline"). Un cambio no está terminado hasta que la doc lo refleja.
+
+---
+
+## 0. ⚠️ Situación de deploy (acción pendiente del usuario)
+
+- El código está **correctamente pusheado a `main` en GitHub** (HEAD `ff5d847`, rama por defecto `main`). Repo: `marianomanto-cmd/Benchmark-Builder`.
+- **Vercel NO está deployando los commits nuevos de `main`**: su último build quedó en `1d5b542` (anterior a toda la tanda de cambios). Un commit vacío de prueba (`e7433c7`) tampoco disparó build → el auto-deploy de `main` está desconectado o la *Production Branch* no es `main`.
+- **A revisar en Vercel:** Settings → Git → repo conectado + *Production Branch* = `main`; pestaña Deployments (¿hay builds *Failed* posteriores a `1d5b542`?); Ignored Build Step. Si hay build fallido, traer el log.
+- El plugin de Vercel↔Claude se conectó pero sus tools **aún no aparecían** en la sesión donde se trabajó; abrir **sesión nueva** para que carguen y poder inspeccionar deployments/logs desde Claude.
+
+Commits de la sesión (todos en `main`): `032332e` Task 1 costos · `91874f9` rediseño · `18588c7` cortina · `e7433c7` redeploy · `ff5d847` actores/discovery.
 
 ---
 
 ## 1. Resumen del producto
 
-Un operador (agencia/marca) crea **runs** de research. Cada run define un marco (problema de negocio, competidores, alcance/fechas), la app estima el costo, ejecuta scraping + análisis con IA, y produce un **dashboard** (KPIs, charts, feed de menciones, comparativa, galería orgánico/pago) con un **bloque de análisis protagonista por sección** (headline + key takeaways + recomendaciones). Los runs quedan guardados y revisitables.
+Un operador (agencia/marca o consultor político) crea **runs** de research. Cada run define un marco (problema de negocio, competidores, alcance/fechas, **orgánico y/o paid**), la app **estima el costo antes de ejecutar**, corre scraping + análisis con IA bajo **control de costos**, y produce un **dashboard** (KPIs, charts, feed de menciones, comparativa, galería orgánico/pago) con un **bloque de análisis protagonista por sección**. Los runs quedan guardados y revisitables.
 
-**Flujo:** Portal de bienvenida (`/`) → campo IA "¿Qué querés investigar hoy?" → **Wizard** (4 pasos) → estimación de costo → ejecutar run → **Dashboard** (`/overview` + secciones). Historial en `/runs`.
+**Flujo:** Portal (`/`, cortina animada → campo IA "¿Qué querés investigar hoy?") → **discovery** infiere el plan → **Wizard** (problema → competidores → alcance/fechas → **orgánico/paid** → estimación) → ejecutar run (bajo guard de costos) → **Dashboard**. Historial en `/runs`.
 
 ---
 
@@ -18,165 +31,155 @@ Un operador (agencia/marca) crea **runs** de research. Cada run define un marco 
 | Capa | Tecnología |
 |---|---|
 | Framework | **Next.js 16** (App Router, Turbopack), React 19, TypeScript estricto |
-| Estilos | **Tailwind CSS v4** (CSS-first) + design tokens en `app/globals.css` |
+| Estilos | **Tailwind CSS v4** (CSS-first) + tokens en `app/globals.css` |
 | Fuentes | Geist · JetBrains Mono · Newsreader (`next/font`) |
-| UI | Componentes propios (inline-styles + tokens) + **Tremor** (charts/table, vendorizado en `components/tremor/`) + foundation shadcn (`components.json`, `lib/utils` cn) |
-| Tema | **next-themes** (light/dark, default light) con tokens semánticos |
-| Animación | **motion** (Framer Motion) |
-| Backend | **Supabase** (Postgres + Auth + RLS). Project ID: `wjexqyliwwsxjdujgwjo` |
-| IA | **Anthropic Claude** (`claude-opus-4-8`, default) vía `@anthropic-ai/sdk`; **xAI Grok** opcional (`AI_PROVIDER=grok`) |
-| Scraping | **Apify** (IG/TikTok/YouTube/FB/Web), **Grok live search** (X), **Meta Ad Library** (oficial), **Reddit/Mastodon/Bluesky** (APIs públicas) |
-| Deploy | **Vercel** (push a `main` deploya). Repo: `marianomanto-cmd/Benchmark-Builder`. Branch de trabajo = `main`. |
+| UI | Componentes propios (inline-styles + tokens) + **Tremor** (vendorizado) + CSS module para la home (`components/marketing/marketing.module.css`) |
+| Tema | **next-themes**, **default DARK** (toggle claro). Lenguaje fourmula: near-black ciruela + sangría brillante |
+| Animación | **motion** (Framer Motion) + **lenis** (smooth scroll) + Canvas 2D (hero) |
+| Backend | **Supabase** (Postgres + RLS). Project ID: `wjexqyliwwsxjdujgwjo` |
+| IA | **Anthropic Claude** (`claude-opus-4-8`, default) · **xAI Grok** opcional |
+| Scraping | **Apify** (orgánico + ad libraries), **Grok** (X), **Meta Ad Library** (API oficial, ruta política), **Reddit/Mastodon/Bluesky** |
+| Validación | **Zod** (discovery plan, normalizers) |
+| Deploy | **Vercel** (push a `main`). Ver §0 (deploy roto del lado de Vercel). |
 
 ---
 
-## 3. Estructura del repo
+## 3. Estructura del repo (cambios recientes en **negrita**)
 
 ```
 app/
-  page.tsx                 Portal de bienvenida (/)  [dinámico]
-  overview/page.tsx        Dashboard Overview (/overview)  [dinámico]
-  live-feed/ comparativa/ galeria/ research-plan/ editor/ reporte/ runs/   (rutas de pantallas)
-  research-plan/page.tsx   Wizard de intake (Suspense)
-  runs/page.tsx            Historial de runs
-  api/runs/route.ts        POST → dispara un run (executeRun)
-  api/settings/sources/route.ts   POST → guarda config de fuentes
-  globals.css              Tokens (light/dark), tipografías, shimmer, dark variant
-  layout.tsx               ThemeProvider + fuentes
-  overview|live-feed/loading.tsx   Skeletons de marca
+  page.tsx                 Portal (/) → Portal compone hero + secciones marketing
+  not-found.tsx            **404 con carácter**
+  overview/ live-feed/ comparativa/ galeria/ research-plan/ editor/ reporte/ runs/ settings/
+  api/runs/route.ts        POST → executeRun (acepta scope, adIntent, plan)
+  api/runs/[id]/cost/route.ts   **GET → snapshot de costo del run (CostMeter)**
+  api/cron/cost/route.ts   **GET → libera reservas vencidas + checkCostAlerts (Vercel Cron 5min)**
+  api/discovery/route.ts   **POST → infiere ResearchPlan del prompt**
+  api/settings/sources/route.ts  POST → guarda config de fuentes (por platform,scope)
+  globals.css              Tokens light/dark (dark = default), escala editorial, lenis, marquee
+  layout.tsx               ThemeProvider (defaultTheme=dark) + SmoothScroll + OG metadata
 components/
-  screens/                 portal, overview, live-feed, comparativa, galeria,
-                           research-plan (wizard), editor, report-pdf, runs
-  ui/                      primitives (Btn, KPI, Field, Toast, Skel, BBBadge, SentimentChip),
-                           icons, charts (BBBarChart/Sparkline legacy)
-  tremor/                  AreaChart, BarChart, DonutChart, LineChart, Table + utils
-  shell/screen-shell.tsx   Sidebar + topbar + ⌘K + theme toggle + nav
-  domain.tsx               PlatformBadge, MentionCard, CompetitorCard, InsightCard,
-                           AlertCard, CostMeter, MediaThumb, MiniInsight
-  analysis-block.tsx       Bloque de análisis protagonista (headline+takeaways+recs)
-  command-palette.tsx      ⌘K
-  run-button.tsx           Dispara /api/runs (slug, platforms, keywords)
-  theme-provider.tsx / theme-toggle.tsx
+  marketing/               **site-nav, hero-canvas, sources-marquee, what-it-does, process,**
+                           **deliverable, faq, site-footer, marketing.module.css**
+  motion/                  **smooth-scroll (Lenis), reveal (whileInView)**
+  screens/                 portal (compone marketing), **portal-hero (cortina+canvas+box IA)**,
+                           overview, live-feed, comparativa, galeria, research-plan (wizard), editor, report-pdf, runs
+  ui/ tremor/ shell/ domain.tsx analysis-block.tsx command-palette.tsx run-button.tsx theme-*
 lib/
-  platforms.ts             PLATFORMS, tipos (PlatformKey, SentimentKind, ThumbKind, InsightKind)
-  format.ts                Numerales es-AR
-  view-models.ts           VMs (CompetitorVM, MentionVM, InsightVM, RunVM, AnalysisVM, OverviewData)
-  demo.ts                  Datos demo (fallback resiliente)
-  data.ts                  Fetch server-side (con fallback a demo): getOverviewData,
-                           getMentions, getRecentRuns, getRuns, getSectionAnalysis
-  database.types.ts        Tipos generados de Supabase
-  runner.ts                executeRun(slug, platforms?, keywordOverride?) — orquesta el run
-  sources/                 types, reddit, mastodon, bluesky, apify, meta-ads, grok-x, index (registry)
-  ai/                      claude.ts, grok.ts, index.ts (selector AI_PROVIDER)
-  supabase/                client.ts (browser), server.ts (RSC), middleware.ts, admin.ts (service role)
-proxy.ts                   Refresh de sesión Supabase (Next 16 'proxy' convention)
-supabase/migrations/       DDL versionado · supabase/seed.sql
-design/                    Contrato visual original (HANDOFF.md, tokens.css, mocks)
-.claude/skills/            Skills de marketing vendorizados (ai-marketing-skills, marketingskills)
+  platforms.ts             PLATFORM_KEYS (tuple) + PlatformKey (incluye **google_ads, linkedin_ads**)
+  cost/                    **rates, estimate, config, ledger, guarded, alerts, index** (motor de costos)
+  discovery/               **schema (Zod ResearchPlan + heurística), classify (Claude/mock), jobs (planToJobs)**
+  sources/                 types (+scope, +AdMeta), reddit, mastodon, bluesky, apify, **apify-ads**, meta-ads,
+                           grok-x, index (**sourceFor(platform, scope)** + metaAdsOfficial)
+  runner.ts                **executeRun(slug, platforms?, keywords?, {scope, adIntent, plan})** — jobs organic+paid
+  runner-fixtures.ts       **fixtures mock: demoRawMentions, demoAdMentions, demoScores, demoInsightDrafts**
+  ai/ data.ts demo.ts view-models.ts database.types.ts supabase/ format.ts
+scripts/                   **test-run-mock.ts, cost-check.ts** (tsx --conditions=react-server --env-file=.env.local)
+supabase/migrations/       DDL versionado (incluye cost_controls, paid_platforms_enum, source_settings_scope, runs_research_plan)
+.claude/skills/            Skills de marketing vendorizados
 ```
 
 ---
 
 ## 4. Modelo de datos (Supabase, schema public)
 
-- **workspaces** (id, name, slug, brand_color)
-- **projects** (id, workspace_id, name, slug, period_days, status, **keywords[], geo[], languages[]**)
-- **competitors** (id, project_id, name, handle, brand_letter, **accent** (token `var(--series-*)`), is_client, mentions, engagement_total, reach_estimate, sov, sentiment, sort_order, **targets[]**) · unique(project_id, handle)
-- **competitor_platforms** (competitor_id, platform, sort_order)
-- **mentions** (id, project_id, competitor_id, platform, author, handle, ts_label, brand, body, sentiment, is_ad, thumb_type, **external_id, url, published_at, engagement(jsonb), run_id**, metrics(jsonb), sort_order) · unique(project_id, platform, external_id)
-- **insights** (id, project_id, run_id, kind(opp/thr/pat/ano), title, body, sources, confidence, sort_order)
-- **runs** (id, project_id, number, cost_used, cost_soft, cost_hard, status, started_at, finished_at, mentions_count, error)
-- **run_sources** (run_id, platform, status, mentions_count, cost, error)
-- **source_settings** (platform PK, actor_id, enabled, results_limit) — editable desde `/settings`
-- **run_analysis** (project_id, section, headline, body, takeaways[], recommendations[], run_id) · unique(project_id, section)
+Base: **workspaces** (+`settings` jsonb) · **projects** (+`budget_monthly_usd`) · **competitors** · **competitor_platforms** · **mentions** (unique `project_id,platform,external_id`; ads usan `engagement.ad` + `metrics`) · **insights** · **run_sources** · **run_analysis**.
 
-Enums: `platform`, `sentiment_kind`, `insight_kind`, `thumb_kind`, `project_status`.
-**RLS:** habilitada en todas, con policy `public read` (lectura pública para la demo; escrituras requieren service role). El modelo de **auth/multi-tenancy está sin definir** (HANDOFF §10) — decisión pendiente.
+**runs** (+ nuevas cols): `budget_usd` (cap, default 30), `cost_estimated_low/high`, `cost_actual`, **`plan` (jsonb ResearchPlan)**, **`scope`** (organic/paid/both), **`ad_intent`** (commercial/political/mixed). (Quedan `cost_soft/cost_hard` legacy.)
 
-Datos seed cargados: 1 workspace (Copa), 1 project (cartagena-q2-2026), 5 competidores, 18 menciones, 3 insights, 1 run (#42), source_settings (10), run_analysis (overview, comparativa, live-feed, galeria).
+**source_settings** — ahora **PK `(platform, scope)`**: `provider` (apify|meta_api|grok|reddit|mastodon|bluesky|web), `actor_id`, **`actor_build`** (version pin), **`fallback_actor_id`**, `enabled`, `results_limit`. Filas paid sembradas: `meta_ads` (apify scraper; API oficial en ruta política), `google_ads` + `linkedin_ads` (actores **community placeholder** `apify~…`, validar/pinear en Vercel), `x` (grok).
 
----
+**Control de costos (Task 1):**
+- **system_flags** (`key` PK, `value` jsonb) — kill switch: `external_apis_enabled` (master) + `apify_enabled`, `anthropic_enabled`, `openai_enabled`, `brave_enabled`, `xai_enabled`, `meta_api_enabled`.
+- **cost_ledger** (gasto comiteado: run/project/workspace, provider, operation, cost_usd, reservation_id, occurred_at).
+- **pending_charges** (reservas: estimated_cost_usd, status reserved|committed|released|expired, expires_at).
+- **run_steps** (timeline del CostMeter: label, provider, cost_usd, cumulative_usd, metadata).
 
-## 5. Pipeline de ingesta (runner)
+**RPCs:** `budget_spent_with_pending`, `reserve_budget` (lock por run `pg_advisory_xact_lock` FM-05; caps run/project-mensual/workspace-mensual; devuelve ok|soft(≥80%)|hard|error), `commit_charge` (idempotente), `release_charge`, `release_expired_charges`.
 
-`POST /api/runs { slug?, platforms?, keywords? }` → `lib/runner.ts executeRun`:
-1. Cliente admin (service role). Carga project, competitors, source_settings.
-2. Por cada plataforma habilitada: adapter en `lib/sources/` → scrapea (handles de competidores + keywords). Apify resuelve actor desde `source_settings` (DB > env > default). X usa Grok live search (scope neutral, perspectiva del cliente, sin cuenta personal).
-3. Sentimiento con Claude/Grok (`lib/ai`).
-4. Upsert de menciones (dedup por external_id), recálculo de agregados de competidores, regeneración de insights, costo y estado del run.
-- **Sin credenciales, cada fuente se marca `skipped`** y la UI muestra el caso demo → el deploy nunca se rompe.
-
-**Modo DEMO (default):** si `LIVE_RUN` ≠ `true`, "Aprobar y ejecutar" crea un run real poblado con **respuestas estándar canónicas** (menciones/insights/análisis demo), sin llamar a Apify/Claude/Grok. Solo escribe en Supabase (requiere `SUPABASE_SERVICE_ROLE_KEY`, gratis). Con `LIVE_RUN=true` + keys, scrapea y analiza de verdad.
+Enum `platform`: instagram, tiktok, youtube, facebook, x, reddit, mastodon, bluesky, web, meta_ads, **google_ads, linkedin_ads**. RLS `public read` en todas (escrituras = service role). **Auth/multi-tenancy sin definir** (pendiente).
 
 ---
 
-## 6. Diseño / theming
+## 5. Pipeline de ingesta + control de costos
 
-- **Tokens semánticos** en `globals.css`: `--bg, --surface, --surface-2, --border, --border-strong, --text, --text-muted, --text-faint, --accent, --accent-soft` + `--series-1..4, --series-client` (data-viz theme-aware). Bloque `.dark` espeja la paleta cálida (stone) del HANDOFF.
-- Marca: **sangría (#6B1A36)** + neutros stone. Tremor charts tienen variantes `dark:` (paleta `ink/graphite/taupe/sand/sangria`).
-- Identidad editorial (Newsreader en headlines/reporte). Default **light**; **dark** activable con toggle ☾ (rollout completo en las 7 pantallas).
+`POST /api/runs { slug?, platforms?, keywords?, scope?, adIntent?, plan? }` → `lib/runner.ts executeRun`:
+1. Resuelve un **ResearchPlan** (explícito del wizard, o derivado de platforms+scope+adIntent).
+2. `planToJobs(plan, source_settings)` → **un job por `(plataforma × scope)`** (organic y/o paid según scope; enabled).
+3. **Estimación** (`estimateRunCost`) desde esos jobs → `cost_estimated_low/high` en el run.
+4. Cada job pasa por **`guardedCall`** (orden: `isApiEnabled` → reserva `reserveBudget` → llamada con timeout + reintentos acotados → `commitCharge`/`releaseCharge`; escribe `run_steps`+`cost_ledger`).
+5. Routing paid: comercial → scrapers Apify; **político → además API oficial de Meta** (gasto/impresiones) si `meta_api_enabled`+token; fallos **degradan** (no rompen). Ads normalizados a `mentions` (is_ad + `engagement.ad`).
+6. Sentimiento (Claude) + agregados + insights (Claude), todo bajo guard. Finaliza con `cost_actual` desde el ledger.
+
+**Modo de ejecución — `PIPELINE_MODE` (default `mock`):**
+- **mock**: conectores e IA devuelven **fixtures deterministas**; igual pasan por reserve/commit con **costo simulado** (valida el flujo completo a **costo cero**). Reemplaza al viejo `LIVE_RUN`.
+- **live**: una llamada paga ocurre **solo si las 3 condiciones simultáneas**: `PIPELINE_MODE=live` **y** flag del proveedor en `system_flags` **y** API key presente. Si falta cualquiera → no se gasta (fixture).
+- Crons: `GET /api/cron/cost` (Vercel Cron */5) y `npm run cost:check` liberan reservas vencidas + alertas (run>$50, provider>$100/día, aceleración >5×).
+- Validación: `npm run test:run-mock` (requiere `SUPABASE_SERVICE_ROLE_KEY` local) — re-run sin duplicar costos, kill-switch corta en <60s, total == estimación. RPCs validadas vía SQL.
+
+**Discovery (prompt → plan):** `lib/discovery` — `classifyPrompt` (Claude en live / **heurística determinista en mock**, costo cero) → `ResearchPlanSchema` (Zod). Señales: paid = "anuncios/publicidad/campañas/pauta"; organic = "qué se dice/conversación/sentimiento"; político = candidato/elección/partido. El wizard lo usa para pre-seleccionar scope/ad_intent.
+
+---
+
+## 6. Diseño / theming (rediseño fourmula)
+
+- **Dark por defecto** (toggle claro). Paleta `.dark`: `--bg #0A0810`, `--surface #15131C/#1C1924`, texto `#F4F1EA/#8C8696/#5A5563`, **`--accent #F23A5E`** (sangría brillante), `--accent-ink`. Tema claro conserva sangría `#6B1A36`.
+- Escala editorial (`.t-hero`, `.t-section`, `.t-eyebrow`, `.t-lead`) con Newsreader gigante. `--series-*` monocromo + cliente en acento; Tremor `ink/sangria` con variantes `dark:` al nuevo acento.
+- **Home**: cortina de intro (tagline + campo de partículas Canvas 2D moviéndose detrás + contador 0→100% que **sube** y revela el box IA), marquee de fuentes, "qué hace" (swap before/after), proceso 01–04, showcase del reporte, FAQ, footer interactivo. Smooth scroll (Lenis) + reveals; `prefers-reduced-motion`, focus-visible, AA.
+- Componentes del dashboard migrados a tokens semánticos (no rompen en dark). **Responsive** desde la home (nav mobile, type fluida, grillas que colapsan).
 
 ---
 
 ## 7. Pantallas / rutas
 
-| Ruta | Pantalla | Estado |
-|---|---|---|
-| `/` | Portal de bienvenida (animado, campo IA, runs recientes) | ✅ |
-| `/research-plan` | **Wizard** (problema → competidores+magnitud → alcance/fechas → estimación) | ✅ |
-| `/overview` | Dashboard: análisis IA + KPIs + Bar/Donut/Area (Tremor) + insights + cost + competidores | ✅ |
-| `/live-feed` | Stream de menciones + filtros | ✅ (dark) · análisis ✅ |
-| `/comparativa` | Matriz competidor × métrica | ✅ (dark) · análisis ✅ |
-| `/galeria` | Orgánico vs pago (Meta Ad Library) | ✅ (dark) · análisis ✅ |
-| `/editor` | Editor de reporte (3 columnas, hoja blanca) | ✅ (dark) |
-| `/reporte` | Reporte PDF (deliverable, página US Letter) | ✅ (dark visor) |
-| `/runs` | Historial de runs | ✅ |
-| `/settings` | Fuentes y actores de Apify editables | ✅ |
-
-Extras: **⌘K command palette**, transiciones de ruta (fade), skeletons de carga, navegación real en topbar.
+`/` portal (rediseño + cortina) · `/research-plan` wizard (con toggle **orgánico/paid** + discovery + delta de costo) · `/overview` dashboard · `/live-feed` · `/comparativa` · `/galeria` (orgánico vs pago) · `/editor` · `/reporte` · `/runs` · `/settings` (actores por `platform,scope`) · `/not-found`. Extras: ⌘K, transiciones, skeletons.
 
 ---
 
 ## 8. Variables de entorno / API keys
 
-Cargar en **Vercel → Settings → Environment Variables** (documentadas en `.env.example`):
+Cargar en **Vercel → Settings → Environment Variables** (ver `.env.example`):
 
 | Var | Estado | Para qué |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | auto (integración Supabase↔Vercel) | cliente Supabase (públicas) |
-| `SUPABASE_SERVICE_ROLE_KEY` | **verificar/cargar** | escritura del runner |
-| `ANTHROPIC_API_KEY` | tengo la key, **cargar en Vercel** | IA (Claude) |
-| `XAI_API_KEY` (+ `XAI_MODEL=grok-3`) | tengo la key, **cargar en Vercel** | X vía Grok |
-| `APIFY_TOKEN` | tengo la key, **cargar en Vercel** | scraping |
-| `META_AD_LIBRARY_TOKEN` | **falta conseguir** | anuncios Meta |
-| `GOOGLE_AI_API_KEY` (Gemini/nano-banana) | **falta conseguir** | generar imágenes |
-| `AI_PROVIDER` (claude/grok), `RUN_TRIGGER_SECRET` | opcionales | — |
+| `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | auto (integración) | cliente Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | **verificar/cargar** | escritura del runner (y `test:run-mock` local) |
+| `PIPELINE_MODE` | `mock` (default) / `live` | enciende llamadas reales (con flags+keys) |
+| `ANTHROPIC_API_KEY` | tengo la key | IA (Claude) |
+| `XAI_API_KEY` (+`XAI_MODEL`) | tengo la key | X vía Grok |
+| `APIFY_TOKEN` | tengo la key | scraping orgánico + ad libraries |
+| `META_AD_LIBRARY_TOKEN` | **falta** | anuncios Meta API oficial (ruta política) |
+| `OPENAI_API_KEY` | **falta** | transcripción Whisper (Task 2) |
+| `BRAVE_API_KEY` | opcional | búsqueda |
+| `GOOGLE_AI_API_KEY` (Gemini) | **falta** | imágenes (OG/hero reales) |
+| `CRON_SECRET`, `RUN_TRIGGER_SECRET`, `AI_PROVIDER` | opcionales | cron auth / trigger / selector IA |
+| `RATE_*`, `EST_*`, `ALERT_*`, `MAX_*` | opcionales | override de precios/estimación/alertas/límites |
 
-Reddit/Mastodon/Bluesky no requieren key.
+Las keys reales viven solo en `.env.local` (gitignored), **nunca** commiteadas.
 
 ---
 
 ## 9. Hecho vs pendiente
 
-**Hecho:** 7 pantallas + portal + wizard + runs; design system light/dark; Tremor charts; pipeline de ingesta completo (adapters + runner + IA, listo para tokens); **run en modo DEMO (`LIVE_RUN`) para probar el flujo completo sin gastar tokens**; ⌘K; **bloque de análisis en todas las secciones**; historial de runs; settings de fuentes; deploy en Vercel.
+**Hecho:** rediseño fourmula (dark default, home con cortina+box IA, responsive, 404, OG placeholder) · **Task 1 motor de costos** (estimate, reserva atómica, guardedCall, kill-switch, ledger/run_steps, crons, mock end-to-end costo cero) · **actores Apify orgánico/paid + discovery por prompt** (registry por `platform,scope`, planToJobs, routing comercial/político, wizard toggle + delta) · 7 pantallas + portal + wizard + runs + settings · pipeline de ingesta.
 
-**Pendiente:**
-- **Cablear el runner (modo LIVE) para generar el análisis por sección** con Claude+Grok (hoy usa respuestas estándar demo).
-- **Export PDF/PPT** real (hoy `/reporte` es preview).
-- **Mobile / responsive** (las grillas son de ancho fijo; falta layout responsivo + bottom-tabs).
-- **Imágenes reales** (hero/empty states/thumbnails) con Gemini.
-- **Auth / multi-tenancy** y modelo de billing (decisiones abiertas, HANDOFF §10).
-- Conectar Comparativa/Galería a datos reales de DB (hoy usan datos del caso).
+**Pendiente (próximo):**
+1. **Arreglar el deploy de Vercel** (§0) — bloqueante para que el usuario vea los cambios.
+2. **Validar/pinear actores community** (Google/LinkedIn) en Vercel (slugs reales + build pin).
+3. **Task 2 — pipeline de medios** (imagen/video/voiceover): tablas `media_files`/`media_analysis`, `lib/media/` (download con borrado a 12h, extractFrames ffmpeg, extractAudio, analyzeImage/Frame con Claude vision + Zod, transcribe Whisper/captions, consolidate), todo idempotente, acotado y **bajo guard**; fixtures mock; render en `/galeria`. (Era el paso post-actores del plan.)
 
-**Caveats:** los mappers de Apify son best-effort (ajustar por actor); runs largos corren síncronos en serverless (evaluar cola/Edge Function); costos de Apify/Grok aún no se leen del uso real.
+**Otros pendientes:** export PDF/PPT real · imágenes reales (Gemini) · auth/multi-tenancy + billing · conectar Comparativa/Galería a DB real · análisis por sección en modo live.
+
+**Caveats:** mappers de Apify best-effort (ajustar por actor; ads community pueden cambiar schema → ya hay degrade/fallback) · runs largos corren síncronos en serverless (evaluar cola/Edge).
 
 ---
 
 ## 10. Cómo correr local
 
 ```bash
-cp .env.example .env.local   # ya apunta al proyecto Supabase
+cp .env.example .env.local   # apunta al proyecto Supabase; agregar SERVICE_ROLE_KEY para el runner/test
 npm install
 npm run dev                  # http://localhost:3000
 npm run build                # validación
+npm run test:run-mock        # valida un run completo en modo mock (necesita SERVICE_ROLE_KEY)
 ```
