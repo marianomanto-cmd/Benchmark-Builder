@@ -178,6 +178,17 @@ body { background: transparent; }
   .bb-logo { animation: none; box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent); }
 }
 
+/* contentEditable placeholder (editor de reporte). */
+[contenteditable][data-ph]:empty::before { content: attr(data-ph); color: var(--n400); pointer-events: none; }
+
+/* Exportar PDF — imprime sólo la hoja del reporte (.bb-print). */
+@media print {
+  body * { visibility: hidden !important; }
+  .bb-print, .bb-print * { visibility: visible !important; }
+  .bb-print { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none !important; }
+  .bb-noprint { display: none !important; }
+}
+
 /* ============================================================
  * Type utilities (mirror of tokens.css)
  * ========================================================== */

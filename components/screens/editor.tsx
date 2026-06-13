@@ -1,124 +1,252 @@
 "use client";
 
+import { useEffect, useState, type CSSProperties } from "react";
 import { ScreenShell } from "@/components/shell/screen-shell";
 import { Ic } from "@/components/ui/icons";
 import { Btn, BBBadge } from "@/components/ui/primitives";
 import { BBBarChart } from "@/components/ui/charts";
 
-const outline: [string, number, boolean][] = [
-  ["Portada", 1, false], ["Resumen ejecutivo", 2, false], ["Metodología", 3, false],
-  ["Volumen y SOV", 4, true], ["Avianca", 5, false], ["LATAM", 6, false], ["Wingo", 7, false],
-  ["Arajet", 8, false], ["Copa", 9, false], ["Galería · orgánico", 10, false], ["Galería · ads", 11, false],
-  ["Insights", 12, false], ["Recomendaciones", 13, false], ["Anexo", 14, false],
-];
+// Functional report editor: a block-based document the user composes, with
+// inline editing, an outline, add/move/duplicate/delete, live preview, PDF
+// export (print) and autosave to localStorage. Zero backend / zero cost.
 
-function PropRow({ k, v }: { k: string; v: string }) {
+type BlockType = "h1" | "h2" | "text" | "quote" | "kpi" | "list" | "chart";
+type Block = { id: string; type: BlockType; text: string; value?: string; items?: string[] };
+type Doc = { title: string; subtitle: string; blocks: Block[] };
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+const LS_KEY = "phema-report";
+
+const BLOCK_LABELS: Record<BlockType, string> = {
+  h1: "Título", h2: "Subtítulo", text: "Párrafo", quote: "Cita", kpi: "KPI", list: "Lista", chart: "Gráfico",
+};
+const INSERTABLE: BlockType[] = ["h1", "h2", "text", "quote", "kpi", "list", "chart"];
+
+const SEED: Doc = {
+  title: "Cartagena, en el aire de cuatro aerolíneas",
+  subtitle: "Benchmark competitivo · ruta Cartagena · Q2 2026",
+  blocks: [
+    { id: uid(), type: "h1", text: "Resumen ejecutivo" },
+    { id: uid(), type: "text", text: "Entre el 1 de marzo y el 30 de abril, las cinco aerolíneas analizadas produjeron 2.418 piezas relacionadas a Cartagena. Avianca concentra el 41,3% del volumen total; Copa lidera en engagement por pieza con un perfil 78% orgánico." },
+    { id: uid(), type: "kpi", text: "Share of voice · Avianca", value: "41,3%" },
+    { id: uid(), type: "chart", text: "Volumen mensual por competidor" },
+    { id: uid(), type: "quote", text: "El volumen de Avianca casi cuadruplica al de Copa, pero su engagement promedio por pieza es sólo 1,8× más alto." },
+    { id: uid(), type: "h2", text: "Recomendaciones" },
+    { id: uid(), type: "list", text: "", items: ["Activar TikTok orgánico donde LATAM está ausente.", "Sumar 1–2 creativos pagos por semana en Meta.", "Programar las piezas clave de martes a jueves por la mañana."] },
+  ],
+};
+
+function Editable({ value, onCommit, placeholder, style }: { value: string; onCommit: (v: string) => void; placeholder?: string; style?: CSSProperties }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 10px", background: "var(--surface-2)", borderRadius: "var(--r-sm)" }}>
-      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{k}</span>
-      <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text)" }}>{v} <Ic.arrowDown s={8} /></span>
+    <div
+      contentEditable
+      suppressContentEditableWarning
+      data-ph={placeholder}
+      onBlur={(e) => onCommit(e.currentTarget.textContent ?? "")}
+      style={{ outline: "none", cursor: "text", minHeight: "1em", ...style }}
+    >
+      {value}
     </div>
   );
 }
 
 export function Editor() {
+  const [doc, setDoc] = useState<Doc>(SEED);
+  const [sel, setSel] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) setDoc(JSON.parse(raw) as Doc);
+    } catch {
+      /* ignore */
+    }
+    setLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(doc));
+    } catch {
+      /* ignore */
+    }
+  }, [doc, loaded]);
+
+  const update = (id: string, patch: Partial<Block>) =>
+    setDoc((d) => ({ ...d, blocks: d.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) }));
+
+  function addBlock(type: BlockType) {
+    const nb: Block = {
+      id: uid(),
+      type,
+      text: type === "kpi" ? "Nueva métrica" : type === "list" || type === "chart" ? (type === "chart" ? "Nuevo gráfico" : "") : `Nuevo ${BLOCK_LABELS[type].toLowerCase()}`,
+      value: type === "kpi" ? "00" : undefined,
+      items: type === "list" ? ["Primer punto"] : undefined,
+    };
+    setDoc((d) => {
+      const i = sel ? d.blocks.findIndex((b) => b.id === sel) : d.blocks.length - 1;
+      const blocks = [...d.blocks];
+      blocks.splice(i + 1, 0, nb);
+      return { ...d, blocks };
+    });
+    setSel(nb.id);
+  }
+  function move(id: string, dir: -1 | 1) {
+    setDoc((d) => {
+      const i = d.blocks.findIndex((b) => b.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= d.blocks.length) return d;
+      const blocks = [...d.blocks];
+      [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
+      return { ...d, blocks };
+    });
+  }
+  const remove = (id: string) => { setDoc((d) => ({ ...d, blocks: d.blocks.filter((b) => b.id !== id) })); setSel(null); };
+  function duplicate(id: string) {
+    setDoc((d) => {
+      const i = d.blocks.findIndex((b) => b.id === id);
+      if (i < 0) return d;
+      const blocks = [...d.blocks];
+      blocks.splice(i + 1, 0, { ...d.blocks[i], id: uid() });
+      return { ...d, blocks };
+    });
+  }
+
+  const selected = doc.blocks.find((b) => b.id === sel) ?? null;
+  const headings = doc.blocks.filter((b) => b.type === "h1" || b.type === "h2");
+
+  const grid = preview ? "1fr" : "220px 1fr 280px";
+
   return (
-    <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Reportes", "Cartagena Q2 · v3"]} badges={<BBBadge tone="info" size="sm">borrador</BBBadge>} runMeta="autoguardado hace 4 s">
-      <div className="bb-editor" style={{ display: "grid", gridTemplateColumns: "220px 1fr 280px", gap: 14, height: "100%" }}>
+    <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Editor de reporte"]} badges={<BBBadge tone="info" size="sm">borrador</BBBadge>} runMeta={loaded ? "autoguardado" : "cargando…"}>
+      <div className="bb-editor" style={{ display: "grid", gridTemplateColumns: grid, gap: 14, height: "100%" }}>
         {/* outline */}
-        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 14, overflow: "auto" }}>
-          <div className="t-micro">ÍNDICE · 14 PÁGINAS</div>
-          <div style={{ marginTop: 12, display: "flex", flexDirection: "column" }}>
-            {outline.map(([n, p, active]) => (
-              <a key={n} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: "var(--r-sm)", background: active ? "var(--surface-2)" : "transparent", borderLeft: active ? "2px solid var(--accent)" : "2px solid transparent", fontSize: 12, color: active ? "var(--text)" : "var(--text-muted)", fontWeight: active ? 500 : 400 }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-faint)", width: 18 }}>{String(p).padStart(2, "0")}</span>
-                <span style={{ flex: 1 }}>{n}</span>
-              </a>
-            ))}
-            <div style={{ borderTop: "1px solid var(--border)", marginTop: 8, paddingTop: 8 }}>
-              <Btn kind="ghost" size="sm" icon={<Ic.plus s={10} />}>Agregar sección</Btn>
+        {!preview && (
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 14, overflow: "auto" }}>
+            <div className="t-micro">ÍNDICE · {headings.length} secciones</div>
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 2 }}>
+              {headings.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Agregá un título.</div>}
+              {headings.map((h) => (
+                <button
+                  key={h.id}
+                  type="button"
+                  onClick={() => { setSel(h.id); document.getElementById(`blk-${h.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); }}
+                  style={{ textAlign: "left", display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", paddingLeft: h.type === "h2" ? 22 : 10, borderRadius: "var(--r-sm)", background: sel === h.id ? "var(--surface-2)" : "transparent", borderLeft: sel === h.id ? "2px solid var(--accent)" : "2px solid transparent", fontSize: 12, color: sel === h.id ? "var(--text)" : "var(--text-muted)", border: "none", cursor: "pointer", width: "100%" }}
+                >
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.text || "—"}</span>
+                </button>
+              ))}
+              <div style={{ borderTop: "1px solid var(--border)", marginTop: 8, paddingTop: 8 }}>
+                <Btn kind="ghost" size="sm" icon={<Ic.plus s={10} />} onClick={() => addBlock("h2")}>Agregar sección</Btn>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* canvas */}
         <div style={{ background: "var(--surface-2)", borderRadius: "var(--r-md)", padding: 24, overflow: "auto" }}>
-          <div style={{ width: "100%", maxWidth: 680, margin: "0 auto", background: "#fff", boxShadow: "var(--sh-3)", minHeight: "100%", padding: "clamp(28px, 6vw, 56px) clamp(20px, 6vw, 64px)", position: "relative" }}>
-            <div style={{ position: "absolute", top: 24, left: 24, right: 24, display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--n400)", fontFamily: "var(--font-mono)" }}>
-              <span>BENCHMARK BUILDER · CARTAGENA Q2 2026</span>
-              <span>04 / 14</span>
-            </div>
-            <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--sa-base)", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>SECCIÓN 04</div>
-            <h1 style={{ fontFamily: "var(--font-serif)", fontSize: 42, lineHeight: "46px", fontWeight: 500, letterSpacing: "-0.025em", margin: "10px 0 18px", color: "var(--n900)", textWrap: "balance" }}>
-              Volumen y share of voice
-            </h1>
-            <p style={{ fontFamily: "var(--font-serif)", fontSize: 16, lineHeight: "26px", color: "var(--n800)", textWrap: "pretty", margin: "0 0 18px" }}>
-              Entre el 1 de marzo y el 30 de abril, las cinco aerolíneas analizadas produjeron <span style={{ fontFamily: "var(--font-mono)", fontSize: 14 }}>2.418</span> piezas relacionadas a Cartagena. <em>Avianca</em> concentra el <span style={{ background: "var(--sa-soft)", padding: "1px 6px", borderRadius: 3, fontFamily: "var(--font-mono)", fontSize: 14, color: "var(--sa-strong)" }}>41,3 %</span> del volumen total, seguida por LATAM (24 %) y Wingo (12,9 %).
-            </p>
-            {/* embedded chart card with edit chrome */}
-            <div style={{ position: "relative", border: "2px dashed var(--sa-base)", borderRadius: "var(--r-sm)", padding: 18, margin: "18px 0", background: "#fffdfa" }}>
-              <span style={{ position: "absolute", top: -9, left: 14, background: "var(--sa-base)", color: "#fff", fontSize: 9, fontFamily: "var(--font-mono)", padding: "2px 7px", letterSpacing: ".08em", borderRadius: 2, textTransform: "uppercase" }}>BLOQUE · GRÁFICO · seleccionado</span>
-              <span style={{ position: "absolute", top: -30, right: 0, display: "flex", gap: 4 }}>
-                <Btn kind="secondary" size="sm">Reemplazar fuente</Btn>
-                <Btn kind="ghost" size="sm" icon={<Ic.copy s={11} />}>Duplicar</Btn>
-                <Btn kind="ghost" size="sm">Eliminar</Btn>
-              </span>
-              <div style={{ fontFamily: "var(--font-serif)", fontSize: 11, color: "var(--n500)", textTransform: "uppercase", letterSpacing: ".08em" }}>FIG. 4.1</div>
-              <div style={{ fontFamily: "var(--font-serif)", fontSize: 18, fontWeight: 500, color: "var(--n900)", marginTop: 4 }}>Volumen mensual por competidor</div>
-              <BBBarChart />
-            </div>
-            <p style={{ fontFamily: "var(--font-serif)", fontSize: 16, lineHeight: "26px", color: "var(--n800)", textWrap: "pretty", margin: "0 0 14px" }}>
-              Copa, en quinta posición con <span style={{ fontFamily: "var(--font-mono)", fontSize: 14 }}>240</span> menciones (9,9 %), opera con un perfil más orgánico que paid: <span style={{ fontFamily: "var(--font-mono)", fontSize: 14 }}>78 %</span> del contenido es no-pago, frente al <span style={{ fontFamily: "var(--font-mono)", fontSize: 14 }}>62 %</span> de Avianca.
-            </p>
-            <div style={{ background: "var(--n50)", borderLeft: "3px solid var(--sa-base)", padding: "14px 18px", margin: "18px 0" }}>
-              <div className="t-micro" style={{ color: "var(--sa-base)" }}>HALLAZGO · 4.1</div>
-              <div style={{ fontFamily: "var(--font-serif)", fontSize: 18, lineHeight: "26px", color: "var(--n900)", marginTop: 6, textWrap: "balance" }}>
-                &ldquo;El volumen de Avianca casi cuadruplica al de Copa, pero su engagement promedio por pieza es sólo 1,8× más alto.&rdquo;
-              </div>
-            </div>
+          <div className="bb-print" style={{ width: "100%", maxWidth: 760, margin: "0 auto", background: "#fff", boxShadow: "var(--sh-3)", minHeight: "100%", padding: "clamp(28px, 6vw, 64px)", position: "relative", color: "var(--n900)" }}>
+            <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--n400)", letterSpacing: ".1em", textTransform: "uppercase" }}>Phema · reporte</div>
+            <Editable value={doc.title} onCommit={(v) => setDoc((d) => ({ ...d, title: v }))} placeholder="Título del reporte" style={{ fontFamily: "var(--font-serif)", fontSize: "clamp(28px, 5vw, 44px)", lineHeight: 1.05, fontWeight: 500, letterSpacing: "-0.02em", margin: "8px 0 6px", color: "var(--n900)" }} />
+            <Editable value={doc.subtitle} onCommit={(v) => setDoc((d) => ({ ...d, subtitle: v }))} placeholder="Subtítulo" style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--n500)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 24 }} />
+
+            {doc.blocks.map((b) => {
+              const isSel = !preview && b.id === sel;
+              return (
+                <div
+                  key={b.id}
+                  id={`blk-${b.id}`}
+                  onClick={() => !preview && setSel(b.id)}
+                  style={{ position: "relative", margin: "0 0 16px", padding: preview ? 0 : "6px 8px", borderRadius: 6, border: isSel ? "1px solid var(--sa-base)" : "1px solid transparent", background: isSel ? "rgba(107,26,54,.04)" : "transparent", cursor: preview ? "default" : "pointer" }}
+                >
+                  {b.type === "h1" && <Editable value={b.text} onCommit={(v) => update(b.id, { text: v })} placeholder="Título de sección" style={{ fontFamily: "var(--font-serif)", fontSize: 28, lineHeight: "32px", fontWeight: 500, letterSpacing: "-0.02em", color: "var(--n900)" }} />}
+                  {b.type === "h2" && <Editable value={b.text} onCommit={(v) => update(b.id, { text: v })} placeholder="Subtítulo" style={{ fontFamily: "var(--font-serif)", fontSize: 20, lineHeight: "26px", fontWeight: 500, color: "var(--n800)" }} />}
+                  {b.type === "text" && <Editable value={b.text} onCommit={(v) => update(b.id, { text: v })} placeholder="Escribí un párrafo…" style={{ fontFamily: "var(--font-serif)", fontSize: 16, lineHeight: "26px", color: "var(--n800)" }} />}
+                  {b.type === "quote" && (
+                    <div style={{ borderLeft: "3px solid var(--sa-base)", paddingLeft: 16 }}>
+                      <Editable value={b.text} onCommit={(v) => update(b.id, { text: v })} placeholder="Cita destacada…" style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 18, lineHeight: "26px", color: "var(--n900)" }} />
+                    </div>
+                  )}
+                  {b.type === "kpi" && (
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 12, padding: "10px 14px", background: "var(--n50)", borderRadius: 8 }}>
+                      <Editable value={b.value ?? ""} onCommit={(v) => update(b.id, { value: v })} placeholder="00%" style={{ fontFamily: "var(--font-mono)", fontSize: 30, fontWeight: 600, color: "var(--sa-base)" }} />
+                      <Editable value={b.text} onCommit={(v) => update(b.id, { text: v })} placeholder="Etiqueta del KPI" style={{ fontSize: 13, color: "var(--n600)" }} />
+                    </div>
+                  )}
+                  {b.type === "list" && (
+                    <ul style={{ margin: 0, paddingLeft: 20 }}>
+                      {(b.items ?? []).map((it, i) => (
+                        <li key={i} style={{ fontFamily: "var(--font-serif)", fontSize: 16, lineHeight: "26px", color: "var(--n800)", marginBottom: 4 }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                            <Editable value={it} onCommit={(v) => update(b.id, { items: (b.items ?? []).map((x, j) => (j === i ? v : x)) })} placeholder="Ítem…" style={{ flex: 1 }} />
+                            {!preview && <button type="button" onClick={(e) => { e.stopPropagation(); update(b.id, { items: (b.items ?? []).filter((_, j) => j !== i) }); }} style={{ border: "none", background: "transparent", color: "var(--n400)", cursor: "pointer", fontSize: 12 }}>✕</button>}
+                          </div>
+                        </li>
+                      ))}
+                      {!preview && (
+                        <li style={{ listStyle: "none", marginLeft: -20 }}>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); update(b.id, { items: [...(b.items ?? []), "Nuevo punto"] }); }} style={{ border: "none", background: "transparent", color: "var(--sa-base)", cursor: "pointer", fontSize: 12, fontFamily: "var(--font-sans)" }}>+ ítem</button>
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                  {b.type === "chart" && (
+                    <div>
+                      <Editable value={b.text} onCommit={(v) => update(b.id, { text: v })} placeholder="Título del gráfico" style={{ fontFamily: "var(--font-serif)", fontSize: 14, color: "var(--n600)", marginBottom: 6 }} />
+                      <BBBarChart />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* properties / blocks */}
-        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 14, display: "flex", flexDirection: "column", gap: 14, overflow: "auto" }}>
-          <div>
-            <div className="t-micro">BLOQUE SELECCIONADO</div>
-            <div style={{ marginTop: 8, padding: "10px 12px", border: "1px solid var(--accent)", borderRadius: "var(--r-sm)", background: "var(--accent-soft)" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>Gráfico · barras apiladas</div>
-              <div style={{ fontSize: 11, color: "var(--accent)", fontFamily: "var(--font-mono)", marginTop: 2 }}>fig. 4.1 · 5 series · 12 meses</div>
+        {!preview && (
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 14, display: "flex", flexDirection: "column", gap: 14, overflow: "auto" }}>
+            <div>
+              <div className="t-micro">BLOQUE SELECCIONADO</div>
+              {selected ? (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ padding: "10px 12px", border: "1px solid var(--accent)", borderRadius: "var(--r-sm)", background: "var(--accent-soft)" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>{BLOCK_LABELS[selected.type]}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                    <Btn kind="secondary" size="sm" onClick={() => move(selected.id, -1)}>↑ Subir</Btn>
+                    <Btn kind="secondary" size="sm" onClick={() => move(selected.id, 1)}>↓ Bajar</Btn>
+                    <Btn kind="ghost" size="sm" icon={<Ic.copy s={11} />} onClick={() => duplicate(selected.id)}>Duplicar</Btn>
+                    <Btn kind="destructive" size="sm" onClick={() => remove(selected.id)}>Eliminar</Btn>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-muted)" }}>Hacé clic en un bloque del reporte para editarlo o moverlo.</div>
+              )}
+            </div>
+            <div>
+              <div className="t-micro">INSERTAR BLOQUE</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
+                {INSERTABLE.map((t) => (
+                  <button key={t} type="button" onClick={() => addBlock(t)} style={{ padding: "8px 6px", border: "1px solid var(--border)", background: "var(--surface)", borderRadius: "var(--r-sm)", fontSize: 11, color: "var(--text)", cursor: "pointer" }}>{BLOCK_LABELS[t]}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+              <Btn kind="secondary" size="md" icon={<Ic.eye s={12} />} onClick={() => setPreview(true)}>Vista previa</Btn>
+              <Btn kind="accent" size="md" icon={<Ic.download s={12} />} onClick={() => window.print()}>Exportar PDF</Btn>
             </div>
           </div>
-          <div>
-            <div className="t-micro">FUENTE DE DATOS</div>
-            <div style={{ marginTop: 8, padding: "8px 12px", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12, color: "var(--text)" }}>run #042</span>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>vigente · 12 min</span>
-            </div>
-          </div>
-          <div>
-            <div className="t-micro">PROPIEDADES</div>
-            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-              <PropRow k="Tipo" v="Stacked bars" />
-              <PropRow k="Período" v="60 días" />
-              <PropRow k="Highlight" v="Copa · sangría" />
-              <PropRow k="Mostrar leyenda" v="sí" />
-              <PropRow k="Mostrar ejes" v="sí" />
-            </div>
-          </div>
-          <div>
-            <div className="t-micro">INSERTAR BLOQUE</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
-              {["Texto", "H2", "Cita", "Gráfico", "Tabla", "KPI", "Galería", "Ranking"].map((b) => (
-                <button key={b} type="button" style={{ padding: "8px 6px", border: "1px solid var(--border)", background: "var(--surface)", borderRadius: "var(--r-sm)", fontSize: 11, color: "var(--text)", cursor: "pointer" }}>{b}</button>
-              ))}
-            </div>
-          </div>
-          <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
-            <Btn kind="secondary" size="md" icon={<Ic.eye s={12} />}>Vista previa</Btn>
-            <Btn kind="accent" size="md" icon={<Ic.download s={12} />}>Exportar PDF</Btn>
-          </div>
-        </div>
+        )}
       </div>
+
+      {preview && (
+        <div className="bb-noprint" style={{ position: "fixed", right: 24, bottom: 24, zIndex: 60, display: "flex", gap: 8 }}>
+          <Btn kind="secondary" size="md" onClick={() => setPreview(false)}>Salir de vista previa</Btn>
+          <Btn kind="accent" size="md" icon={<Ic.download s={12} />} onClick={() => window.print()}>Exportar PDF</Btn>
+        </div>
+      )}
     </ScreenShell>
   );
 }
