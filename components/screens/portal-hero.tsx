@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { Sparkles, ArrowRight, Wand2, Compass } from "lucide-react";
-import { HeroCanvas } from "@/components/marketing/hero-canvas";
 import { HomeWizard } from "@/components/screens/home-wizard";
 import s from "@/components/marketing/marketing.module.css";
 
@@ -26,6 +25,7 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
   const [focused, setFocused] = useState(false);
   const [wizardQuery, setWizardQuery] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const bgWrapRef = useRef<HTMLDivElement>(null);
 
   // Intro curtain: starts covering the hero (default "intro") so there's no
   // flash of the box; the particle field drifts behind the tagline, a counter
@@ -62,6 +62,20 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
     return () => clearInterval(t);
   }, []);
 
+  // Mouse parallax on the hero background image (skipped under reduced motion).
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const el = bgWrapRef.current;
+    if (!el) return;
+    const onMove = (e: PointerEvent) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * -8;
+      const y = (e.clientY / window.innerHeight - 0.5) * -8;
+      el.style.transform = `translate(${x}px, ${y}px) scale(1.04)`;
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, []);
+
   // The wizard lives ON the home: opening it shows the step-by-step frame inline
   // (brand → markets → competitors → scope → discards → dates → cost) until the
   // user approves. No routing to a separate page.
@@ -79,7 +93,10 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
   return (
     <>
     <section className={s.hero}>
-      <HeroCanvas className={s.heroCanvas} />
+      <div className={s.heroBgWrap} ref={bgWrapRef} aria-hidden="true">
+        <div className={s.heroBg} style={{ backgroundImage: "url(/hero/hero-network.jpg)" }} />
+      </div>
+      <div className={s.heroScrim} aria-hidden="true" />
 
       <AnimatePresence>
         {phase === "intro" && (
