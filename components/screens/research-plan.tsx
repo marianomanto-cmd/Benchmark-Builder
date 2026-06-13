@@ -21,15 +21,15 @@ const COMPETITORS: Comp[] = [
 
 type Family = "organic" | "paid";
 const SOURCES: { key: PlatformKey; label: string; cost: number; note: string; family: Family }[] = [
-  { key: "instagram", label: "Instagram", cost: 0.42, note: "orgánico · Apify", family: "organic" },
-  { key: "tiktok", label: "TikTok", cost: 0.28, note: "orgánico · Apify", family: "organic" },
-  { key: "youtube", label: "YouTube", cost: 0.18, note: "orgánico · Apify", family: "organic" },
+  { key: "instagram", label: "Instagram", cost: 0.42, note: "orgánico", family: "organic" },
+  { key: "tiktok", label: "TikTok", cost: 0.28, note: "orgánico", family: "organic" },
+  { key: "youtube", label: "YouTube", cost: 0.18, note: "orgánico", family: "organic" },
   { key: "x", label: "X", cost: 0.14, note: "live search", family: "organic" },
   { key: "reddit", label: "Reddit", cost: 0.12, note: "API pública", family: "organic" },
-  { key: "web", label: "Web · prensa", cost: 0.42, note: "Apify", family: "organic" },
-  { key: "meta_ads", label: "Meta Ad Library", cost: 0.3, note: "paid · scraper", family: "paid" },
-  { key: "google_ads", label: "Google Ads Transparency", cost: 0.28, note: "paid · Apify", family: "paid" },
-  { key: "linkedin_ads", label: "LinkedIn Ad Library", cost: 0.22, note: "paid · Apify", family: "paid" },
+  { key: "web", label: "Web · prensa", cost: 0.42, note: "orgánico", family: "organic" },
+  { key: "meta_ads", label: "Meta Ad Library", cost: 0.3, note: "anuncios", family: "paid" },
+  { key: "google_ads", label: "Google Ads Transparency", cost: 0.28, note: "anuncios", family: "paid" },
+  { key: "linkedin_ads", label: "LinkedIn Ad Library", cost: 0.22, note: "anuncios", family: "paid" },
 ];
 
 const MAG = [
@@ -228,8 +228,8 @@ export function ResearchPlan() {
               <div className="t-micro" style={{ color: "var(--accent)" }}>ALCANCE DE FUENTES</div>
               <div className="t-h2" style={{ marginTop: 8, color: "var(--text)" }}>¿Solo orgánico, o también paid media?</div>
               <div className="t-small" style={{ color: "var(--text-muted)", marginTop: 6, marginBottom: 14 }}>
-                Paid suma las bibliotecas de anuncios (Meta, Google, LinkedIn). Cada actor agrega costo por anuncio.
-                {adIntent === "political" && " · Intención política detectada: para Meta se usa la API oficial (gasto e impresiones) si hay token."}
+                Paid suma las bibliotecas de anuncios (Meta, Google, LinkedIn). Cada fuente suma costo por anuncio.
+                {adIntent === "political" && " · Intención política detectada: se prioriza la transparencia de anuncios que declara cada plataforma."}
               </div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 {([["organic", "Solo orgánico"], ["both", "Orgánico + paid"]] as const).map(([val, label]) => {

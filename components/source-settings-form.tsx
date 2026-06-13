@@ -12,10 +12,8 @@ export type SourceSettingVM = {
   scope: "organic" | "paid";
   provider: string;
   name: string;
-  actorId: string;
   enabled: boolean;
   resultsLimit: number;
-  usesActor: boolean;
 };
 
 export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) {
@@ -41,7 +39,9 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
             platform: r.platform,
             scope: r.scope,
             provider: r.provider,
-            actor_id: r.usesActor ? r.actorId : null,
+            // El método de captura óptimo se elige automáticamente por caso de
+            // estudio; el usuario no lo configura. `null` = selección automática.
+            actor_id: null,
             enabled: r.enabled,
             results_limit: r.resultsLimit,
           })),
@@ -74,13 +74,13 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
   };
 
   return (
-    <div style={{ maxWidth: 860 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+    <div style={{ maxWidth: 760 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
         <div>
           <div className="t-micro" style={{ color: "var(--accent)" }}>SETTINGS · FUENTES</div>
-          <div className="t-h1" style={{ marginTop: 6 }}>Fuentes y actores de scraping</div>
+          <div className="t-h1" style={{ marginTop: 6 }}>Fuentes</div>
           <div className="t-body" style={{ color: "var(--text-muted)", marginTop: 6, maxWidth: 560 }}>
-            Activá o desactivá cada fuente y editá el actor de Apify sin salir de la app. Los cambios se aplican en el próximo run.
+            Elegí qué plataformas participan y el tope de resultados por fuente. El método de captura óptimo de cada una se selecciona de forma automática según el caso de estudio.
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -89,29 +89,40 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
         </div>
       </div>
 
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 10,
+          padding: "12px 14px",
+          marginBottom: 16,
+          borderRadius: "var(--r-md)",
+          border: "1px solid color-mix(in srgb, var(--accent) 30%, var(--border))",
+          background: "color-mix(in srgb, var(--accent) 8%, var(--surface))",
+        }}
+      >
+        <span style={{ color: "var(--accent)", flexShrink: 0, marginTop: 1 }}><Ic.bolt s={16} /></span>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>Selección automática</div>
+          <div className="t-body" style={{ color: "var(--text-muted)", fontSize: 12.5 }}>
+            Para cada reporte se elige automáticamente el mejor método de captura por fuente en función del caso de estudio (mercado, idioma, competidores y si la búsqueda es orgánica o de anuncios). No hay nada que configurar acá.
+          </div>
+        </div>
+      </div>
+
       <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 2fr 0.8fr 0.8fr", gap: 12, padding: "10px 16px", background: "var(--surface-2)", borderBottom: "1px solid var(--border)" }}>
-          {["Fuente", "Actor de Apify", "Límite", "Activa"].map((h) => (
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 84px 64px", gap: 12, padding: "10px 16px", background: "var(--surface-2)", borderBottom: "1px solid var(--border)" }}>
+          {["Fuente", "Límite", "Activa"].map((h) => (
             <div key={h} className="t-micro">{h}</div>
           ))}
         </div>
         {rows.map((r) => (
-          <div key={`${r.platform}-${r.scope}`} style={{ display: "grid", gridTemplateColumns: "1.4fr 2fr 0.8fr 0.8fr", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border)", alignItems: "center", opacity: r.enabled ? 1 : 0.55 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div key={`${r.platform}-${r.scope}`} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 84px 64px", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border)", alignItems: "center", opacity: r.enabled ? 1 : 0.55 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
               <PlatformBadge platform={r.platform} size="md" />
-              <span style={{ fontSize: 13, fontWeight: 500 }}>{r.name}</span>
-              <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", letterSpacing: ".08em", textTransform: "uppercase", padding: "1px 6px", borderRadius: 99, border: `1px solid ${r.scope === "paid" ? "var(--accent)" : "var(--border-strong)"}`, color: r.scope === "paid" ? "var(--accent)" : "var(--text-muted)" }}>{r.scope === "paid" ? "paid" : "org"}</span>
+              <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+              <span style={{ flexShrink: 0, fontSize: 9, fontFamily: "var(--font-mono)", letterSpacing: ".08em", textTransform: "uppercase", padding: "1px 6px", borderRadius: 99, border: `1px solid ${r.scope === "paid" ? "var(--accent)" : "var(--border-strong)"}`, color: r.scope === "paid" ? "var(--accent)" : "var(--text-muted)" }}>{r.scope === "paid" ? "paid" : "org"}</span>
             </div>
-            {r.usesActor ? (
-              <input
-                value={r.actorId}
-                onChange={(e) => patch(r.platform, r.scope, { actorId: e.target.value })}
-                placeholder="usuario~actor"
-                style={inputStyle}
-              />
-            ) : (
-              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{r.provider === "meta_api" ? "API oficial · sin actor" : "API pública · sin actor"}</span>
-            )}
             <input
               type="number"
               min={1}

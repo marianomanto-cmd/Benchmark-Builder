@@ -1,9 +1,11 @@
 import type { PlatformKey } from "@/lib/platforms";
 import type { Scope } from "@/lib/sources/types";
+import { selectActor } from "@/lib/sources/select-actor";
 import type { ResearchPlan } from "./schema";
 
-// One extraction job per (platform × scope), with the actor resolved from
-// source_settings (DB > env > default happens in the connector via actorId).
+// One extraction job per (platform × scope). The capture method (actor) is NOT
+// user-configured: it's selected automatically per case study (selectActor).
+// A legacy/ops actor_id pinned in source_settings still wins if present.
 export type ExtractionJob = {
   platform: PlatformKey;
   scope: Scope;
@@ -42,7 +44,7 @@ export function planToJobs(plan: ResearchPlan, settings: SettingRow[], maxItems 
       platform: row.platform,
       scope: row.scope as Scope,
       provider: row.provider ?? "apify",
-      actorId: row.actor_id ?? undefined,
+      actorId: row.actor_id ?? selectActor(row.platform, row.scope as Scope, plan),
       fallbackActorId: row.fallback_actor_id ?? undefined,
       items: Math.min(row.results_limit ?? 25, maxItems),
       political,

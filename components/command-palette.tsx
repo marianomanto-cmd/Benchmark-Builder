@@ -18,7 +18,7 @@ const NAV: Item[] = [
   { label: "Reporte PDF", hint: "Deliverable final", href: "/reporte" },
   { label: "Runs", hint: "Historial de runs", href: "/runs" },
   { label: "Proyectos", hint: "Carpetas de runs", href: "/proyectos" },
-  { label: "Settings", hint: "Fuentes y actores", href: "/settings" },
+  { label: "Settings", hint: "Fuentes", href: "/settings" },
 ];
 
 // Run-scoped search index: the run's own entities (competitors, insights) and

@@ -6,7 +6,9 @@ export const runtime = "nodejs";
 
 type Row = { platform: PlatformKey; scope?: string; provider?: string | null; actor_id: string | null; enabled: boolean; results_limit: number };
 
-// POST /api/settings/sources — upsert source configuration (Apify actor ids, on/off, limits).
+// POST /api/settings/sources — upsert source configuration (on/off, result limits).
+// The capture method/actor is NOT user-managed: it's selected automatically per
+// case study (see lib/sources/select-actor.ts), so the form sends actor_id: null.
 export async function POST(req: Request) {
   const secret = process.env.RUN_TRIGGER_SECRET;
   if (secret && req.headers.get("x-run-secret") !== secret) {

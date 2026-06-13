@@ -1,6 +1,6 @@
 # Phema — Estado de desarrollo (repo: Benchmark-Builder)
 
-> Documento de contexto para consultar en otra conversación. Última actualización: 2026‑06‑13 (sesión extendida). Producto: **Phema** (repo: Benchmark-Builder).
+> Documento de contexto para consultar en otra conversación. Última actualización: 2026‑06‑13 (sesión extendida; selección de actores automática, fuera de /settings). Producto: **Phema** (repo: Benchmark-Builder).
 > App de **research competitivo y social listening asistido por IA**. Caso demo: **Copa Airlines vs Avianca / LATAM / Wingo / Arajet · ruta Cartagena**.
 >
 > ⚠️ **Mantené este documento actualizado en cada cambio** (regla en `AGENTS.md` → "Documentation discipline"). Un cambio no está terminado hasta que la doc lo refleja.
@@ -54,7 +54,7 @@ app/
   api/runs/[id]/cost/route.ts   **GET → snapshot de costo del run (CostMeter)**
   api/cron/cost/route.ts   **GET → libera reservas vencidas + checkCostAlerts (Vercel Cron diario en Hobby; */5 en Pro)**
   api/discovery/route.ts   **POST → infiere ResearchPlan del prompt**
-  api/settings/sources/route.ts  POST → guarda config de fuentes (por platform,scope)
+  api/settings/sources/route.ts  POST → guarda config de fuentes (enabled + results_limit; actor_id=null, selección automática)
   globals.css              Tokens light/dark (dark = default), escala editorial, lenis, marquee
   layout.tsx               ThemeProvider (defaultTheme=dark) + SmoothScroll + OG metadata
 components/
@@ -88,7 +88,7 @@ Base: **workspaces** (+`settings` jsonb) · **projects** (+`budget_monthly_usd`)
 
 **runs** (+ nuevas cols): `budget_usd` (cap, default 30), `cost_estimated_low/high`, `cost_actual`, **`plan` (jsonb ResearchPlan)**, **`scope`** (organic/paid/both), **`ad_intent`** (commercial/political/mixed). (Quedan `cost_soft/cost_hard` legacy.)
 
-**source_settings** — ahora **PK `(platform, scope)`**: `provider` (apify|meta_api|grok|reddit|mastodon|bluesky|web), `actor_id`, **`actor_build`** (version pin), **`fallback_actor_id`**, `enabled`, `results_limit`. Filas paid sembradas: `meta_ads` (apify scraper; API oficial en ruta política), `google_ads` + `linkedin_ads` (actores **community placeholder** `apify~…`, validar/pinear en Vercel), `x` (grok).
+**source_settings** — ahora **PK `(platform, scope)`**: `provider` (apify|meta_api|grok|reddit|mastodon|bluesky|web), `actor_id`, **`actor_build`** (version pin), **`fallback_actor_id`**, `enabled`, `results_limit`. **El actor ya NO lo maneja el usuario:** `/settings` sólo expone `enabled` + `results_limit`; el form guarda `actor_id=null`. La selección del actor es **automática por caso de estudio** (`lib/sources/select-actor.ts` → `selectActor`): precedencia *override de ops por env* → *catálogo por caso de estudio* (plataforma, scope, geo) → *connector default*. `actor_id` en DB queda como pin opcional de ops (si existe, gana). TikTok ads: EU-27+UK → Ads Library oficial, resto → Creative Center global.
 
 **Control de costos (Task 1):**
 - **system_flags** (`key` PK, `value` jsonb) — kill switch: `external_apis_enabled` (master) + `apify_enabled`, `anthropic_enabled`, `openai_enabled`, `brave_enabled`, `xai_enabled`, `meta_api_enabled`.
@@ -108,7 +108,7 @@ Enum `platform`: instagram, tiktok, youtube, facebook, x, reddit, mastodon, blue
 
 `POST /api/runs { slug?, platforms?, keywords?, scope?, adIntent?, plan? }` → `lib/runner.ts executeRun`:
 1. Resuelve un **ResearchPlan** (explícito del wizard, o derivado de platforms+scope+adIntent).
-2. `planToJobs(plan, source_settings)` → **un job por `(plataforma × scope)`** (organic y/o paid según scope; enabled).
+2. `planToJobs(plan, source_settings)` → **un job por `(plataforma × scope)`** (organic y/o paid según scope; enabled). El **actor de cada job se elige automáticamente por caso de estudio** vía `selectActor(platform, scope, plan)` (env override → catálogo → default); `source_settings.actor_id`, si existe, lo pisa.
 3. **Estimación** (`estimateRunCost`) desde esos jobs → `cost_estimated_low/high` en el run.
 4. Cada job pasa por **`guardedCall`** (orden: `isApiEnabled` → reserva `reserveBudget` → llamada con timeout + reintentos acotados → `commitCharge`/`releaseCharge`; escribe `run_steps`+`cost_ledger`).
 5. Routing paid: **anuncios SÓLO vía scrapers** (Apify ad-library / ad-detection). La **API oficial de Meta Ad Library queda descartada** como vía (decisión de producto 13/jun); el path `meta_api` queda legacy/desactivado. Fallos **degradan** (no rompen). Ads normalizados a `mentions` (is_ad + `engagement.ad`). Candidatos de actores ad-only (Meta/TikTok/Google/LinkedIn) anotados en `docs/apify-ad-actors.md`.
@@ -173,7 +173,7 @@ Las keys reales viven solo en `.env.local` (gitignored), **nunca** commiteadas.
 
 **Pendiente (próximo):**
 1. ✅ **Deploy de Vercel — resuelto** (§0): el `vercel.json` tenía un cron `*/5` no permitido en Hobby (Vercel rechazaba toda deployment `032332e`+); se pasó a cron **diario** y `main` vuelve a deployar.
-2. **Validar/pinear actores community** (Google/LinkedIn) en Vercel (slugs reales + build pin).
+2. **Actores ya NO los maneja el usuario** — se eligen solos por caso de estudio (`select-actor.ts`). Pendiente de ops: validar/pinear los slugs reales del catálogo (Google/LinkedIn/TikTok) y, si se quiere, fijar overrides por env (`APIFY_ACTOR_<PLATFORM>[_<SCOPE>]`).
 3. ✅ **Task 2 — pipeline de medios (mock-first hecho):** tablas `media_files`/`media_analysis` (migradas) + `lib/media/` (download TTL 12h, extractFrames ffmpeg, extractAudio, analyzeImage/Frame Claude vision + Zod, transcribe Whisper, consolidate, index idempotente **bajo guard**, fixtures); galería muestra "qué muestra / qué dice". **Pendiente (solo keys):** `OPENAI_API_KEY` (Whisper) y/o `GOOGLE_AI_API_KEY` (Gemini video) + ffmpeg en Vercel (`ffmpeg-static`+`FFMPEG_PATH`) para encender el modo live; e integrar `queueRunMedia`/`processRunMedia` en el runner cuando haya scraping real.
 
 **Otros pendientes:** export PDF/PPT real · imágenes reales (Gemini) · auth/multi-tenancy + billing · conectar Comparativa/Galería a DB real · análisis por sección en modo live.

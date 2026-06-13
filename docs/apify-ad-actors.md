@@ -39,9 +39,17 @@
 ---
 
 ### Cómo se cablean en Phema
-- `source_settings` PK `(platform, scope)` con `scope=paid`: setear `provider=apify`,
-  `actor_id=<owner/name>`, `actor_build=<version pin>`, `fallback_actor_id`, `enabled`, `results_limit`.
-- Editable desde `/settings`. El runner los corre bajo el **guard de costos** y
-  normaliza los ads a `mentions` (`is_ad=true` + `engagement.ad`).
+- **Selección automática (no la maneja el usuario).** Para cada reporte el actor se
+  elige solo, por caso de estudio, en `lib/sources/select-actor.ts` (`selectActor`):
+  - Precedencia: override de ops por env (`APIFY_ACTOR_<PLATFORM>[_<SCOPE>]`) →
+    catálogo por caso de estudio (plataforma, scope, geo/mercado) → connector default.
+  - TikTok: si el `geo` cae en EU-27 + UK usa la Ads Library oficial
+    (`s-r~tiktok-ads-library`); fuera de eso, el Creative Center global.
+  - IG/Facebook ads → Meta Ad Library (`apify~facebook-ads-scraper`).
+- `/settings` ya **no** expone el actor: sólo se elige qué fuentes participan y el
+  tope de resultados (`results_limit`). `source_settings.actor_id` queda como pin
+  opcional de ops; si está, gana sobre la selección automática.
+- El runner corre el actor elegido bajo el **guard de costos** y normaliza los ads a
+  `mentions` (`is_ad=true` + `engagement.ad`).
 - `meta_ads` → Meta; `google_ads` → Google Transparency; `linkedin_ads` → LinkedIn;
   TikTok ads entran como `tiktok` scope=paid.

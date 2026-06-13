@@ -20,10 +20,8 @@ function toVM(r: DbRow): SourceSettingVM {
     scope,
     provider,
     name: PLATFORMS[r.platform]?.name ?? r.platform,
-    actorId: r.actor_id ?? "",
     enabled: r.enabled,
     resultsLimit: r.results_limit ?? 25,
-    usesActor: provider === "apify", // only Apify rows expose an editable actor id
   };
 }
 
