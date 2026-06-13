@@ -109,6 +109,21 @@ export const DEMO_ANALYSIS_BY_SECTION: Record<string, typeof DEMO_ANALYSIS> = {
       "Evaluar igualar selectivamente la cadencia paga de Avianca.",
     ],
   },
+  swot: {
+    headline: "Copa juega de eficiencia, no de volumen: ganar SOV sin perder afinidad.",
+    body: "El FODA muestra una marca con alta afinidad y bajo costo de presencia, pero con poca participación y casi sin pauta. La jugada inmediata está en TikTok orgánico (LATAM ausente) y en escalar paid de forma quirúrgica, protegiendo el sentimiento positivo que ya distingue a Copa.",
+    takeaways: [
+      "Fortaleza: mayor engagement orgánico por pieza de la categoría.",
+      "Debilidad: SOV de 9,9% frente al 41,3% de Avianca.",
+      "Oportunidad: TikTok orgánico libre y sentimiento mixto de LATAM.",
+      "Amenaza: Avianca duplicó spend y hay guerra de tarifas.",
+    ],
+    recommendations: [
+      "Act: TikTok orgánico + 1–2 creativos pagos por semana.",
+      "React: responder Reddit y contraprogramar promos de tarifas.",
+      "Roadmap: ver acciones corto/mediano/largo plazo abajo.",
+    ],
+  },
 };
 
 export const DEMO_PROJECT_SLUG = "cartagena-q2-2026";

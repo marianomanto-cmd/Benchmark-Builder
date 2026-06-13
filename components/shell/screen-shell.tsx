@@ -7,6 +7,7 @@ import { Ic, NavIc } from "@/components/ui/icons";
 import { Btn } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette } from "@/components/command-palette";
+import { RunAssistant } from "@/components/run-assistant";
 
 // Nav maps the compact sidebar glyphs to the project screens.
 const NAV: { href: string; icon: (s?: number) => ReactNode; title: string }[] = [
@@ -14,6 +15,7 @@ const NAV: { href: string; icon: (s?: number) => ReactNode; title: string }[] = 
   { href: "/live-feed", icon: NavIc.folder, title: "Live feed" },
   { href: "/comparativa", icon: NavIc.users, title: "Comparativa" },
   { href: "/galeria", icon: NavIc.doc, title: "Galería" },
+  { href: "/swot", icon: NavIc.bulb, title: "FODA & Estrategia" },
   { href: "/editor", icon: NavIc.bell, title: "Editor de reporte" },
 ];
 
@@ -41,6 +43,7 @@ export function ScreenShell({
   return (
     <div style={{ width: "100%", height: "100vh", display: "flex", background: colors.bg, color: colors.text, overflow: "hidden" }}>
       <CommandPalette />
+      <RunAssistant />
       {/* sidebar compact */}
       <aside style={{ width: 64, background: colors.sb, borderRight: `1px solid ${colors.border}`, display: "flex", flexDirection: "column", alignItems: "center", padding: "14px 0", gap: 6, position: "relative", flexShrink: 0 }}>
         <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 2, background: "var(--accent)" }} />

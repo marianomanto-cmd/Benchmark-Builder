@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { Sparkles, ArrowRight, Wand2, Compass } from "lucide-react";
 import { HeroCanvas } from "@/components/marketing/hero-canvas";
+import { HomeWizard } from "@/components/screens/home-wizard";
 import s from "@/components/marketing/marketing.module.css";
 
 export type RunSummary = { number: number; mentions: number; cost: number; when: string };
@@ -21,10 +21,10 @@ const EXAMPLES = [
 const EASE = [0.2, 0.7, 0.2, 1] as const;
 
 export function PortalHero({ runs }: { runs: RunSummary[] }) {
-  const router = useRouter();
   const [q, setQ] = useState("");
   const [ph, setPh] = useState(0);
   const [focused, setFocused] = useState(false);
+  const [wizardQuery, setWizardQuery] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Intro curtain: starts covering the hero (default "intro") so there's no
@@ -62,12 +62,11 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
     return () => clearInterval(t);
   }, []);
 
-  function go(query: string, mode?: string) {
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
-    if (mode) params.set("mode", mode);
-    const qs = params.toString();
-    router.push(`/research-plan${qs ? `?${qs}` : ""}`);
+  // The wizard lives ON the home: opening it shows the step-by-step frame inline
+  // (brand → markets → competitors → scope → discards → dates → cost) until the
+  // user approves. No routing to a separate page.
+  function go(query: string, _mode?: string) {
+    setWizardQuery(query.trim());
   }
 
   const ready = phase === "ready";
@@ -78,6 +77,7 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
   });
 
   return (
+    <>
     <section className={s.hero}>
       <HeroCanvas className={s.heroCanvas} />
 
@@ -180,5 +180,9 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
         )}
       </div>
     </section>
+    <AnimatePresence>
+      {wizardQuery !== null && <HomeWizard initialQuery={wizardQuery} onClose={() => setWizardQuery(null)} />}
+    </AnimatePresence>
+    </>
   );
 }

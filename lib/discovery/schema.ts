@@ -12,6 +12,15 @@ export const ResearchPlanSchema = z.object({
   platforms: z.array(z.enum(PLATFORM_KEYS)).default([]),
   scope: z.enum(["organic", "paid", "both"]).default("organic"),
   ad_intent: z.enum(["commercial", "political", "mixed"]).default("commercial"),
+  // Brand context (wizard step 0) — turns the analysis from purely competitive
+  // into comparative (your brand vs. the category). Optional, defaulted.
+  brand_desc: z.string().default(""),
+  brand_site: z.string().default(""),
+  brand_handles: z.array(z.string()).default([]),
+  invest_organic: z.string().default(""),
+  invest_paid: z.string().default(""),
+  // Topics to exclude from the corpus (política, deportes, religión, …).
+  discards: z.array(z.string()).default([]),
 });
 
 export type ResearchPlan = z.infer<typeof ResearchPlanSchema>;
@@ -53,5 +62,11 @@ export function inferPlanHeuristic(prompt: string): ResearchPlan {
     platforms,
     scope,
     ad_intent,
+    brand_desc: "",
+    brand_site: "",
+    brand_handles: [],
+    invest_organic: "",
+    invest_paid: "",
+    discards: [],
   };
 }

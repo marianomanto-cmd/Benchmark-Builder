@@ -61,13 +61,14 @@ components/
   marketing/               **site-nav, hero-canvas, sources-marquee, what-it-does, process,**
                            **deliverable, faq, site-footer, marketing.module.css**
   motion/                  **smooth-scroll (Lenis), reveal (whileInView)**
-  screens/                 portal (compone marketing), **portal-hero (cortina+canvas+box IA)**,
-                           overview, live-feed, comparativa, galeria, research-plan (wizard), editor, report-pdf, runs
-  ui/ tremor/ shell/ domain.tsx analysis-block.tsx command-palette.tsx run-button.tsx theme-*
+  screens/                 portal (compone marketing), portal-hero (cortina+canvas+box IA),
+                           **home-wizard (wizard embebido)**, overview, live-feed, comparativa, galeria,
+                           **swot (FODA+estrategia)**, editor, report-pdf, runs, research-plan (legacy)
+  ui/ tremor/ shell/ domain.tsx analysis-block.tsx command-palette.tsx run-button.tsx **run-assistant.tsx** theme-*
 lib/
   platforms.ts             PLATFORM_KEYS (tuple) + PlatformKey (incluye **google_ads, linkedin_ads**)
   cost/                    **rates, estimate, config, ledger, guarded, alerts, index** (motor de costos)
-  discovery/               **schema (Zod ResearchPlan + heurística), classify (Claude/mock), jobs (planToJobs)**
+  discovery/               **schema (Zod ResearchPlan + heurística + campos de marca), classify (Claude/mock), jobs (planToJobs), suggest (sugerencias+asistencia mock-safe del wizard)**
   sources/                 types (+scope, +AdMeta), reddit, mastodon, bluesky, apify, **apify-ads**, meta-ads,
                            grok-x, index (**sourceFor(platform, scope)** + metaAdsOfficial)
   runner.ts                **executeRun(slug, platforms?, keywords?, {scope, adIntent, plan})** — jobs organic+paid
@@ -131,7 +132,7 @@ Enum `platform`: instagram, tiktok, youtube, facebook, x, reddit, mastodon, blue
 
 ## 7. Pantallas / rutas
 
-`/` portal (rediseño + cortina) · `/research-plan` wizard (con toggle **orgánico/paid** + discovery + delta de costo) · `/overview` dashboard · `/live-feed` · `/comparativa` · `/galeria` (orgánico vs pago) · `/editor` · `/reporte` · `/runs` · `/settings` (actores por `platform,scope`) · `/not-found`. Extras: ⌘K, transiciones, skeletons.
+`/` portal + **wizard de research embebido en el home** (paso a paso asistido por IA: marca → mercados → competidores → orgánico/paid → descartes → fechas → costo; botón "no sé, sugerime" + validación por paso) · `/overview` dashboard · `/live-feed` · `/comparativa` · `/galeria` (orgánico vs pago) · **`/swot` (FODA + matriz act/wait/react/fall back + roadmap corto/mediano/largo)** · `/editor` · `/reporte` · `/runs` · `/settings` · `/not-found`. El shell del run trae un **asistente flotante** (consulta IA acotada a los resultados, con aviso de costo; si la pregunta se va de alcance, invita a iniciar una nueva investigación). Todo **responsive** (sin scroll horizontal). `/research-plan` queda como ruta legacy. Extras: ⌘K, transiciones, skeletons.
 
 ---
 
@@ -160,7 +161,9 @@ Las keys reales viven solo en `.env.local` (gitignored), **nunca** commiteadas.
 
 ## 9. Hecho vs pendiente
 
-**Hecho:** rediseño fourmula (dark default, home con cortina+box IA, responsive, 404, OG placeholder) · **Task 1 motor de costos** (estimate, reserva atómica, guardedCall, kill-switch, ledger/run_steps, crons, mock end-to-end costo cero) · **actores Apify orgánico/paid + discovery por prompt** (registry por `platform,scope`, planToJobs, routing comercial/político, wizard toggle + delta) · 7 pantallas + portal + wizard + runs + settings · pipeline de ingesta.
+**Hecho:** rediseño fourmula (dark default, home con cortina+box IA, responsive, 404, OG placeholder) · **Task 1 motor de costos** (estimate, reserva atómica, guardedCall, kill-switch, ledger/run_steps, crons, mock end-to-end costo cero) · **actores Apify orgánico/paid + discovery por prompt** (registry por `platform,scope`, planToJobs, routing comercial/político) · 7 pantallas + portal + runs + settings · pipeline de ingesta.
+
+**UX overhaul (sesión 13/jun):** fix de **scroll** (Lenis acotado a `/`, `min-height:0` en el shell) · **pase responsive/mobile** (guard global anti scroll-horizontal + helpers `.bb-collapse/.bb-row/.bb-scroll-x/.bb-hide-sm`, grids a auto-fit) · **wizard embebido en el home** (7 pasos asistidos por IA, **datos de marca** para análisis comparativo, sugerencias y validación mock-safe en `lib/discovery/suggest.ts`, costo visible) · **tab FODA & Estrategia** (`/swot`) · **asistente flotante** del run · limpieza del shell (sin lupa `/research-plan`, sin tabs obsoletos).
 
 **Pendiente (próximo):**
 1. ✅ **Deploy de Vercel — resuelto** (§0): el `vercel.json` tenía un cron `*/5` no permitido en Hobby (Vercel rechazaba toda deployment `032332e`+); se pasó a cron **diario** y `main` vuelve a deployar.
