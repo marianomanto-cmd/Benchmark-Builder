@@ -184,6 +184,111 @@ export type Database = {
         };
         Relationships: [];
       };
+      media_analysis: {
+        Row: {
+          brand_safety: string | null;
+          cost_usd: number;
+          created_at: string;
+          id: string;
+          kind: string;
+          language: string | null;
+          media_file_id: string;
+          model: string | null;
+          ocr_text: string | null;
+          raw: Json | null;
+          sentiment: string | null;
+          shows: Json;
+          summary: string | null;
+          topics: Json;
+          transcript: string | null;
+        };
+        Insert: {
+          brand_safety?: string | null;
+          cost_usd?: number;
+          created_at?: string;
+          id?: string;
+          kind: string;
+          language?: string | null;
+          media_file_id: string;
+          model?: string | null;
+          ocr_text?: string | null;
+          raw?: Json | null;
+          sentiment?: string | null;
+          shows?: Json;
+          summary?: string | null;
+          topics?: Json;
+          transcript?: string | null;
+        };
+        Update: {
+          brand_safety?: string | null;
+          cost_usd?: number;
+          created_at?: string;
+          id?: string;
+          kind?: string;
+          language?: string | null;
+          media_file_id?: string;
+          model?: string | null;
+          ocr_text?: string | null;
+          raw?: Json | null;
+          sentiment?: string | null;
+          shows?: Json;
+          summary?: string | null;
+          topics?: Json;
+          transcript?: string | null;
+        };
+        Relationships: [];
+      };
+      media_files: {
+        Row: {
+          bytes: number | null;
+          created_at: string;
+          duration_s: number | null;
+          expires_at: string | null;
+          height: number | null;
+          id: string;
+          kind: string;
+          mention_id: string | null;
+          project_id: string | null;
+          run_id: string | null;
+          status: string;
+          storage_path: string | null;
+          url: string;
+          width: number | null;
+        };
+        Insert: {
+          bytes?: number | null;
+          created_at?: string;
+          duration_s?: number | null;
+          expires_at?: string | null;
+          height?: number | null;
+          id?: string;
+          kind: string;
+          mention_id?: string | null;
+          project_id?: string | null;
+          run_id?: string | null;
+          status?: string;
+          storage_path?: string | null;
+          url: string;
+          width?: number | null;
+        };
+        Update: {
+          bytes?: number | null;
+          created_at?: string;
+          duration_s?: number | null;
+          expires_at?: string | null;
+          height?: number | null;
+          id?: string;
+          kind?: string;
+          mention_id?: string | null;
+          project_id?: string | null;
+          run_id?: string | null;
+          status?: string;
+          storage_path?: string | null;
+          url?: string;
+          width?: number | null;
+        };
+        Relationships: [];
+      };
       mentions: {
         Row: {
           author: string;

@@ -4,6 +4,7 @@ import { ScreenShell } from "@/components/shell/screen-shell";
 import { Ic } from "@/components/ui/icons";
 import { Btn } from "@/components/ui/primitives";
 import { MediaThumb, type ThumbKind } from "@/components/domain";
+import { mockConsolidated } from "@/lib/media/fixtures";
 import type { PlatformKey } from "@/lib/platforms";
 import { AnalysisBlock } from "@/components/analysis-block";
 import type { AnalysisVM } from "@/lib/view-models";
@@ -63,9 +64,18 @@ function GalleryColumn({ kind }: { kind: "organic" | "ad" }) {
             <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: isAd ? "var(--accent)" : "var(--text-muted)" }}>{g.count} piezas</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-            {g.items.map((it, i) => (
-              <MediaThumb key={i} kind={it[0]} platform={it[1]} label={it[2]} metrics={it[3]} isAd={it[4]} src={it[5]} video={it[6]} />
-            ))}
+            {g.items.map((it, i) => {
+              const a = mockConsolidated({ url: it[5] ?? it[2], kind: it[0] === "video" ? "video" : "image" });
+              return (
+                <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <MediaThumb kind={it[0]} platform={it[1]} label={it[2]} metrics={it[3]} isAd={it[4]} src={it[5]} video={it[6]} />
+                  <div style={{ fontSize: 10, lineHeight: "13px", color: "var(--text-muted)" }}>
+                    <div style={{ color: "var(--text)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>👁 {a.summary}</div>
+                    {a.transcript && <div style={{ marginTop: 2, fontStyle: "italic", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>🗣 &ldquo;{a.transcript}&rdquo;</div>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       ))}

@@ -69,6 +69,7 @@ lib/
   platforms.ts             PLATFORM_KEYS (tuple) + PlatformKey (incluye **google_ads, linkedin_ads**)
   cost/                    **rates, estimate, config, ledger, guarded, alerts, index** (motor de costos)
   discovery/               **schema (Zod ResearchPlan + heurística + campos de marca), classify (Claude/mock), jobs (planToJobs), suggest (sugerencias+asistencia mock-safe del wizard)**
+  media/                   **types/config/download(TTL 12h)/frames(ffmpeg)/audio/analyze(Claude vision)/transcribe(Whisper)/consolidate/index/fixtures** (Task 2, mock-first, bajo guard)
   sources/                 types (+scope, +AdMeta), reddit, mastodon, bluesky, apify, **apify-ads**, meta-ads,
                            grok-x, index (**sourceFor(platform, scope)** + metaAdsOfficial)
   runner.ts                **executeRun(slug, platforms?, keywords?, {scope, adIntent, plan})** — jobs organic+paid
@@ -94,6 +95,8 @@ Base: **workspaces** (+`settings` jsonb) · **projects** (+`budget_monthly_usd`)
 - **cost_ledger** (gasto comiteado: run/project/workspace, provider, operation, cost_usd, reservation_id, occurred_at).
 - **pending_charges** (reservas: estimated_cost_usd, status reserved|committed|released|expired, expires_at).
 - **run_steps** (timeline del CostMeter: label, provider, cost_usd, cumulative_usd, metadata).
+
+**Medios (Task 2):** `media_files` (url, kind image/video/audio, status, `expires_at` 12h, idempotente por `project_id,url`) · `media_analysis` (summary "qué muestra", shows, ocr_text, **transcript "qué dice"**, language, sentiment, brand_safety, topics, model, cost_usd). RLS public read. Migración `20260613210000_media_pipeline.sql` (aplicada).
 
 **RPCs:** `budget_spent_with_pending`, `reserve_budget` (lock por run `pg_advisory_xact_lock` FM-05; caps run/project-mensual/workspace-mensual; devuelve ok|soft(≥80%)|hard|error), `commit_charge` (idempotente), `release_charge`, `release_expired_charges`.
 
@@ -168,7 +171,7 @@ Las keys reales viven solo en `.env.local` (gitignored), **nunca** commiteadas.
 **Pendiente (próximo):**
 1. ✅ **Deploy de Vercel — resuelto** (§0): el `vercel.json` tenía un cron `*/5` no permitido en Hobby (Vercel rechazaba toda deployment `032332e`+); se pasó a cron **diario** y `main` vuelve a deployar.
 2. **Validar/pinear actores community** (Google/LinkedIn) en Vercel (slugs reales + build pin).
-3. **Task 2 — pipeline de medios** (imagen/video/voiceover): tablas `media_files`/`media_analysis`, `lib/media/` (download con borrado a 12h, extractFrames ffmpeg, extractAudio, analyzeImage/Frame con Claude vision + Zod, transcribe Whisper/captions, consolidate), todo idempotente, acotado y **bajo guard**; fixtures mock; render en `/galeria`. (Era el paso post-actores del plan.)
+3. ✅ **Task 2 — pipeline de medios (mock-first hecho):** tablas `media_files`/`media_analysis` (migradas) + `lib/media/` (download TTL 12h, extractFrames ffmpeg, extractAudio, analyzeImage/Frame Claude vision + Zod, transcribe Whisper, consolidate, index idempotente **bajo guard**, fixtures); galería muestra "qué muestra / qué dice". **Pendiente (solo keys):** `OPENAI_API_KEY` (Whisper) y/o `GOOGLE_AI_API_KEY` (Gemini video) + ffmpeg en Vercel (`ffmpeg-static`+`FFMPEG_PATH`) para encender el modo live; e integrar `queueRunMedia`/`processRunMedia` en el runner cuando haya scraping real.
 
 **Otros pendientes:** export PDF/PPT real · imágenes reales (Gemini) · auth/multi-tenancy + billing · conectar Comparativa/Galería a DB real · análisis por sección en modo live.
 
