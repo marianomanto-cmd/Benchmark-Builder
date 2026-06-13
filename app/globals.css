@@ -87,6 +87,12 @@
   --text-faint: var(--n400);
   --accent: var(--sa-base);
   --accent-soft: var(--sa-soft);
+  /* dataviz series — theme-aware (monochrome scale + sangría client) */
+  --series-1: var(--n900);
+  --series-2: var(--n700);
+  --series-3: var(--n500);
+  --series-4: var(--n400);
+  --series-client: var(--sa-base);
 }
 
 /* Dark theme — warm stone mirror (HANDOFF dark tokens) */
@@ -101,6 +107,11 @@
   --text-faint: #847a68;
   --accent: var(--sa-light);
   --accent-soft: #2a1620;
+  --series-1: #ece7dd;
+  --series-2: #c7bdab;
+  --series-3: #a89e8b;
+  --series-4: #635a4b;
+  --series-client: var(--sa-light);
   color-scheme: dark;
 }
 

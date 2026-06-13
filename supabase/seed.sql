@@ -14,11 +14,11 @@ insert into competitors (project_id, name, handle, brand_letter, accent, is_clie
 select p.id, v.name, v.handle, v.brand_letter, v.accent, v.is_client, v.mentions, v.engagement_total, v.reach_estimate, v.sov, v.sentiment::sentiment_kind, v.sort_order
 from projects p,
 (values
-  ('Avianca','avianca','A','var(--n900)',false,998,'412k','1,8M',41.3,'pos',0),
-  ('LATAM Colombia','latamcol','L','var(--n700)',false,581,'264k','1,1M',24.0,'mix',1),
-  ('Wingo','wingo.col','W','var(--n500)',false,312,'198k','680k',12.9,'neu',2),
-  ('Arajet','arajetdom','J','var(--n400)',false,287,'142k','420k',11.9,'neu',3),
-  ('Copa Airlines','copaairlines','C','var(--sa-base)',true,240,'188k','520k',9.9,'pos',4)
+  ('Avianca','avianca','A','var(--series-1)',false,998,'412k','1,8M',41.3,'pos',0),
+  ('LATAM Colombia','latamcol','L','var(--series-2)',false,581,'264k','1,1M',24.0,'mix',1),
+  ('Wingo','wingo.col','W','var(--series-3)',false,312,'198k','680k',12.9,'neu',2),
+  ('Arajet','arajetdom','J','var(--series-4)',false,287,'142k','420k',11.9,'neu',3),
+  ('Copa Airlines','copaairlines','C','var(--series-client)',true,240,'188k','520k',9.9,'pos',4)
 ) as v(name,handle,brand_letter,accent,is_client,mentions,engagement_total,reach_estimate,sov,sentiment,sort_order)
 where p.slug = 'cartagena-q2-2026'
 on conflict (project_id, handle) do nothing;

@@ -5,11 +5,11 @@ import { sparkFor } from "@/lib/view-models";
 // Supabase isn't reachable/seeded, so the deployed site never breaks.
 
 export const DEMO_COMPETITORS: CompetitorVM[] = [
-  { name: "Avianca", handle: "avianca", brandLetter: "A", accent: "var(--n900)", isClient: false, platforms: ["instagram", "tiktok", "youtube", "x", "meta_ads"], mentions: "998", sov: "41,3", sentiment: "pos", sparkData: sparkFor(0) },
-  { name: "LATAM Colombia", handle: "latamcol", brandLetter: "L", accent: "var(--n700)", isClient: false, platforms: ["instagram", "facebook", "x", "meta_ads"], mentions: "581", sov: "24,0", sentiment: "mix", sparkData: sparkFor(1) },
-  { name: "Wingo", handle: "wingo.col", brandLetter: "W", accent: "var(--n500)", isClient: false, platforms: ["instagram", "tiktok", "facebook"], mentions: "312", sov: "12,9", sentiment: "neu", sparkData: sparkFor(2) },
-  { name: "Arajet", handle: "arajetdom", brandLetter: "J", accent: "var(--n400)", isClient: false, platforms: ["instagram", "x", "web"], mentions: "287", sov: "11,9", sentiment: "neu", sparkData: sparkFor(3) },
-  { name: "Copa Airlines", handle: "copaairlines", brandLetter: "C", accent: "var(--sa-base)", isClient: true, platforms: ["instagram", "youtube", "x", "meta_ads"], mentions: "240", sov: "9,9", sentiment: "pos", sparkData: sparkFor(4) },
+  { name: "Avianca", handle: "avianca", brandLetter: "A", accent: "var(--series-1)", isClient: false, platforms: ["instagram", "tiktok", "youtube", "x", "meta_ads"], mentions: "998", sov: "41,3", sentiment: "pos", sparkData: sparkFor(0) },
+  { name: "LATAM Colombia", handle: "latamcol", brandLetter: "L", accent: "var(--series-2)", isClient: false, platforms: ["instagram", "facebook", "x", "meta_ads"], mentions: "581", sov: "24,0", sentiment: "mix", sparkData: sparkFor(1) },
+  { name: "Wingo", handle: "wingo.col", brandLetter: "W", accent: "var(--series-3)", isClient: false, platforms: ["instagram", "tiktok", "facebook"], mentions: "312", sov: "12,9", sentiment: "neu", sparkData: sparkFor(2) },
+  { name: "Arajet", handle: "arajetdom", brandLetter: "J", accent: "var(--series-4)", isClient: false, platforms: ["instagram", "x", "web"], mentions: "287", sov: "11,9", sentiment: "neu", sparkData: sparkFor(3) },
+  { name: "Copa Airlines", handle: "copaairlines", brandLetter: "C", accent: "var(--series-client)", isClient: true, platforms: ["instagram", "youtube", "x", "meta_ads"], mentions: "240", sov: "9,9", sentiment: "pos", sparkData: sparkFor(4) },
 ];
 
 export const DEMO_INSIGHTS: InsightVM[] = [

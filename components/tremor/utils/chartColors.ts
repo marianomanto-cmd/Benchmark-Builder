@@ -57,12 +57,12 @@ export const chartColors = {
     fill: "fill-fuchsia-500",
     text: "text-fuchsia-500",
   },
-  // Benchmark Builder brand palette (ink + warm greys + sangría for the client)
-  ink: { bg: "bg-[#181410]", stroke: "stroke-[#181410]", fill: "fill-[#181410]", text: "text-[#181410]" },
-  graphite: { bg: "bg-[#3d352a]", stroke: "stroke-[#3d352a]", fill: "fill-[#3d352a]", text: "text-[#3d352a]" },
-  taupe: { bg: "bg-[#847a68]", stroke: "stroke-[#847a68]", fill: "fill-[#847a68]", text: "text-[#847a68]" },
-  sand: { bg: "bg-[#c7bdab]", stroke: "stroke-[#c7bdab]", fill: "fill-[#c7bdab]", text: "text-[#c7bdab]" },
-  sangria: { bg: "bg-[#6b1a36]", stroke: "stroke-[#6b1a36]", fill: "fill-[#6b1a36]", text: "text-[#6b1a36]" },
+  // Benchmark Builder brand palette (ink + warm greys + sangría) — theme-aware
+  ink: { bg: "bg-[#181410] dark:bg-[#ece7dd]", stroke: "stroke-[#181410] dark:stroke-[#ece7dd]", fill: "fill-[#181410] dark:fill-[#ece7dd]", text: "text-[#181410] dark:text-[#ece7dd]" },
+  graphite: { bg: "bg-[#3d352a] dark:bg-[#c7bdab]", stroke: "stroke-[#3d352a] dark:stroke-[#c7bdab]", fill: "fill-[#3d352a] dark:fill-[#c7bdab]", text: "text-[#3d352a] dark:text-[#c7bdab]" },
+  taupe: { bg: "bg-[#847a68] dark:bg-[#a89e8b]", stroke: "stroke-[#847a68] dark:stroke-[#a89e8b]", fill: "fill-[#847a68] dark:fill-[#a89e8b]", text: "text-[#847a68] dark:text-[#a89e8b]" },
+  sand: { bg: "bg-[#c7bdab] dark:bg-[#635a4b]", stroke: "stroke-[#c7bdab] dark:stroke-[#635a4b]", fill: "fill-[#c7bdab] dark:fill-[#635a4b]", text: "text-[#c7bdab] dark:text-[#635a4b]" },
+  sangria: { bg: "bg-[#6b1a36] dark:bg-[#c3517a]", stroke: "stroke-[#6b1a36] dark:stroke-[#c3517a]", fill: "fill-[#6b1a36] dark:fill-[#c3517a]", text: "text-[#6b1a36] dark:text-[#c3517a]" },
 } as const satisfies {
   [color: string]: {
     [key in ColorUtility]: string
