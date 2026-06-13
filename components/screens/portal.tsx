@@ -11,7 +11,8 @@ export type { RunSummary };
 
 export function Portal({ runs }: { runs: RunSummary[] }) {
   return (
-    <main style={{ background: "var(--bg)", color: "var(--text)", overflowX: "hidden" }}>
+    <main style={{ background: "var(--bg)", color: "var(--text)", overflowX: "hidden", position: "relative", isolation: "isolate" }}>
+      <div className="bb-aurora" aria-hidden />
       <SiteNav />
       <PortalHero runs={runs} />
       <SourcesMarquee />

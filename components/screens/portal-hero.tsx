@@ -8,7 +8,7 @@ import { HeroCanvas } from "@/components/marketing/hero-canvas";
 import { HomeWizard } from "@/components/screens/home-wizard";
 import s from "@/components/marketing/marketing.module.css";
 
-export type RunSummary = { number: number; mentions: number; cost: number; when: string };
+export type RunSummary = { number: number; mentions: number; cost: number; when: string; title?: string };
 
 const EXAMPLES = [
   "una nueva ruta a Cartagena",
@@ -168,7 +168,7 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
               {runs.slice(0, 3).map((r) => (
                 <Link key={r.number} href="/overview" className={s.runCard}>
                   <div className={s.runNo}>run #{String(r.number).padStart(3, "0")}</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>Cartagena · Q2 2026</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{r.title ?? "Investigación"}</div>
                   <div className={s.runMeta}>
                     <span>{r.when}</span>
                     <span>USD {r.cost.toFixed(2)}</span>

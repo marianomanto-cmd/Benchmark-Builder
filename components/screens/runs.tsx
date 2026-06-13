@@ -5,7 +5,7 @@ import { ScreenShell } from "@/components/shell/screen-shell";
 import { Btn, BBBadge } from "@/components/ui/primitives";
 import { Ic } from "@/components/ui/icons";
 
-type Run = { number: number; mentions: number; cost: number; when: string; status: string };
+type Run = { number: number; mentions: number; cost: number; when: string; status: string; title?: string };
 
 function tone(status: string): "success" | "warn" | "neutral" {
   if (status === "done") return "success";
@@ -35,7 +35,7 @@ export function RunsHistory({ runs }: { runs: Run[] }) {
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--text)", fontWeight: 500 }}>run #{String(r.number).padStart(3, "0")}</span>
               <BBBadge tone={tone(r.status)} size="sm">{r.status}</BBBadge>
             </div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>Cartagena · Q2 2026</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{r.title ?? "Investigación"}</div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", borderTop: "1px solid var(--border)", paddingTop: 10 }}>
               <span>{r.when}</span>
               <span>{r.mentions} menc.</span>

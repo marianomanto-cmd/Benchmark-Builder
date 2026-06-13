@@ -92,7 +92,7 @@ export async function getMentions(slug: string = DEMO_PROJECT_SLUG): Promise<Men
 // Recent runs for the welcome portal.
 export async function getRecentRuns(
   slug: string = DEMO_PROJECT_SLUG,
-): Promise<{ number: number; mentions: number; cost: number; when: string }[]> {
+): Promise<{ number: number; mentions: number; cost: number; when: string; title?: string }[]> {
   try {
     const supabase = await createClient();
     const pid = await projectId(slug);
@@ -119,7 +119,7 @@ export async function getRecentRuns(
 export async function getRuns(
   slug: string = DEMO_PROJECT_SLUG,
   limit = 24,
-): Promise<{ number: number; mentions: number; cost: number; when: string; status: string }[]> {
+): Promise<{ number: number; mentions: number; cost: number; when: string; status: string; title?: string }[]> {
   const fallback = DEMO_RUNS.map((r) => ({ ...r, status: "done" }));
   try {
     const supabase = await createClient();

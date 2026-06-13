@@ -133,7 +133,10 @@ export const DEMO_ANALYSIS_BY_SECTION: Record<string, typeof DEMO_ANALYSIS> = {
 export const DEMO_PROJECT_SLUG = "cartagena-q2-2026";
 
 export const DEMO_RUNS = [
-  { number: 42, mentions: 18, cost: 1.84, when: "hace 12 min" },
-  { number: 41, mentions: 16, cost: 1.62, when: "ayer" },
-  { number: 40, mentions: 14, cost: 1.4, when: "hace 3 d" },
+  { number: 42, mentions: 18, cost: 1.84, when: "hace 12 min", title: "Copa · Cartagena Q2" },
+  { number: 41, mentions: 16, cost: 1.62, when: "ayer", title: "Copa · ruta Bogotá–SDQ" },
+  { number: 40, mentions: 24, cost: 2.1, when: "hace 3 d", title: "Moda · Zara vs H&M" },
+  { number: 39, mentions: 21, cost: 1.95, when: "hace 5 d", title: "Fintech · Ualá vs Brubank" },
+  { number: 38, mentions: 14, cost: 1.4, when: "hace 1 sem", title: "Café · especialidad LatAm" },
+  { number: 37, mentions: 26, cost: 2.32, when: "hace 2 sem", title: "Bebidas · campañas de verano" },
 ];
