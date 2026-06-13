@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { SourceSettingsForm, type SourceSettingVM } from "@/components/source-settings-form";
 import { PLATFORMS, type PlatformKey } from "@/lib/platforms";
 
-const APIFY: PlatformKey[] = ["instagram", "tiktok", "youtube", "facebook", "x", "web"];
+// Apify-backed platforms (X uses Grok live search instead, so it has no Apify actor).
+const APIFY: PlatformKey[] = ["instagram", "tiktok", "youtube", "facebook", "web"];
 const DEFAULT_ACTOR: Partial<Record<PlatformKey, string>> = {
   instagram: "apify~instagram-scraper",
   tiktok: "clockworks~tiktok-scraper",

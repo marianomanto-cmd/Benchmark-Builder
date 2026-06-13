@@ -4,6 +4,7 @@ import { redditSource } from "@/lib/sources/reddit";
 import { mastodonSource } from "@/lib/sources/mastodon";
 import { blueskySource } from "@/lib/sources/bluesky";
 import { metaAdsSource } from "@/lib/sources/meta-ads";
+import { grokXSource } from "@/lib/sources/grok-x";
 import { apifySource } from "@/lib/sources/apify";
 
 // Platform -> source adapter. Apify backs the platforms that require scraping;
@@ -17,7 +18,7 @@ const REGISTRY: Record<PlatformKey, Source> = {
   tiktok: apifySource("tiktok"),
   youtube: apifySource("youtube"),
   facebook: apifySource("facebook"),
-  x: apifySource("x"),
+  x: grokXSource,
   web: apifySource("web"),
 };
 

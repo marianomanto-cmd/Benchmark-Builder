@@ -2,7 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sourceFor } from "@/lib/sources";
 import { relativeTime, type RawMention } from "@/lib/sources/types";
-import { scoreSentiments, scoreToSentiment, generateInsights } from "@/lib/ai/grok";
+import { scoreSentiments, scoreToSentiment, generateInsights } from "@/lib/ai";
 import { formatCompact } from "@/lib/format";
 import type { PlatformKey, SentimentKind } from "@/lib/platforms";
 
