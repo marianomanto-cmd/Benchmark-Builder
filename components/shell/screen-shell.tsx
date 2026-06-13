@@ -14,7 +14,6 @@ const NAV: { href: string; icon: (s?: number) => ReactNode; title: string }[] = 
   { href: "/live-feed", icon: NavIc.folder, title: "Live feed" },
   { href: "/comparativa", icon: NavIc.users, title: "Comparativa" },
   { href: "/galeria", icon: NavIc.doc, title: "Galería" },
-  { href: "/research-plan", icon: NavIc.bulb, title: "Plan de research" },
   { href: "/editor", icon: NavIc.bell, title: "Editor de reporte" },
 ];
 
@@ -117,7 +116,7 @@ export function ScreenShell({
           </button>
           <ThemeToggle />
           <Btn kind="ghost" size="sm" icon={<Ic.presentation s={12} />} onClick={() => router.push("/reporte")}>Presentación</Btn>
-          <Btn kind="primary" size="sm" icon={<Ic.bolt s={11} />} onClick={() => router.push("/research-plan")}>Nuevo run</Btn>
+          <Btn kind="primary" size="sm" icon={<Ic.bolt s={11} />} onClick={() => router.push("/")}>Nuevo run</Btn>
         </header>
         <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 24 }}>{children}</div>
       </main>

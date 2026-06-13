@@ -53,15 +53,6 @@ export function Overview({ competitors, insights, run, analysis }: OverviewData 
       badges={<><BBBadge tone="success" size="sm">activo</BBBadge> <BBBadge tone="accent" size="sm">v2.3</BBBadge></>}
       runMeta={`run #${String(run.number).padStart(3, "0")} · hace 12 min · USD 1,84`}
     >
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 24, borderBottom: "1px solid var(--border)", marginBottom: 20 }}>
-        {["Overview", "Setup", "Runs · 4", "Live feed", "Competidores", "Reportes · 2"].map((t, i) => (
-          <div key={t} style={{ padding: "8px 0", fontSize: 13, fontWeight: i === 0 ? 500 : 400, color: i === 0 ? "var(--text)" : "var(--text-muted)", borderBottom: i === 0 ? "2px solid var(--accent)" : "2px solid transparent", marginBottom: -1 }}>{t}</div>
-        ))}
-        <div style={{ flex: 1 }} />
-        <Btn kind="ghost" size="sm" icon={<Ic.copy s={11} />}>Duplicar proyecto</Btn>
-      </div>
-
       {/* Hero header */}
       <div style={{ display: "flex", alignItems: "flex-end", gap: 20, marginBottom: 20 }}>
         <div style={{ flex: 1 }}>
