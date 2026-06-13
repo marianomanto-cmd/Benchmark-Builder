@@ -168,6 +168,16 @@ body { background: transparent; }
 .bb-lift { transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease; }
 .bb-lift:hover { transform: translateY(-3px); box-shadow: var(--sh-3); border-color: var(--border-strong); }
 
+/* Logo mark — glow de marca con pulso suave. */
+@keyframes bb-logo-glow {
+  0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 10px color-mix(in srgb, var(--accent) 38%, transparent); }
+  50% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 48%, transparent), 0 0 20px color-mix(in srgb, var(--accent) 62%, transparent); }
+}
+.bb-logo { border-radius: 50%; animation: bb-logo-glow 3.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .bb-logo { animation: none; box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent); }
+}
+
 /* ============================================================
  * Type utilities (mirror of tokens.css)
  * ========================================================== */

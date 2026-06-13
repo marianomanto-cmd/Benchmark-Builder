@@ -20,7 +20,7 @@ export function SiteNav() {
       <div className={`${s.container} ${s.navInner}`}>
         <Link href="/" className={s.logo}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/logo.jpg" alt="Phema" width={26} height={26} style={{ borderRadius: "50%", objectFit: "cover", display: "block" }} /> Phema
+          <img src="/brand/logo.jpg" alt="Phema" width={26} height={26} className="bb-logo" style={{ borderRadius: "50%", objectFit: "cover", display: "block" }} /> Phema
         </Link>
         <nav className={s.menu} aria-label="Principal">
           {LINKS.map((l) => (
