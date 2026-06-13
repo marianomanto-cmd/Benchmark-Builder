@@ -7,7 +7,7 @@ import { Sparkles, ArrowRight, ArrowLeft, X, Check, Wand2, Bot, Loader2 } from "
 import { suggestFor, assistFor, detectCategory } from "@/lib/discovery/suggest";
 import type { PlatformKey } from "@/lib/platforms";
 
-const STEPS = ["Tu marca", "Mercados", "Competidores", "Alcance", "Descartes", "Fechas", "Estimación"];
+const STEPS = ["Tu marca", "Mercados", "Competidores", "Alcance", "Descartes", "Fechas", "Revisión"];
 
 // Per-source cost model (USD) — rough but realistic so the estimate is useful.
 const ORGANIC: { key: PlatformKey; label: string; perComp: number }[] = [
@@ -126,8 +126,9 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
       exit={{ opacity: 0 }}
       style={{ position: "fixed", inset: 0, zIndex: 70, background: "var(--bg)", overflowY: "auto" }}
     >
-      {/* ambient glow */}
-      <div aria-hidden style={{ position: "fixed", inset: 0, pointerEvents: "none", background: "radial-gradient(60% 50% at 50% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%)" }} />
+      {/* ambient glow — crece a medida que se completa el marco; pulso suave en cada paso */}
+      <motion.div aria-hidden animate={{ opacity: 0.4 + step * 0.07 }} transition={{ duration: 0.7, ease: "easeOut" }} style={{ position: "fixed", inset: 0, pointerEvents: "none", background: "radial-gradient(72% 56% at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 72%)" }} />
+      <motion.div key={`pulse-${step}`} aria-hidden initial={{ opacity: 0.5, scale: 0.85 }} animate={{ opacity: 0, scale: 1.25 }} transition={{ duration: 1.0, ease: "easeOut" }} style={{ position: "fixed", inset: 0, pointerEvents: "none", background: "radial-gradient(50% 42% at 50% 10%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 70%)" }} />
       <div style={{ position: "relative", maxWidth: 720, margin: "0 auto", padding: "clamp(20px, 5vw, 40px) clamp(16px, 5vw, 24px) 80px" }}>
         {/* header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
@@ -225,28 +226,50 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
 
             {step === 6 && (
               <div style={cardStack}>
-                <div style={{ ...cardBox, display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center" }}>
+                {/* framing — el caso de estudio para revisar */}
+                <div style={{ ...cardBox, borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))" }}>
+                  <div className="t-micro" style={{ color: "var(--accent)" }}>CASO DE ESTUDIO</div>
+                  <div className="t-serif" style={{ fontSize: "clamp(1.15rem, 3vw, 1.55rem)", lineHeight: 1.3, marginTop: 8, color: "var(--text)" }}>
+                    Vas a investigar <em style={{ fontStyle: "italic", color: "var(--accent)" }}>{detectCategory(ctx)}</em> en {geo.join(", ") || "—"}, comparando <b>{brand || "tu marca"}</b> frente a {competitors.length ? competitors.join(", ") : "la competencia"}, en {scope === "both" ? "orgánico + paid" : "orgánico"}, en los últimos {period}.
+                  </div>
+                </div>
+
+                {/* brief: marca + marco */}
+                <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  <div style={cardBox}>
+                    <div className="t-micro">TU MARCA</div>
+                    <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 7, fontSize: 13 }}>
+                      <Sum k="Marca">{brand || "—"}</Sum>
+                      <Sum k="Qué hace">{brandDesc || "—"}</Sum>
+                      <Sum k="Web / IG">{[site, igUrl].filter(Boolean).join(" · ") || "—"}</Sum>
+                      <Sum k="Inversión">org. {investOrg} · paga {investPaid}</Sum>
+                    </ul>
+                  </div>
+                  <div style={cardBox}>
+                    <div className="t-micro">MARCO DE ANÁLISIS</div>
+                    <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 7, fontSize: 13 }}>
+                      <Sum k="Mercados">{geo.join(", ") || "—"}</Sum>
+                      <Sum k="Competidores">{competitors.join(", ") || "—"}</Sum>
+                      <Sum k="Alcance">{scope === "both" ? "orgánico + paid" : "orgánico"} · {platforms.length} fuentes</Sum>
+                      <Sum k="Descartes">{discards.join(", ") || "ninguno"}</Sum>
+                      <Sum k="Ventana">{period}</Sum>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* costo */}
+                <div style={{ ...cardBox, display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center", background: "color-mix(in srgb, var(--accent) 8%, var(--surface))", borderColor: "color-mix(in srgb, var(--accent) 30%, var(--border))" }}>
                   <div>
                     <div className="t-micro" style={{ color: "var(--accent)" }}>COSTO ESTIMADO DEL RUN</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 34, fontWeight: 600, marginTop: 4 }}>US${estimate.total.toFixed(2)}</div>
-                    <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", marginTop: 2 }}>rango US${estimate.low.toFixed(2)}–{estimate.high.toFixed(2)} · ~{estimate.minutes} min</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 32, fontWeight: 600, marginTop: 4 }}>US${estimate.total.toFixed(2)}</div>
+                    <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", marginTop: 2 }}>rango US${estimate.low.toFixed(2)}–{estimate.high.toFixed(2)} · ~{estimate.minutes} min · {estimate.comps} marcas</div>
                   </div>
                   <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", textAlign: "right", lineHeight: "18px" }}>
                     scraping US${estimate.scraping.toFixed(2)}<br />análisis IA US${estimate.ai.toFixed(2)}
                   </div>
                 </div>
-                <div style={cardBox}>
-                  <div className="t-micro">RESUMEN DEL MARCO</div>
-                  <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6, fontSize: 13, color: "var(--text-muted)" }}>
-                    <Sum k="Marca">{brand || "—"} <span style={{ color: "var(--text-faint)" }}>· {detectCategory(ctx)}</span></Sum>
-                    <Sum k="Mercados">{geo.join(", ") || "—"}</Sum>
-                    <Sum k="Competidores">{competitors.join(", ") || "—"}</Sum>
-                    <Sum k="Alcance">{scope === "both" ? "orgánico + paid" : "solo orgánico"} · {platforms.length} fuentes</Sum>
-                    <Sum k="Descartes">{discards.join(", ") || "ninguno"}</Sum>
-                    <Sum k="Ventana">{period}</Sum>
-                  </ul>
-                </div>
-                <div style={{ fontSize: 11, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>Modo mock (costo real US$0). Lo &ldquo;real&rdquo; se enciende con PIPELINE_MODE=live + keys.</div>
+
+                <div style={{ fontSize: 11, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>Revisá el caso de estudio y aprobá para ejecutar. Modo mock = costo real US$0.</div>
                 {error && <div style={{ fontSize: 12, color: "var(--danger)" }}>{error}</div>}
               </div>
             )}
