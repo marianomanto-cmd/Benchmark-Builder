@@ -124,7 +124,7 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      style={{ position: "fixed", inset: 0, zIndex: 70, background: "var(--bg)", overflowY: "auto" }}
+      style={{ position: "fixed", inset: 0, zIndex: 70, background: "color-mix(in srgb, var(--bg) 82%, transparent)", overflowY: "auto" }}
     >
       {/* ambient glow — crece a medida que se completa el marco; pulso suave en cada paso */}
       <motion.div aria-hidden animate={{ opacity: 0.4 + step * 0.07 }} transition={{ duration: 0.7, ease: "easeOut" }} style={{ position: "fixed", inset: 0, pointerEvents: "none", background: "radial-gradient(72% 56% at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 72%)" }} />

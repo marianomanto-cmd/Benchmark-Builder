@@ -141,6 +141,10 @@ html, body {
   font-feature-settings: "cv11", "ss01";
 }
 
+/* Body is transparent so the fixed global video background (SiteBackground,
+ * z-index:-1) shows through; html keeps --bg as the ultimate fallback. */
+body { background: transparent; }
+
 /* ============================================================
  * Type utilities (mirror of tokens.css)
  * ========================================================== */

@@ -25,55 +25,20 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
   const [focused, setFocused] = useState(false);
   const [wizardQuery, setWizardQuery] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const bgWrapRef = useRef<HTMLDivElement>(null);
 
-  // Intro curtain: starts covering the hero (default "intro") so there's no
-  // flash of the box; the particle field drifts behind the tagline, a counter
-  // runs, then the curtain rises to reveal the box. Skipped under reduced motion.
+  // No curtain: on load you see the (global) video; after a beat — "when we
+  // submerge" — the tagline + box rise in. Immediate under reduced motion.
   const [phase, setPhase] = useState<"intro" | "ready">("intro");
-  const [pct, setPct] = useState(0);
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPhase("ready");
-      return;
-    }
-    const startedAt = performance.now();
-    const DUR = 2600;
-    let raf = 0;
-    const tick = (now: number) => {
-      const p = Math.min((now - startedAt) / DUR, 1);
-      setPct(Math.round((1 - Math.pow(1 - p, 3)) * 100));
-      if (p < 1) raf = requestAnimationFrame(tick);
-      else finish();
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    const t = setTimeout(() => setPhase("ready"), reduced ? 0 : 2500);
+    return () => clearTimeout(t);
   }, []);
-
-  function finish() {
-    setPhase("ready");
-  }
 
   useEffect(() => {
     const t = setInterval(() => setPh((i) => (i + 1) % EXAMPLES.length), 2800);
     return () => clearInterval(t);
-  }, []);
-
-  // Mouse parallax on the hero background image (skipped under reduced motion).
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const el = bgWrapRef.current;
-    if (!el) return;
-    const onMove = (e: PointerEvent) => {
-      const x = (e.clientX / window.innerWidth - 0.5) * -8;
-      const y = (e.clientY / window.innerHeight - 0.5) * -8;
-      el.style.transform = `translate(${x}px, ${y}px) scale(1.04)`;
-    };
-    window.addEventListener("pointermove", onMove, { passive: true });
-    return () => window.removeEventListener("pointermove", onMove);
   }, []);
 
   // The wizard lives ON the home: opening it shows the step-by-step frame inline
@@ -93,39 +58,6 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
   return (
     <>
     <section className={s.hero}>
-      <div className={s.heroBgWrap} ref={bgWrapRef} aria-hidden="true">
-        <div className={s.heroBg} style={{ backgroundImage: "url(/hero/hero-network.jpg)" }} />
-      </div>
-      <div className={s.heroScrim} aria-hidden="true" />
-
-      <AnimatePresence>
-        {phase === "intro" && (
-          <motion.div
-            className={s.intro}
-            role="button"
-            tabIndex={0}
-            aria-label="Saltar intro"
-            onClick={finish}
-            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && finish()}
-            initial={{ opacity: 1, y: 0 }}
-            exit={{ y: "-100%", transition: { duration: 0.85, ease: EASE } }}
-          >
-            <motion.h1
-              className="t-hero"
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.9, delay: 0.15, ease: EASE }}
-            >
-              De mil señales, <em style={{ fontStyle: "italic", color: "var(--accent)" }}>una sola lectura.</em>
-            </motion.h1>
-            <div className={s.introCounter}>
-              Analizando — <b>{pct}%</b>
-            </div>
-            <span className={s.introSkip}>tocá para saltar</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className={`${s.container} ${s.heroInner}`}>
         <motion.div {...rise(0.05)} className={s.eyebrow}>
           <span className="eyebrow-dot" /> Inteligencia competitiva · Social listening

@@ -47,7 +47,7 @@ export function ScreenShell({
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   return (
-    <div style={{ width: "100%", height: "100dvh", display: "flex", background: colors.bg, color: colors.text, overflow: "hidden" }}>
+    <div style={{ width: "100%", height: "100dvh", display: "flex", background: "color-mix(in srgb, var(--bg) 86%, transparent)", color: colors.text, overflow: "hidden" }}>
       <CommandPalette />
       <RunAssistant />
 

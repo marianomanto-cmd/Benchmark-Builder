@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SmoothScroll } from "@/components/motion/smooth-scroll";
+import { SiteBackground } from "@/components/marketing/site-bg";
 
 /* HANDOFF §2.2 — three families, one mission each.
  * Inter (UI · giga-aligned), JetBrains Mono (numerals/labels), Newsreader
@@ -58,6 +59,7 @@ export default function RootLayout({
       className={`${sans.variable} ${jbMono.variable} ${newsreader.variable}`}
     >
       <body>
+        <SiteBackground />
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
           <SmoothScroll>{children}</SmoothScroll>
         </ThemeProvider>

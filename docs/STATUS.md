@@ -128,7 +128,7 @@ Enum `platform`: instagram, tiktok, youtube, facebook, x, reddit, mastodon, blue
 
 - **Dark por defecto** (toggle claro). Paleta `.dark`: `--bg #0A0810`, `--surface #15131C/#1C1924`, texto `#F4F1EA/#8C8696/#5A5563`, **`--accent #F23A5E`** (sangría brillante), `--accent-ink`. Tema claro conserva sangría `#6B1A36`.
 - Escala editorial (`.t-hero`, `.t-section`, `.t-eyebrow`, `.t-lead`) con Newsreader gigante. `--series-*` monocromo + cliente en acento; Tremor `ink/sangria` con variantes `dark:` al nuevo acento.
-- **Home**: cortina de intro (tagline + campo de partículas Canvas 2D moviéndose detrás + contador 0→100% que **sube** y revela el box IA), marquee de fuentes, "qué hace" (swap before/after), proceso 01–04, showcase del reporte, FAQ, footer interactivo. Smooth scroll (Lenis) + reveals; `prefers-reduced-motion`, focus-visible, AA.
+- **Home**: **video de fondo inmersivo GLOBAL** (Grok, muteado + loop, ~2.9MB; vive detrás del hero, el wizard y el run — `components/marketing/site-bg.tsx`, fijo z-index -1, body transparente) con scrim de legibilidad theme-aware. **Sin cortina**: al cargar ves la animación y a ~2.5s ("inmersión") aparecen tagline + box IA. Marquee de fuentes, "qué hace" (swap before/after), proceso 01–04, showcase del reporte, FAQ, footer interactivo. Smooth scroll (Lenis) + reveals; `prefers-reduced-motion`, focus-visible, AA.
 - Componentes del dashboard migrados a tokens semánticos (no rompen en dark). **Responsive** desde la home (nav mobile, type fluida, grillas que colapsan).
 
 ---
