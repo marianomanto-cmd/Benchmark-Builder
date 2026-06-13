@@ -7,8 +7,8 @@ import s from "./marketing.module.css";
 
 const ITEMS = [
   { q: "¿De dónde salen los datos?", a: "De fuentes públicas: redes sociales, prensa y bibliotecas de anuncios. Usamos los handles reales de cada competidor y un barrido multi-fuente; nada se inventa." },
-  { q: "¿Cuánto cuesta un run?", a: "Lo ves antes de empezar. El asistente estima un rango (bajo–alto) por fuente y por análisis de IA, y el run nunca supera el presupuesto que fijás." },
-  { q: "¿Qué analiza la IA?", a: "Texto, imagen, video y voiceover. Detecta sentimiento, ángulos creativos y patrones por competidor, y los resume en takeaways y recomendaciones accionables." },
+  { q: "¿Cuánto cuesta un run?", a: "Lo ves antes de empezar. El asistente estima un rango (bajo–alto) por fuente y por análisis, y el run nunca supera el presupuesto que fijás." },
+  { q: "¿Qué incluye el análisis?", a: "Texto, imagen, video y voiceover. Detecta sentimiento, ángulos creativos y patrones por competidor, y los resume en takeaways y recomendaciones accionables." },
   { q: "¿Puedo revisar runs anteriores?", a: "Sí. Cada run queda guardado y es revisitable, con su reporte exportable a PDF o presentación." },
 ];
 

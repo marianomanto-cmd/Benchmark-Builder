@@ -4,8 +4,7 @@ export function AnalysisBlock({ analysis }: { analysis: AnalysisVM }) {
   return (
     <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderLeft: "3px solid var(--accent)", borderRadius: "var(--r-md)", padding: 18, boxShadow: "var(--sh-1)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span className="t-micro" style={{ color: "var(--accent)" }}>✦ Análisis · IA</span>
-        <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)", border: "1px solid var(--border)", borderRadius: 99, padding: "1px 8px" }}>Claude + Grok</span>
+        <span className="t-micro" style={{ color: "var(--accent)" }}>✦ Análisis + Insights</span>
       </div>
       <div style={{ fontFamily: "var(--font-serif)", fontSize: 20, lineHeight: "27px", fontWeight: 500, color: "var(--text)", textWrap: "balance", marginBottom: 8 }}>{analysis.headline}</div>
       <p style={{ fontSize: 14, lineHeight: "21px", color: "var(--text-muted)", textWrap: "pretty", margin: 0 }}>{analysis.body}</p>

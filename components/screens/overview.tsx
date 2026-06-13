@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { motion } from "motion/react";
+import Link from "next/link";
 import { ScreenShell } from "@/components/shell/screen-shell";
 import { Ic } from "@/components/ui/icons";
 import { Btn, BBBadge, KPI } from "@/components/ui/primitives";
@@ -63,8 +64,8 @@ export function Overview({ competitors, insights, run, analysis }: OverviewData 
           <div className="t-body" style={{ color: "var(--text-muted)", maxWidth: 640 }}>2.418 piezas analizadas entre el 1 de marzo y el 30 de abril de 2026 · IG · TT · YT · X · Reddit · Web · Meta Ads.</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Btn kind="secondary" icon={<Ic.download s={12} />}>PDF</Btn>
-          <Btn kind="accent" iconRight={<Ic.arrow s={12} />}>Generar reporte</Btn>
+          <Link href="/reporte"><Btn kind="secondary" icon={<Ic.download s={12} />}>PDF</Btn></Link>
+          <Link href="/editor"><Btn kind="accent" iconRight={<Ic.arrow s={12} />}>Generar reporte</Btn></Link>
         </div>
       </div>
 

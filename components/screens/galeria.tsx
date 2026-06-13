@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { ScreenShell } from "@/components/shell/screen-shell";
 import { Ic } from "@/components/ui/icons";
 import { Btn } from "@/components/ui/primitives";
@@ -84,6 +86,7 @@ function GalleryColumn({ kind }: { kind: "organic" | "ad" }) {
 }
 
 export function Galeria({ analysis }: { analysis?: AnalysisVM | null }) {
+  const [view, setView] = useState<"ambos" | "organico" | "pago">("ambos");
   return (
     <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Galería"]} runMeta="218 piezas orgánicas · 84 anuncios pagos">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
@@ -92,14 +95,16 @@ export function Galeria({ analysis }: { analysis?: AnalysisVM | null }) {
           <div className="t-h1" style={{ marginTop: 6, color: "var(--text)" }}>Lo que la competencia muestra y lo que paga por mostrar</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Btn kind="ghost" size="sm" icon={<Ic.filter s={11} />}>Filtros</Btn>
-          <Btn kind="secondary" size="sm" iconRight={<Ic.eye s={11} />}>Modo presentación</Btn>
+          <Btn kind="ghost" size="sm" icon={<Ic.filter s={11} />} onClick={() => setView((v) => (v === "ambos" ? "organico" : v === "organico" ? "pago" : "ambos"))}>
+            {view === "ambos" ? "Orgánico + pago" : view === "organico" ? "Sólo orgánico" : "Sólo pago"}
+          </Btn>
+          <Link href="/reporte"><Btn kind="secondary" size="sm" iconRight={<Ic.eye s={11} />}>Modo presentación</Btn></Link>
         </div>
       </div>
       {analysis && <div style={{ marginBottom: 16 }}><AnalysisBlock analysis={analysis} /></div>}
-      <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-        <GalleryColumn kind="organic" />
-        <GalleryColumn kind="ad" />
+      <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: view === "ambos" ? "1fr 1fr" : "1fr", gap: 18 }}>
+        {view !== "pago" && <GalleryColumn kind="organic" />}
+        {view !== "organico" && <GalleryColumn kind="ad" />}
       </div>
     </ScreenShell>
   );

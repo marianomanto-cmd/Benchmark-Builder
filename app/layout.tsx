@@ -36,11 +36,11 @@ export const metadata: Metadata = {
     template: "%s · Phema",
   },
   description:
-    "Toda la conversación de tu categoría —redes, prensa y anuncios— analizada con IA y convertida en un reporte que se vende.",
+    "Toda la conversación de tu categoría —redes, prensa y anuncios— convertida en un reporte que se vende.",
   openGraph: {
     title: "Phema — De mil señales, una sola lectura.",
     description:
-      "Inteligencia competitiva y social listening asistido por IA. El reporte que se vende, en un clic.",
+      "Inteligencia competitiva y social listening. El reporte que se vende, en un clic.",
     type: "website",
     locale: "es_AR",
     images: [{ url: "/og.svg", width: 1200, height: 630, alt: "Phema" }],

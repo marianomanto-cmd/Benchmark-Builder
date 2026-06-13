@@ -3,7 +3,7 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { Sparkles, ArrowRight, ArrowLeft, X, Check, Wand2, Bot, Loader2 } from "lucide-react";
+import { Sparkles, ArrowRight, ArrowLeft, X, Check, Wand2, Loader2 } from "lucide-react";
 import { suggestFor, assistFor, detectCategory } from "@/lib/discovery/suggest";
 import type { PlatformKey } from "@/lib/platforms";
 
@@ -14,7 +14,7 @@ const ORGANIC: { key: PlatformKey; label: string; perComp: number }[] = [
   { key: "instagram", label: "Instagram", perComp: 0.22 },
   { key: "tiktok", label: "TikTok", perComp: 0.18 },
   { key: "youtube", label: "YouTube", perComp: 0.14 },
-  { key: "x", label: "X / Grok", perComp: 0.10 },
+  { key: "x", label: "X", perComp: 0.10 },
   { key: "reddit", label: "Reddit", perComp: 0.06 },
   { key: "web", label: "Web · prensa", perComp: 0.20 },
 ];
@@ -166,7 +166,7 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
         {/* AI assist line */}
         {assist.msg && (
           <div style={{ display: "flex", gap: 10, alignItems: "flex-start", margin: "14px 0 20px", padding: "12px 14px", borderRadius: 12, background: "var(--surface)", border: `1px solid ${assist.ok ? "var(--border)" : "color-mix(in srgb, var(--accent) 40%, var(--border))"}` }}>
-            <span style={{ flexShrink: 0, width: 26, height: 26, borderRadius: 8, background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Bot size={15} /></span>
+            <span style={{ flexShrink: 0, width: 26, height: 26, borderRadius: 8, background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Sparkles size={15} /></span>
             <div style={{ fontSize: 13, lineHeight: "19px", color: "var(--text-muted)" }}>{assist.msg}</div>
           </div>
         )}
@@ -266,7 +266,7 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
                     <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", marginTop: 2 }}>rango US${estimate.low.toFixed(2)}–{estimate.high.toFixed(2)} · ~{estimate.minutes} min · {estimate.comps} marcas</div>
                   </div>
                   <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", textAlign: "right", lineHeight: "18px" }}>
-                    scraping US${estimate.scraping.toFixed(2)}<br />análisis IA US${estimate.ai.toFixed(2)}
+                    scraping US${estimate.scraping.toFixed(2)}<br />análisis US${estimate.ai.toFixed(2)}
                   </div>
                 </div>
 

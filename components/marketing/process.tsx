@@ -4,7 +4,7 @@ import s from "./marketing.module.css";
 const STEPS = [
   { code: "(MR)", n: "01", title: "Definí el marco", body: "Problema de negocio, competidores con filtros por magnitud, alcance y fechas." },
   { code: "(DS)", n: "02", title: "Descubrimos y scrapeamos", body: "Handles reales y multi-fuente: redes, prensa y anuncios, en un solo barrido." },
-  { code: "(AI)", n: "03", title: "La IA analiza", body: "Texto, imagen, video y voiceover; sentimiento, ángulos y patrones por competidor." },
+  { code: "(✦)", n: "03", title: "Análisis + insights", body: "Texto, imagen, video y voiceover; sentimiento, ángulos y patrones por competidor." },
   { code: "(RX)", n: "04", title: "Reporte exportable", body: "El entregable que se vende —PDF y presentación— listo en un clic." },
 ];
 

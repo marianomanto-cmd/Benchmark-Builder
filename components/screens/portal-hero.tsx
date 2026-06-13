@@ -68,7 +68,7 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
         </motion.h1>
 
         <motion.p {...rise(0.2)} className="t-lead" style={{ marginTop: 20, maxWidth: "52ch" }}>
-          Describí tu pregunta de negocio. Armamos el marco, estimamos el costo y la IA produce un reporte que se vende.
+          Describí tu pregunta de negocio. Armamos el marco, estimamos el costo y producimos un reporte que se vende.
         </motion.p>
 
         <motion.form {...rise(0.28)} className={s.box} onSubmit={(e) => { e.preventDefault(); go(q); }}>

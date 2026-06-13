@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { Sparkles, X, ArrowUp, Bot, Home } from "lucide-react";
+import { Sparkles, X, ArrowUp, Home } from "lucide-react";
 
 type Msg = { role: "user" | "bot"; text: string; outOfScope?: boolean };
 
@@ -55,7 +55,7 @@ export function RunAssistant() {
             style={{ position: "fixed", right: "max(16px, env(safe-area-inset-right))", bottom: 84, zIndex: 80, width: "min(380px, calc(100vw - 32px))", maxHeight: "min(70vh, 560px)", display: "flex", flexDirection: "column", background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 16, boxShadow: "0 24px 60px rgba(0,0,0,0.5)", overflow: "hidden" }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
-              <span style={{ width: 26, height: 26, borderRadius: 8, background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Bot size={15} /></span>
+              <span style={{ width: 26, height: 26, borderRadius: 8, background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Sparkles size={15} /></span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>Preguntá sobre este run</div>
                 <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)" }}>responde sobre los resultados obtenidos</div>
@@ -93,7 +93,7 @@ export function RunAssistant() {
                 />
                 <button type="button" onClick={send} aria-label="Enviar" style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 10, border: "none", background: "var(--accent)", color: "var(--accent-ink)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><ArrowUp size={16} /></button>
               </div>
-              <div style={{ marginTop: 7, fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)" }}>Consume tokens · ~US$0,02 por consulta · acotado a este run</div>
+              <div style={{ marginTop: 7, fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)" }}>~US$0,02 por consulta · acotado a este run</div>
             </div>
           </motion.div>
         )}
@@ -106,7 +106,7 @@ export function RunAssistant() {
         style={{ position: "fixed", right: "max(16px, env(safe-area-inset-right))", bottom: "max(20px, env(safe-area-inset-bottom))", zIndex: 80, height: 52, borderRadius: 999, padding: "0 18px", display: "inline-flex", alignItems: "center", gap: 9, border: "none", cursor: "pointer", background: "var(--accent)", color: "var(--accent-ink)", boxShadow: "0 12px 30px color-mix(in srgb, var(--accent) 45%, transparent)", fontSize: 13, fontWeight: 600 }}
       >
         {open ? <X size={18} /> : <Sparkles size={18} />}
-        <span className="bb-hide-sm">Preguntar a la IA</span>
+        <span className="bb-hide-sm">Preguntar</span>
       </button>
     </>
   );

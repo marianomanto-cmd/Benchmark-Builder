@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ScreenShell } from "@/components/shell/screen-shell";
+import Link from "next/link";
 import { Ic } from "@/components/ui/icons";
 import { Btn, SentimentChip } from "@/components/ui/primitives";
 import { PlatformBadge } from "@/components/domain";
@@ -62,7 +63,7 @@ export function Comparativa({ analysis }: { analysis?: AnalysisVM | null }) {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Btn kind="secondary" size="sm" icon={<Ic.download s={11} />} onClick={downloadCSV}>CSV</Btn>
-          <Btn kind="secondary" size="sm" icon={<Ic.copy s={11} />}>Insertar en reporte</Btn>
+          <Link href="/editor"><Btn kind="secondary" size="sm" icon={<Ic.copy s={11} />}>Insertar en reporte</Btn></Link>
         </div>
       </div>
 

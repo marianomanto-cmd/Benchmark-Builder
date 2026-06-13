@@ -3,6 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { motion } from "motion/react";
 import { ScreenShell } from "@/components/shell/screen-shell";
+import Link from "next/link";
 import { Ic } from "@/components/ui/icons";
 import { Btn, BBBadge } from "@/components/ui/primitives";
 import { AnalysisBlock } from "@/components/analysis-block";
@@ -86,7 +87,7 @@ export function Swot({ analysis }: { analysis?: AnalysisVM | null }) {
           <div className="t-micro" style={{ color: "var(--accent)" }}>FODA · MATRIZ DE ACCIÓN · ROADMAP</div>
           <div className="t-h1" style={{ marginTop: 6, color: "var(--text)" }}>De los datos a la jugada</div>
         </div>
-        <Btn kind="secondary" size="sm" icon={<Ic.copy s={11} />}>Insertar en reporte</Btn>
+        <Link href="/editor"><Btn kind="secondary" size="sm" icon={<Ic.copy s={11} />}>Insertar en reporte</Btn></Link>
       </div>
 
       {analysis && <div style={{ marginBottom: 18 }}><AnalysisBlock analysis={analysis} /></div>}

@@ -24,10 +24,10 @@ const SOURCES: { key: PlatformKey; label: string; cost: number; note: string; fa
   { key: "instagram", label: "Instagram", cost: 0.42, note: "orgánico · Apify", family: "organic" },
   { key: "tiktok", label: "TikTok", cost: 0.28, note: "orgánico · Apify", family: "organic" },
   { key: "youtube", label: "YouTube", cost: 0.18, note: "orgánico · Apify", family: "organic" },
-  { key: "x", label: "X / Grok", cost: 0.14, note: "live search · Grok", family: "organic" },
+  { key: "x", label: "X", cost: 0.14, note: "live search", family: "organic" },
   { key: "reddit", label: "Reddit", cost: 0.12, note: "API pública", family: "organic" },
   { key: "web", label: "Web · prensa", cost: 0.42, note: "Apify", family: "organic" },
-  { key: "meta_ads", label: "Meta Ad Library", cost: 0.3, note: "paid · scraper / API oficial", family: "paid" },
+  { key: "meta_ads", label: "Meta Ad Library", cost: 0.3, note: "paid · scraper", family: "paid" },
   { key: "google_ads", label: "Google Ads Transparency", cost: 0.28, note: "paid · Apify", family: "paid" },
   { key: "linkedin_ads", label: "LinkedIn Ad Library", cost: 0.22, note: "paid · Apify", family: "paid" },
 ];
