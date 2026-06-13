@@ -19,8 +19,8 @@ export function HeroCanvas({ className }: { className?: string }) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const INK = "#f4f1ea";
     const ACC = "#f23a5e";
-    const SIGNAL = 30;
-    const NOISE = 46;
+    const SIGNAL = 34;
+    const NOISE = 66;
     const TOTAL = SIGNAL + NOISE;
 
     let W = 0;
@@ -58,7 +58,7 @@ export function HeroCanvas({ className }: { className?: string }) {
       for (let i = 0; i < TOTAL; i++) {
         const sig = i < SIGNAL;
         nodes.push({
-          x: rnd(0, W), y: rnd(0, H), vx: rnd(-0.35, 0.35), vy: rnd(-0.35, 0.35),
+          x: rnd(0, W), y: rnd(0, H), vx: rnd(-0.55, 0.55), vy: rnd(-0.55, 0.55),
           sig, hero: i === 0, r: sig ? (i === 0 ? 6 : rnd(2.4, 4)) : rnd(1.4, 2.6),
           col: i % 11 === 0 ? ACC : INK, alpha: sig ? rnd(0.55, 0.95) : rnd(0.2, 0.5), ai: 0, ph: rnd(0, 6.28),
         });

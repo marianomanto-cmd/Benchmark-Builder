@@ -243,12 +243,13 @@
 }
 .actionBtn:hover { border-color: var(--text); transform: translateY(-1px); }
 
-/* Intro curtain */
+/* Intro curtain — translucent scrim so the moving particle field shows behind
+ * the tagline; it rises like a curtain to reveal the box. */
 .intro {
   position: absolute;
   inset: 0;
   z-index: 5;
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -256,10 +257,12 @@
   text-align: center;
   padding: 0 24px;
   cursor: pointer;
+  overflow: hidden;
 }
 .introTagline {
   max-width: 18ch;
   margin: 0 auto;
+  text-shadow: 0 2px 40px var(--bg), 0 0 14px var(--bg);
 }
 .introTagline em { font-style: italic; color: var(--accent); }
 .introCounter {
@@ -269,6 +272,7 @@
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text-muted);
+  text-shadow: 0 1px 20px var(--bg);
 }
 .introCounter b { color: var(--accent); font-weight: 600; }
 .introSkip {

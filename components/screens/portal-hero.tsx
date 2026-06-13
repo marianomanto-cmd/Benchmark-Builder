@@ -27,20 +27,21 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Intro curtain: plays once per session, skipped under reduced motion.
-  const [phase, setPhase] = useState<"intro" | "ready">("ready");
+  // Intro curtain: starts covering the hero (default "intro") so there's no
+  // flash of the box; the particle field drifts behind the tagline, a counter
+  // runs, then the curtain rises to reveal the box. Skipped under reduced motion.
+  const [phase, setPhase] = useState<"intro" | "ready">("intro");
   const [pct, setPct] = useState(0);
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const seen = sessionStorage.getItem("bb-intro-seen");
-    if (reduced || seen) return; // stay on the default "ready" state
-    // Client-only intro (depends on sessionStorage/matchMedia): switch in after
-    // mount, then run the load counter.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPhase("intro");
+    if (reduced) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPhase("ready");
+      return;
+    }
     const startedAt = performance.now();
-    const DUR = 2200;
+    const DUR = 2600;
     let raf = 0;
     const tick = (now: number) => {
       const p = Math.min((now - startedAt) / DUR, 1);
@@ -53,7 +54,6 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
   }, []);
 
   function finish() {
-    sessionStorage.setItem("bb-intro-seen", "1");
     setPhase("ready");
   }
 
@@ -90,8 +90,8 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
             aria-label="Saltar intro"
             onClick={finish}
             onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && finish()}
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -28, transition: { duration: 0.7, ease: EASE } }}
+            initial={{ opacity: 1, y: 0 }}
+            exit={{ y: "-100%", transition: { duration: 0.85, ease: EASE } }}
           >
             <motion.h1
               className="t-hero"
