@@ -28,6 +28,7 @@ export type SourceQuery = {
   geo: string[]; // ISO country codes
   sinceDays: number;
   limit: number;
+  actorId?: string; // Apify actor override resolved from source_settings (DB)
 };
 
 export type SourceResult = { mentions: RawMention[]; cost: number };

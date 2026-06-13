@@ -389,6 +389,30 @@ export type Database = {
           },
         ];
       };
+      source_settings: {
+        Row: {
+          actor_id: string | null;
+          enabled: boolean;
+          platform: Database["public"]["Enums"]["platform"];
+          results_limit: number;
+          updated_at: string;
+        };
+        Insert: {
+          actor_id?: string | null;
+          enabled?: boolean;
+          platform: Database["public"]["Enums"]["platform"];
+          results_limit?: number;
+          updated_at?: string;
+        };
+        Update: {
+          actor_id?: string | null;
+          enabled?: boolean;
+          platform?: Database["public"]["Enums"]["platform"];
+          results_limit?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       workspaces: {
         Row: {
           brand_color: string;

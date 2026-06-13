@@ -84,12 +84,22 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[]): Prom
     .single();
   if (runErr || !run) return { ok: false, error: `No se pudo crear el run: ${runErr?.message}` };
 
+  // Source config (Apify actor ids, enabled, limits) — editable from the app.
+  const { data: settingsRows } = await admin.from("source_settings").select("*");
+  const settings = new Map((settingsRows ?? []).map((s) => [s.platform as PlatformKey, s]));
+
   // Scrape each platform.
   const collected: RawMention[] = [];
   const summary: RunResult["platforms"] = [];
   let totalCost = 0;
 
   for (const platform of targets) {
+    const cfg = settings.get(platform);
+    if (cfg?.enabled === false) {
+      await admin.from("run_sources").insert({ run_id: run.id, platform, status: "skipped", error: "deshabilitada en settings" });
+      summary.push({ platform, status: "skipped", count: 0, error: "deshabilitada" });
+      continue;
+    }
     const source = sourceFor(platform);
     const handles = Array.from(
       new Set(
@@ -111,7 +121,8 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[]): Prom
         languages: project.languages,
         geo: project.geo,
         sinceDays: project.period_days,
-        limit: 25,
+        limit: cfg?.results_limit ?? 25,
+        actorId: cfg?.actor_id ?? undefined,
       });
       for (const m of result.mentions) collected.push({ ...m, platform });
       totalCost += result.cost;

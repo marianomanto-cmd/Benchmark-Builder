@@ -69,7 +69,23 @@ export function ScreenShell({
           );
         })}
         <div style={{ flex: 1 }} />
-        <span style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--n400)" }} />
+        <Link
+          href="/settings"
+          title="Settings"
+          style={{
+            width: 36,
+            height: 36,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "var(--r-sm)",
+            color: pathname.startsWith("/settings") ? "#fff" : "#847a68",
+            background: pathname.startsWith("/settings") ? "#2a241c" : "transparent",
+          }}
+        >
+          {NavIc.cog(15)}
+        </Link>
+        <span style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--n400)", marginTop: 6 }} />
       </aside>
 
       {/* main */}

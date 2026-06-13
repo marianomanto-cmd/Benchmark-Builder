@@ -74,10 +74,12 @@ export function apifySource(platform: PlatformKey): Source {
   return {
     key: platform,
     label: `Apify · ${platform}`,
-    available: () => Boolean(env("APIFY_TOKEN") && actorFor(platform)),
+    // Actor id is resolved per-run from source_settings (DB) → env → default,
+    // so it only needs the token to be considered available.
+    available: () => Boolean(env("APIFY_TOKEN")),
     async fetch(q: SourceQuery): Promise<SourceResult> {
       const token = env("APIFY_TOKEN");
-      const actor = actorFor(platform);
+      const actor = q.actorId ?? actorFor(platform);
       if (!token || !actor) throw new Error("Apify no configurado (APIFY_TOKEN / actor)");
       const url = `https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?token=${token}&timeout=180`;
       const res = await fetch(url, {
