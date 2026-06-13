@@ -10,17 +10,17 @@ import { BBBarChart } from "@/components/ui/charts";
 // inline editing, an outline, add/move/duplicate/delete, live preview, PDF
 // export (print) and autosave to localStorage. Zero backend / zero cost.
 
-type BlockType = "h1" | "h2" | "text" | "quote" | "kpi" | "list" | "chart";
-type Block = { id: string; type: BlockType; text: string; value?: string; items?: string[] };
+type BlockType = "h1" | "h2" | "text" | "quote" | "kpi" | "list" | "chart" | "table";
+type Block = { id: string; type: BlockType; text: string; value?: string; items?: string[]; rows?: string[][] };
 type Doc = { title: string; subtitle: string; blocks: Block[] };
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const LS_KEY = "phema-report";
 
 const BLOCK_LABELS: Record<BlockType, string> = {
-  h1: "Título", h2: "Subtítulo", text: "Párrafo", quote: "Cita", kpi: "KPI", list: "Lista", chart: "Gráfico",
+  h1: "Título", h2: "Subtítulo", text: "Párrafo", quote: "Cita", kpi: "KPI", list: "Lista", chart: "Gráfico", table: "Tabla",
 };
-const INSERTABLE: BlockType[] = ["h1", "h2", "text", "quote", "kpi", "list", "chart"];
+const INSERTABLE: BlockType[] = ["h1", "h2", "text", "quote", "kpi", "list", "table", "chart"];
 
 const SEED: Doc = {
   title: "Cartagena, en el aire de cuatro aerolíneas",
@@ -35,6 +35,8 @@ const SEED: Doc = {
     { id: uid(), type: "list", text: "", items: ["Activar TikTok orgánico donde LATAM está ausente.", "Sumar 1–2 creativos pagos por semana en Meta.", "Programar las piezas clave de martes a jueves por la mañana."] },
   ],
 };
+
+const tblBtn: CSSProperties = { padding: "3px 9px", border: "1px solid var(--n200)", background: "var(--n50)", color: "var(--n700)", borderRadius: 4, fontSize: 11, cursor: "pointer" };
 
 function Editable({ value, onCommit, placeholder, style }: { value: string; onCommit: (v: string) => void; placeholder?: string; style?: CSSProperties }) {
   return (
@@ -81,9 +83,10 @@ export function Editor() {
     const nb: Block = {
       id: uid(),
       type,
-      text: type === "kpi" ? "Nueva métrica" : type === "list" || type === "chart" ? (type === "chart" ? "Nuevo gráfico" : "") : `Nuevo ${BLOCK_LABELS[type].toLowerCase()}`,
+      text: type === "kpi" ? "Nueva métrica" : type === "chart" ? "Nuevo gráfico" : type === "list" || type === "table" ? "" : `Nuevo ${BLOCK_LABELS[type].toLowerCase()}`,
       value: type === "kpi" ? "00" : undefined,
       items: type === "list" ? ["Primer punto"] : undefined,
+      rows: type === "table" ? [["Métrica", "Valor"], ["Ejemplo", "00"]] : undefined,
     };
     setDoc((d) => {
       const i = sel ? d.blocks.findIndex((b) => b.id === sel) : d.blocks.length - 1;
@@ -196,6 +199,31 @@ export function Editor() {
                     <div>
                       <Editable value={b.text} onCommit={(v) => update(b.id, { text: v })} placeholder="Título del gráfico" style={{ fontFamily: "var(--font-serif)", fontSize: 14, color: "var(--n600)", marginBottom: 6 }} />
                       <BBBarChart />
+                    </div>
+                  )}
+                  {b.type === "table" && (
+                    <div>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-sans)", fontSize: 14 }}>
+                        <tbody>
+                          {(b.rows ?? []).map((row, ri) => (
+                            <tr key={ri}>
+                              {row.map((cell, ci) => (
+                                <td key={ci} style={{ border: "1px solid var(--n300)", padding: "6px 10px", color: ri === 0 ? "var(--n900)" : "var(--n800)", fontWeight: ri === 0 ? 600 : 400, background: ri === 0 ? "var(--n50)" : "transparent", verticalAlign: "top" }}>
+                                  <Editable value={cell} onCommit={(v) => update(b.id, { rows: (b.rows ?? []).map((r, i) => (i === ri ? r.map((c, j) => (j === ci ? v : c)) : r)) })} placeholder="—" />
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {!preview && (
+                        <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); update(b.id, { rows: [...(b.rows ?? []), Array((b.rows?.[0]?.length) || 2).fill("")] }); }} style={tblBtn}>+ fila</button>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); update(b.id, { rows: (b.rows ?? []).map((r) => [...r, ""]) }); }} style={tblBtn}>+ columna</button>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); update(b.id, { rows: (b.rows ?? []).length > 1 ? (b.rows ?? []).slice(0, -1) : (b.rows ?? []) }); }} style={tblBtn}>− fila</button>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); update(b.id, { rows: (b.rows ?? []).map((r) => (r.length > 1 ? r.slice(0, -1) : r)) }); }} style={tblBtn}>− columna</button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

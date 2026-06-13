@@ -111,7 +111,7 @@ Enum `platform`: instagram, tiktok, youtube, facebook, x, reddit, mastodon, blue
 2. `planToJobs(plan, source_settings)` → **un job por `(plataforma × scope)`** (organic y/o paid según scope; enabled).
 3. **Estimación** (`estimateRunCost`) desde esos jobs → `cost_estimated_low/high` en el run.
 4. Cada job pasa por **`guardedCall`** (orden: `isApiEnabled` → reserva `reserveBudget` → llamada con timeout + reintentos acotados → `commitCharge`/`releaseCharge`; escribe `run_steps`+`cost_ledger`).
-5. Routing paid: comercial → scrapers Apify; **político → además API oficial de Meta** (gasto/impresiones) si `meta_api_enabled`+token; fallos **degradan** (no rompen). Ads normalizados a `mentions` (is_ad + `engagement.ad`).
+5. Routing paid: **anuncios SÓLO vía scrapers** (Apify ad-library / ad-detection). La **API oficial de Meta Ad Library queda descartada** como vía (decisión de producto 13/jun); el path `meta_api` queda legacy/desactivado. Fallos **degradan** (no rompen). Ads normalizados a `mentions` (is_ad + `engagement.ad`). Candidatos de actores ad-only (Meta/TikTok/Google/LinkedIn) anotados en `docs/apify-ad-actors.md`.
 6. Sentimiento (Claude) + agregados + insights (Claude), todo bajo guard. Finaliza con `cost_actual` desde el ledger.
 
 **Modo de ejecución — `PIPELINE_MODE` (default `mock`):**

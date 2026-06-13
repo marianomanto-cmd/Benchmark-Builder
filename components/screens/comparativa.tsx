@@ -39,6 +39,20 @@ const platsByCol: PlatformKey[][] = [
 ];
 
 export function Comparativa({ analysis }: { analysis?: AnalysisVM | null }) {
+  function downloadCSV() {
+    const esc = (s: unknown) => `"${String(s).replace(/"/g, '""')}"`;
+    const head = ["Métrica", ...cols.map((c) => c.name)];
+    const lines = [head.map(esc).join(","), ...rows.map((r) => [r.label, ...r.vals].map(esc).join(","))];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "phema-comparativa.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
   return (
     <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Comparativa"]} runMeta="5 competidores · vista lado a lado">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
@@ -47,7 +61,7 @@ export function Comparativa({ analysis }: { analysis?: AnalysisVM | null }) {
           <div className="t-h1" style={{ marginTop: 6, color: "var(--text)" }}>Una matriz para entender la competencia</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Btn kind="secondary" size="sm" icon={<Ic.download s={11} />}>CSV</Btn>
+          <Btn kind="secondary" size="sm" icon={<Ic.download s={11} />} onClick={downloadCSV}>CSV</Btn>
           <Btn kind="secondary" size="sm" icon={<Ic.copy s={11} />}>Insertar en reporte</Btn>
         </div>
       </div>

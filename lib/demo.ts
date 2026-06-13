@@ -139,6 +139,11 @@ export const DEMO_RUNS = [
   { number: 39, mentions: 21, cost: 1.95, when: "hace 5 d", title: "Fintech · Ualá vs Brubank" },
   { number: 38, mentions: 14, cost: 1.4, when: "hace 1 sem", title: "Café · especialidad LatAm" },
   { number: 37, mentions: 26, cost: 2.32, when: "hace 2 sem", title: "Bebidas · campañas de verano" },
+  { number: 36, mentions: 19, cost: 1.78, when: "hace 3 sem", title: "Belleza · Natura vs L'Oréal" },
+  { number: 35, mentions: 23, cost: 2.18, when: "hace 3 sem", title: "Retail · supermercados AMBA" },
+  { number: 34, mentions: 15, cost: 1.5, when: "hace 1 mes", title: "Tech · apps de productividad" },
+  { number: 33, mentions: 28, cost: 2.46, when: "hace 1 mes", title: "Indumentaria deportiva · Nike vs adidas" },
+  { number: 32, mentions: 12, cost: 1.22, when: "hace 5 sem", title: "Turismo · Patagonia temporada" },
 ];
 
 // Proyectos = carpetas que agrupan runs (feature que maneja el usuario).
@@ -147,4 +152,8 @@ export const DEMO_PROJECTS = [
   { slug: "moda-zara-hm", name: "Moda · Zara vs H&M", category: "Retail / Moda", runs: 3, lastRun: "hace 3 d", budget: 25, accent: "var(--series-1)" },
   { slug: "fintech-uala", name: "Fintech · Ualá vs Brubank", category: "Fintech", runs: 2, lastRun: "hace 5 d", budget: 40, accent: "var(--series-2)" },
   { slug: "cafe-latam", name: "Café de especialidad LatAm", category: "Food & Bev", runs: 4, lastRun: "hace 1 sem", budget: 20, accent: "var(--series-3)" },
+  { slug: "belleza-natura", name: "Belleza · Natura vs L'Oréal", category: "Beauty", runs: 5, lastRun: "hace 3 sem", budget: 35, accent: "var(--series-1)" },
+  { slug: "retail-amba", name: "Retail · supermercados AMBA", category: "Retail", runs: 3, lastRun: "hace 1 mes", budget: 28, accent: "var(--series-4)" },
+  { slug: "tech-productividad", name: "Tech · apps de productividad", category: "SaaS / Tech", runs: 2, lastRun: "hace 1 mes", budget: 50, accent: "var(--series-2)" },
+  { slug: "deportiva-nike-adidas", name: "Deportiva · Nike vs adidas", category: "Indumentaria", runs: 7, lastRun: "hace 5 sem", budget: 45, accent: "var(--series-client)" },
 ];
