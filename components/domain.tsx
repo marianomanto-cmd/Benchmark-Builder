@@ -77,35 +77,35 @@ export function MentionCard({
   brand: string;
 }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid var(--n200)", borderRadius: "var(--r-md)", overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
+    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", display: "flex", flexDirection: "column", position: "relative", boxShadow: "var(--sh-1)" }}>
       {isAd && (
         <div style={{ position: "absolute", top: 8, right: 8, zIndex: 2, padding: "2px 7px", background: "var(--sa-base)", color: "#fff", borderRadius: 2, fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: ".08em", textTransform: "uppercase", fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}>
           <Ic.bolt s={9} /> AD
         </div>
       )}
-      <div style={{ padding: "12px 14px 10px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid var(--n100)" }}>
+      <div style={{ padding: "12px 14px 10px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid var(--border)" }}>
         <PlatformBadge platform={platform} size="md" />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: "var(--n900)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{author}</div>
-          <div style={{ fontSize: 11, color: "var(--n500)", fontFamily: "var(--font-mono)" }}>@{handle} · {ts}</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{author}</div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>@{handle} · {ts}</div>
         </div>
         <BBBadge tone="neutral" size="sm">{brand}</BBBadge>
       </div>
       {thumbType && (
-        <div style={{ height: 140, background: "var(--n100)", position: "relative", overflow: "hidden" }}>
+        <div style={{ height: 140, background: "var(--surface-2)", position: "relative", overflow: "hidden" }}>
           <ThumbPlaceholder kind={thumbType} />
         </div>
       )}
       <div style={{ padding: "10px 14px", flex: 1 }}>
-        <div style={{ fontSize: 13, lineHeight: "19px", color: "var(--n700)", textWrap: "pretty", display: "-webkit-box", WebkitLineClamp: thumbType ? 2 : 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+        <div style={{ fontSize: 13, lineHeight: "19px", color: "var(--text)", textWrap: "pretty", display: "-webkit-box", WebkitLineClamp: thumbType ? 2 : 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
           {body}
         </div>
       </div>
-      <div style={{ padding: "8px 14px 12px", borderTop: "1px solid var(--n100)", display: "flex", alignItems: "center", gap: 14, fontSize: 11, color: "var(--n600)", fontFamily: "var(--font-mono)" }}>
+      <div style={{ padding: "8px 14px 12px", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 14, fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
         {metrics.map((m, i) => (
           <span key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ color: "var(--n400)" }}>{m[0]}</span>
-            <span style={{ color: "var(--n900)" }}>{m[1]}</span>
+            <span style={{ color: "var(--text-faint)" }}>{m[0]}</span>
+            <span style={{ color: "var(--text)" }}>{m[1]}</span>
           </span>
         ))}
         <div style={{ flex: 1 }} />

@@ -12,7 +12,7 @@ function FilterGroup({ title, items, platforms }: { title: string; items: (strin
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
         <div className="t-micro">{title}</div>
-        <span style={{ fontSize: 10, color: "var(--n500)", fontFamily: "var(--font-mono)" }}>todos</span>
+        <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>todos</span>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {items.map((it, i) => {
@@ -21,13 +21,13 @@ function FilterGroup({ title, items, platforms }: { title: string; items: (strin
           const third = (platforms ? it[2] : it[1]) as string | number;
           const checked = (platforms ? it[3] : it[2]) as boolean;
           return (
-            <label key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 6px", borderRadius: "var(--r-sm)", background: checked ? "var(--n50)" : "transparent", cursor: "pointer" }}>
-              <span style={{ width: 14, height: 14, borderRadius: 3, border: `1px solid ${checked ? "var(--sa-base)" : "var(--n300)"}`, background: checked ? "var(--sa-base)" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+            <label key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 6px", borderRadius: "var(--r-sm)", background: checked ? "var(--surface-2)" : "transparent", cursor: "pointer" }}>
+              <span style={{ width: 14, height: 14, borderRadius: 3, border: `1px solid ${checked ? "var(--accent)" : "var(--border-strong)"}`, background: checked ? "var(--accent)" : "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
                 {checked && <Ic.check s={9} />}
               </span>
               {platforms && second && <PlatformBadge platform={second} size="sm" />}
-              <span style={{ fontSize: 12, color: "var(--n800)", flex: 1 }}>{name}</span>
-              <span style={{ fontSize: 11, color: "var(--n500)", fontFamily: "var(--font-mono)" }}>{third}</span>
+              <span style={{ fontSize: 12, color: "var(--text)", flex: 1 }}>{name}</span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{third}</span>
             </label>
           );
         })}
@@ -54,11 +54,11 @@ export function LiveFeed({ mentions }: { mentions: MentionVM[] }) {
         {/* Feed */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div className="t-h2">Live feed</div>
+            <div className="t-h2" style={{ color: "var(--text)" }}>Live feed</div>
             <BBBadge tone="success" size="sm" dot="var(--success)">en vivo</BBBadge>
             <div style={{ flex: 1 }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--n600)" }}>Ordenar:
-              <span style={{ display: "inline-flex", alignItems: "center", border: "1px solid var(--n300)", borderRadius: "var(--r-sm)", padding: "4px 10px", background: "#fff", gap: 6, fontWeight: 500 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)" }}>Ordenar:
+              <span style={{ display: "inline-flex", alignItems: "center", border: "1px solid var(--border-strong)", borderRadius: "var(--r-sm)", padding: "4px 10px", background: "var(--surface)", gap: 6, fontWeight: 500, color: "var(--text)" }}>
                 <Ic.sort s={11} /> Engagement <Ic.arrowDown s={9} />
               </span>
             </div>
@@ -67,7 +67,7 @@ export function LiveFeed({ mentions }: { mentions: MentionVM[] }) {
 
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {["60 días", "Avianca", "LATAM", "Wingo", "Copa", "IG", "TT", "YT", "Web", "Meta Ads", "Pos+Neu", "Orgánico+Pago"].map((c, i) => (
-              <span key={i} style={{ fontSize: 11, padding: "3px 9px", borderRadius: 99, background: "var(--n100)", color: "var(--n700)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span key={i} style={{ fontSize: 11, padding: "3px 9px", borderRadius: 99, background: "var(--surface-2)", color: "var(--text-muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
                 {c}<Ic.close s={8} />
               </span>
             ))}
