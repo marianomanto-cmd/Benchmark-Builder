@@ -10,7 +10,7 @@ import { CommandPalette } from "@/components/command-palette";
 
 // Nav maps the compact sidebar glyphs to the project screens.
 const NAV: { href: string; icon: (s?: number) => ReactNode; title: string }[] = [
-  { href: "/", icon: NavIc.grid, title: "Overview" },
+  { href: "/overview", icon: NavIc.grid, title: "Overview" },
   { href: "/live-feed", icon: NavIc.folder, title: "Live feed" },
   { href: "/comparativa", icon: NavIc.users, title: "Comparativa" },
   { href: "/galeria", icon: NavIc.doc, title: "Galería" },

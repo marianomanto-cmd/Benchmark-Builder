@@ -1,4 +1,4 @@
-// Branded loading skeleton shown while dynamic (Supabase-backed) pages stream.
+// Branded loading skeleton shown while the dashboard streams.
 export default function Loading() {
   return (
     <div style={{ display: "flex", height: "100vh", background: "var(--bg)", overflow: "hidden" }}>

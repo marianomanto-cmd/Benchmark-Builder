@@ -1,7 +1,8 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { confLabel, sparkFor, type OverviewData, type MentionVM } from "@/lib/view-models";
-import { DEMO_OVERVIEW, DEMO_MENTIONS, DEMO_PROJECT_SLUG } from "@/lib/demo";
+import { DEMO_OVERVIEW, DEMO_MENTIONS, DEMO_RUNS, DEMO_PROJECT_SLUG } from "@/lib/demo";
+import { relativeTime } from "@/lib/sources/types";
 import type { PlatformKey, SentimentKind, ThumbKind } from "@/lib/platforms";
 
 async function projectId(slug: string): Promise<string | null> {
@@ -85,5 +86,31 @@ export async function getMentions(slug: string = DEMO_PROJECT_SLUG): Promise<Men
     }));
   } catch {
     return DEMO_MENTIONS;
+  }
+}
+
+// Recent runs for the welcome portal.
+export async function getRecentRuns(
+  slug: string = DEMO_PROJECT_SLUG,
+): Promise<{ number: number; mentions: number; cost: number; when: string }[]> {
+  try {
+    const supabase = await createClient();
+    const pid = await projectId(slug);
+    if (!pid) return DEMO_RUNS;
+    const { data } = await supabase
+      .from("runs")
+      .select("number, cost_used, mentions_count, created_at")
+      .eq("project_id", pid)
+      .order("number", { ascending: false })
+      .limit(6);
+    if (!data || data.length === 0) return DEMO_RUNS;
+    return data.map((r) => ({
+      number: r.number,
+      mentions: r.mentions_count,
+      cost: Number(r.cost_used),
+      when: relativeTime(r.created_at),
+    }));
+  } catch {
+    return DEMO_RUNS;
   }
 }

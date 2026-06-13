@@ -1,7 +1,7 @@
-import { Overview } from "@/components/screens/overview";
-import { getOverviewData } from "@/lib/data";
+import { Portal } from "@/components/screens/portal";
+import { getRecentRuns } from "@/lib/data";
 
 export default async function Page() {
-  const data = await getOverviewData();
-  return <Overview {...data} />;
+  const runs = await getRecentRuns();
+  return <Portal runs={runs} />;
 }

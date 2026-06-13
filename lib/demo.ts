@@ -46,3 +46,9 @@ export const DEMO_MENTIONS: MentionVM[] = [
 ];
 
 export const DEMO_PROJECT_SLUG = "cartagena-q2-2026";
+
+export const DEMO_RUNS = [
+  { number: 42, mentions: 18, cost: 1.84, when: "hace 12 min" },
+  { number: 41, mentions: 16, cost: 1.62, when: "ayer" },
+  { number: 40, mentions: 14, cost: 1.4, when: "hace 3 d" },
+];
