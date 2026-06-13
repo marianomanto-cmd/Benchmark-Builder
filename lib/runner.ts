@@ -1,11 +1,16 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sourceFor } from "@/lib/sources";
-import { relativeTime, type RawMention } from "@/lib/sources/types";
+import { relativeTime, type RawMention, type SourceResult } from "@/lib/sources/types";
 import { scoreSentiments, scoreToSentiment, generateInsights } from "@/lib/ai";
 import { formatCompact } from "@/lib/format";
-import { DEMO_MENTIONS } from "@/lib/demo";
+import { demoRawMentions, demoScores, demoInsightDrafts } from "@/lib/runner-fixtures";
 import type { PlatformKey, SentimentKind } from "@/lib/platforms";
+import { estimateRunCost, type RunPlan, type SourceProvider } from "@/lib/cost/estimate";
+import { apifyCostUSD, grokSearchCostUSD, synthesisCostUSD, cents } from "@/lib/cost/rates";
+import { guardedCall, type GuardReason } from "@/lib/cost/guarded";
+import { releaseExpiredCharges } from "@/lib/cost/ledger";
+import { LIMITS } from "@/lib/cost/config";
 
 export type RunResult = {
   ok: boolean;
@@ -14,8 +19,41 @@ export type RunResult = {
   number?: number;
   mentionsCount?: number;
   cost?: number;
+  estimateLow?: number;
+  estimateHigh?: number;
+  paused?: GuardReason;
   platforms?: { platform: PlatformKey; status: string; count: number; error?: string }[];
 };
+
+type Admin = NonNullable<ReturnType<typeof createAdminClient>>;
+
+// Which provider backs each platform — drives cost line, kill-switch flag and
+// whether an API key is required (free providers need none).
+const SOURCE_PROVIDER: Record<PlatformKey, SourceProvider> = {
+  instagram: "apify",
+  tiktok: "apify",
+  youtube: "apify",
+  facebook: "apify",
+  web: "apify",
+  x: "grok",
+  meta_ads: "meta_ads",
+  reddit: "reddit",
+  mastodon: "mastodon",
+  bluesky: "bluesky",
+};
+
+const FREE_PROVIDERS = new Set<SourceProvider>(["reddit", "mastodon", "bluesky", "meta_ads", "free"]);
+
+// guardedCall provider string (what the ledger/flags key on) for a source.
+function ledgerProvider(p: SourceProvider): string {
+  return p === "apify" ? "apify" : p === "grok" ? "grok" : p;
+}
+
+function sourceCost(provider: SourceProvider, items: number): number {
+  if (provider === "apify") return apifyCostUSD(items);
+  if (provider === "grok") return grokSearchCostUSD(Math.max(1, Math.ceil(items / 25)));
+  return 0; // free APIs
+}
 
 function metricsFromEngagement(e: RawMention["engagement"]): [string, string][] {
   if (!e) return [];
@@ -42,8 +80,12 @@ function dominant(counts: Record<SentimentKind, number>): SentimentKind {
   return best;
 }
 
-// Executes a research run: scrape selected platforms, score sentiment with Grok,
-// upsert mentions, recompute competitor aggregates, regenerate insights, record cost.
+// Executes a research run. Every paid (or simulated-paid) step goes through the
+// cost engine: reserve → call/fixture → commit, writing run_steps + cost_ledger.
+// In mock mode (PIPELINE_MODE!=="live") connectors and AI return deterministic
+// fixtures with simulated costs, so the full flow validates at zero real cost.
+// "Real" fires only when PIPELINE_MODE=live AND the provider flag is on AND the
+// API key is present — enforced inside guardedCall.
 export async function executeRun(slug?: string, platforms?: PlatformKey[], keywordOverride?: string[]): Promise<RunResult> {
   const admin = createAdminClient();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SERVICE_ROLE_KEY para escribir resultados." };
@@ -52,22 +94,17 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
   const { data: project } = await admin.from("projects").select("*").eq("slug", projectSlug).maybeSingle();
   if (!project) return { ok: false, error: `Proyecto no encontrado: ${projectSlug}` };
 
-  // Demo mode (default): produce a full run from canned data — no paid API calls.
-  // Set LIVE_RUN=true (with provider keys) to scrape + analyze for real.
-  if (process.env.LIVE_RUN !== "true") return runDemo(admin, project);
-
   const { data: competitors } = await admin
     .from("competitors")
     .select("id, name, handle, targets, competitor_platforms(platform)")
     .eq("project_id", project.id);
   const comps = competitors ?? [];
 
-  // Platforms to run.
+  // Resolve target platforms.
   const fromComps = Array.from(
     new Set(comps.flatMap((c) => (c.competitor_platforms ?? []).map((p) => p.platform as PlatformKey))),
   );
-  const targets = platforms && platforms.length ? platforms : fromComps;
-  if (targets.length === 0) return { ok: false, error: "El proyecto no tiene plataformas configuradas." };
+  const targets = platforms && platforms.length ? platforms : fromComps.length ? fromComps : (Object.keys(SOURCE_PROVIDER) as PlatformKey[]);
 
   const keywords =
     keywordOverride && keywordOverride.length
@@ -76,7 +113,33 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
         ? project.keywords
         : Array.from(new Set([project.name.split("·")[0].trim(), ...comps.map((c) => c.name)]));
 
-  // Create the run row.
+  // Source config (Apify actor ids, enabled, limits) — editable from the app.
+  const { data: settingsRows } = await admin.from("source_settings").select("*");
+  const settings = new Map((settingsRows ?? []).map((s) => [s.platform as PlatformKey, s]));
+
+  // Build the plan we are about to execute (sources + the AI synthesis calls:
+  // one sentiment pass + one insights pass). The estimate is computed from this
+  // exact plan so test:run-mock can assert ledger total ≈ estimate.
+  const planSources = targets
+    .filter((p) => settings.get(p)?.enabled !== false)
+    .map((p) => {
+      const provider = SOURCE_PROVIDER[p];
+      const items = Math.min(settings.get(p)?.results_limit ?? 25, LIMITS.maxItemsPerSource);
+      return { platform: p, items, provider };
+    });
+  const plan: RunPlan = {
+    sources: planSources,
+    images: 0,
+    videos: 0,
+    framesPerVideo: 0,
+    avgVideoMinutes: 0,
+    transcribeVideos: false,
+    useWhisper: false,
+    synthesisSections: 2, // sentiment + insights
+  };
+  const estimate = estimateRunCost(plan);
+
+  // Create the run row with the budget band recorded.
   const { data: last } = await admin
     .from("runs")
     .select("number")
@@ -87,73 +150,110 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
   const number = (last?.number ?? 0) + 1;
   const { data: run, error: runErr } = await admin
     .from("runs")
-    .insert({ project_id: project.id, number, status: "running", started_at: new Date().toISOString() })
+    .insert({
+      project_id: project.id,
+      number,
+      status: "running",
+      started_at: new Date().toISOString(),
+      cost_estimated_low: estimate.total_low,
+      cost_estimated_high: estimate.total_high,
+    })
     .select("id")
     .single();
   if (runErr || !run) return { ok: false, error: `No se pudo crear el run: ${runErr?.message}` };
+  const runId = run.id;
 
-  // Source config (Apify actor ids, enabled, limits) — editable from the app.
-  const { data: settingsRows } = await admin.from("source_settings").select("*");
-  const settings = new Map((settingsRows ?? []).map((s) => [s.platform as PlatformKey, s]));
+  // Free any reservations left dangling by a previous interrupted run.
+  await releaseExpiredCharges(admin);
 
-  // Scrape each platform.
   const collected: RawMention[] = [];
-  const summary: RunResult["platforms"] = [];
-  let totalCost = 0;
+  const summary: NonNullable<RunResult["platforms"]> = [];
+  let paused: GuardReason | undefined;
 
-  for (const platform of targets) {
-    const cfg = settings.get(platform);
-    if (cfg?.enabled === false) {
-      await admin.from("run_sources").insert({ run_id: run.id, platform, status: "skipped", error: "deshabilitada en settings" });
-      summary.push({ platform, status: "skipped", count: 0, error: "deshabilitada" });
-      continue;
-    }
-    const source = sourceFor(platform);
+  // ---- Scrape each source under the cost guard --------------------------------
+  for (const s of planSources) {
+    if (paused) break;
+    const provider = SOURCE_PROVIDER[s.platform];
+    const source = sourceFor(s.platform);
     const handles = Array.from(
       new Set(
         comps
-          .filter((c) => (c.competitor_platforms ?? []).some((p) => p.platform === platform))
+          .filter((c) => (c.competitor_platforms ?? []).some((p) => p.platform === s.platform))
           .flatMap((c) => [c.handle, ...(c.targets ?? [])]),
       ),
     );
-    if (!source.available()) {
-      await admin.from("run_sources").insert({ run_id: run.id, platform, status: "skipped", error: "credenciales no configuradas" });
-      summary.push({ platform, status: "skipped", count: 0, error: "credenciales no configuradas" });
+    const cfg = settings.get(s.platform);
+    const est = sourceCost(provider, s.items);
+
+    const out = await guardedCall<SourceResult>({
+      admin,
+      runId,
+      provider: ledgerProvider(provider),
+      operation: `scrape:${s.platform}`,
+      label: `Recolección · ${s.platform}`,
+      estimatedCost: est,
+      freeProvider: FREE_PROVIDERS.has(provider),
+      call: () =>
+        source.fetch({
+          platform: s.platform,
+          handles,
+          keywords,
+          languages: project.languages,
+          geo: project.geo,
+          sinceDays: project.period_days,
+          limit: s.items,
+          actorId: cfg?.actor_id ?? undefined,
+        }),
+      fixture: () => ({ mentions: demoRawMentions(s.platform), cost: est }),
+      realCost: (r) => r.cost,
+      mockCost: est,
+    });
+
+    if (!out.ok) {
+      if (out.reason === "api_disabled" || out.reason === "budget_hard") {
+        paused = out.reason;
+        await admin.from("run_sources").insert({ run_id: runId, platform: s.platform, status: "skipped", error: out.reason });
+        summary.push({ platform: s.platform, status: "paused", count: 0, error: out.reason });
+        break;
+      }
+      await admin.from("run_sources").insert({ run_id: runId, platform: s.platform, status: "error", error: out.message ?? out.reason });
+      summary.push({ platform: s.platform, status: "error", count: 0, error: out.message ?? out.reason });
       continue;
     }
-    try {
-      const result = await source.fetch({
-        platform,
-        handles,
-        keywords,
-        languages: project.languages,
-        geo: project.geo,
-        sinceDays: project.period_days,
-        limit: cfg?.results_limit ?? 25,
-        actorId: cfg?.actor_id ?? undefined,
-      });
-      for (const m of result.mentions) collected.push({ ...m, platform });
-      totalCost += result.cost;
-      await admin.from("run_sources").insert({ run_id: run.id, platform, status: "done", mentions_count: result.mentions.length, cost: result.cost });
-      summary.push({ platform, status: "done", count: result.mentions.length });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      await admin.from("run_sources").insert({ run_id: run.id, platform, status: "error", error: msg });
-      summary.push({ platform, status: "error", count: 0, error: msg });
-    }
+
+    for (const m of out.result.mentions) collected.push({ ...m, platform: s.platform });
+    await admin
+      .from("run_sources")
+      .insert({ run_id: runId, platform: s.platform, status: "done", mentions_count: out.result.mentions.length, cost: cents(out.cost) });
+    summary.push({ platform: s.platform, status: out.mode, count: out.result.mentions.length });
   }
 
-  // Sentiment scoring via Grok.
-  const scores = await scoreSentiments(collected.map((m) => m.text));
+  // ---- Sentiment scoring under the cost guard ---------------------------------
+  let scores: number[] = [];
+  if (!paused && collected.length) {
+    const out = await guardedCall<number[]>({
+      admin,
+      runId,
+      provider: "claude",
+      operation: "sentiment",
+      label: "Análisis de sentimiento (IA)",
+      estimatedCost: synthesisCostUSD(),
+      call: () => scoreSentiments(collected.map((m) => m.text)),
+      fixture: () => demoScores(collected.map((m) => m.text)),
+    });
+    if (out.ok) scores = out.result;
+    else if (out.reason === "api_disabled" || out.reason === "budget_hard") paused = out.reason;
+    else scores = demoScores(collected.map((m) => m.text)); // soft-fail: keep going with neutral-ish
+  }
 
-  // Map to mention rows.
+  // ---- Persist mentions (idempotent upsert → re-runs don't duplicate) ---------
   const rows = collected.map((m, i) => {
     const comp = comps.find(
       (c) => m.handle.toLowerCase().includes(c.handle.toLowerCase()) || m.author.toLowerCase() === c.name.toLowerCase(),
     );
     return {
       project_id: project.id,
-      run_id: run.id,
+      run_id: runId,
       competitor_id: comp?.id ?? null,
       platform: m.platform,
       author: m.author,
@@ -182,7 +282,7 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
     if (!error) inserted = count ?? rows.length;
   }
 
-  // Recompute competitor aggregates from all project mentions.
+  // ---- Recompute competitor aggregates ----------------------------------------
   const { data: allMentions } = await admin
     .from("mentions")
     .select("competitor_id, sentiment")
@@ -197,17 +297,13 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
       for (const m of mine) counts[m.sentiment as SentimentKind]++;
       await admin
         .from("competitors")
-        .update({
-          mentions: mine.length,
-          sov: Math.round((mine.length / total) * 1000) / 10,
-          sentiment: dominant(counts),
-        })
+        .update({ mentions: mine.length, sov: Math.round((mine.length / total) * 1000) / 10, sentiment: dominant(counts) })
         .eq("id", c.id);
     }
   }
 
-  // Regenerate insights (only if Grok produced any).
-  if (collected.length) {
+  // ---- Insights generation under the cost guard -------------------------------
+  if (!paused && collected.length) {
     const byComp = comps
       .map((c) => {
         const n = collected.filter((m) => m.handle.toLowerCase().includes(c.handle.toLowerCase()) || m.author.toLowerCase() === c.name.toLowerCase()).length;
@@ -215,13 +311,24 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
       })
       .join("; ");
     const samples = collected.slice(0, 30).map((m) => `[${m.platform}] ${m.text.slice(0, 160)}`).join("\n");
-    const drafts = await generateInsights(`Proyecto: ${project.name}. Volumen por competidor: ${byComp}.\nMuestras:\n${samples}`);
+    const out = await guardedCall<{ kind: "opp" | "thr" | "pat" | "ano"; title: string; body: string; sources: number; confidence: number }[]>({
+      admin,
+      runId,
+      provider: "claude",
+      operation: "insights",
+      label: "Generación de insights (IA)",
+      estimatedCost: synthesisCostUSD(),
+      call: () => generateInsights(`Proyecto: ${project.name}. Volumen por competidor: ${byComp}.\nMuestras:\n${samples}`),
+      fixture: () => demoInsightDrafts(),
+    });
+    const drafts = out.ok ? out.result : [];
+    if (!out.ok && (out.reason === "api_disabled" || out.reason === "budget_hard")) paused = out.reason;
     if (drafts.length) {
       await admin.from("insights").delete().eq("project_id", project.id);
       await admin.from("insights").insert(
         drafts.map((d, i) => ({
           project_id: project.id,
-          run_id: run.id,
+          run_id: runId,
           kind: d.kind,
           title: d.title,
           body: d.body,
@@ -233,65 +340,33 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
     }
   }
 
-  await admin
-    .from("runs")
-    .update({ status: "done", finished_at: new Date().toISOString(), mentions_count: inserted, cost_used: Math.round(totalCost * 100) / 100 })
-    .eq("id", run.id);
-
-  return { ok: true, runId: run.id, number, mentionsCount: inserted, cost: totalCost, platforms: summary };
-}
-
-// Demo run: creates a run and populates it with canned mentions (standard
-// responses). Lets the full flow be tested end-to-end without spending tokens.
-async function runDemo(
-  admin: NonNullable<ReturnType<typeof createAdminClient>>,
-  project: { id: string },
-): Promise<RunResult> {
-  const { data: last } = await admin
-    .from("runs")
-    .select("number")
-    .eq("project_id", project.id)
-    .order("number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const number = (last?.number ?? 0) + 1;
-
-  const { data: run, error: runErr } = await admin
-    .from("runs")
-    .insert({ project_id: project.id, number, status: "running", started_at: new Date().toISOString() })
-    .select("id")
-    .single();
-  if (runErr || !run) return { ok: false, error: `No se pudo crear el run: ${runErr?.message}` };
-
-  await admin.from("mentions").delete().eq("project_id", project.id);
-  const rows = DEMO_MENTIONS.map((m, i) => ({
-    project_id: project.id,
-    run_id: run.id,
-    platform: m.platform,
-    author: m.author,
-    handle: m.handle.replace(/^@/, ""),
-    ts_label: m.ts,
-    brand: m.brand,
-    body: m.body,
-    sentiment: m.sentiment,
-    is_ad: m.isAd,
-    thumb_type: m.thumbType ?? null,
-    metrics: m.metrics,
-    sort_order: i,
-  }));
-  await admin.from("mentions").insert(rows);
+  // ---- Finalize: real cost from the ledger ------------------------------------
+  const { data: ledgerRows } = await admin.from("cost_ledger").select("cost_usd").eq("run_id", runId);
+  const costActual = cents((ledgerRows ?? []).reduce((a, r) => a + (r.cost_usd ?? 0), 0));
 
   await admin
     .from("runs")
-    .update({ status: "done", finished_at: new Date().toISOString(), mentions_count: rows.length, cost_used: 1.84 })
-    .eq("id", run.id);
+    .update({
+      status: paused ? "paused" : "done",
+      finished_at: new Date().toISOString(),
+      mentions_count: inserted,
+      cost_used: costActual,
+      cost_actual: costActual,
+    })
+    .eq("id", runId);
 
   return {
-    ok: true,
-    runId: run.id,
+    ok: !paused,
+    runId,
     number,
-    mentionsCount: rows.length,
-    cost: 1.84,
-    platforms: [{ platform: "reddit", status: "demo", count: rows.length }],
+    mentionsCount: inserted,
+    cost: costActual,
+    estimateLow: estimate.total_low,
+    estimateHigh: estimate.total_high,
+    paused,
+    platforms: summary,
   };
 }
+
+// Re-exported for the admin helper type used by callers.
+export type { Admin };

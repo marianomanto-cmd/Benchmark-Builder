@@ -100,6 +100,51 @@ export type Database = {
           },
         ];
       };
+      cost_ledger: {
+        Row: {
+          cost_usd: number;
+          id: string;
+          metadata: Json;
+          occurred_at: string;
+          operation: string;
+          project_id: string | null;
+          provider: string;
+          reservation_id: string | null;
+          run_id: string | null;
+          unit_type: string | null;
+          units: number;
+          workspace_id: string | null;
+        };
+        Insert: {
+          cost_usd?: number;
+          id?: string;
+          metadata?: Json;
+          occurred_at?: string;
+          operation: string;
+          project_id?: string | null;
+          provider: string;
+          reservation_id?: string | null;
+          run_id?: string | null;
+          unit_type?: string | null;
+          units?: number;
+          workspace_id?: string | null;
+        };
+        Update: {
+          cost_usd?: number;
+          id?: string;
+          metadata?: Json;
+          occurred_at?: string;
+          operation?: string;
+          project_id?: string | null;
+          provider?: string;
+          reservation_id?: string | null;
+          run_id?: string | null;
+          unit_type?: string | null;
+          units?: number;
+          workspace_id?: string | null;
+        };
+        Relationships: [];
+      };
       insights: {
         Row: {
           body: string | null;
@@ -137,22 +182,7 @@ export type Database = {
           sources?: number;
           title?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "insights_project_id_fkey";
-            columns: ["project_id"];
-            isOneToOne: false;
-            referencedRelation: "projects";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "insights_run_id_fkey";
-            columns: ["run_id"];
-            isOneToOne: false;
-            referencedRelation: "runs";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
       };
       mentions: {
         Row: {
@@ -224,32 +254,50 @@ export type Database = {
           ts_label?: string;
           url?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "mentions_competitor_id_fkey";
-            columns: ["competitor_id"];
-            isOneToOne: false;
-            referencedRelation: "competitors";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "mentions_project_id_fkey";
-            columns: ["project_id"];
-            isOneToOne: false;
-            referencedRelation: "projects";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "mentions_run_id_fkey";
-            columns: ["run_id"];
-            isOneToOne: false;
-            referencedRelation: "runs";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
+      };
+      pending_charges: {
+        Row: {
+          estimated_cost_usd: number;
+          expires_at: string;
+          id: string;
+          operation: string;
+          project_id: string | null;
+          provider: string;
+          reserved_at: string;
+          run_id: string | null;
+          status: string;
+          workspace_id: string | null;
+        };
+        Insert: {
+          estimated_cost_usd?: number;
+          expires_at: string;
+          id?: string;
+          operation: string;
+          project_id?: string | null;
+          provider: string;
+          reserved_at?: string;
+          run_id?: string | null;
+          status?: string;
+          workspace_id?: string | null;
+        };
+        Update: {
+          estimated_cost_usd?: number;
+          expires_at?: string;
+          id?: string;
+          operation?: string;
+          project_id?: string | null;
+          provider?: string;
+          reserved_at?: string;
+          run_id?: string | null;
+          status?: string;
+          workspace_id?: string | null;
+        };
+        Relationships: [];
       };
       projects: {
         Row: {
+          budget_monthly_usd: number;
           created_at: string;
           geo: string[];
           id: string;
@@ -262,6 +310,7 @@ export type Database = {
           workspace_id: string;
         };
         Insert: {
+          budget_monthly_usd?: number;
           created_at?: string;
           geo?: string[];
           id?: string;
@@ -274,6 +323,7 @@ export type Database = {
           workspace_id: string;
         };
         Update: {
+          budget_monthly_usd?: number;
           created_at?: string;
           geo?: string[];
           id?: string;
@@ -294,6 +344,42 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      run_analysis: {
+        Row: {
+          body: string;
+          created_at: string;
+          headline: string;
+          id: string;
+          project_id: string;
+          recommendations: string[];
+          run_id: string | null;
+          section: string;
+          takeaways: string[];
+        };
+        Insert: {
+          body: string;
+          created_at?: string;
+          headline: string;
+          id?: string;
+          project_id: string;
+          recommendations?: string[];
+          run_id?: string | null;
+          section: string;
+          takeaways?: string[];
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          headline?: string;
+          id?: string;
+          project_id?: string;
+          recommendations?: string[];
+          run_id?: string | null;
+          section?: string;
+          takeaways?: string[];
+        };
+        Relationships: [];
       };
       run_sources: {
         Row: {
@@ -326,18 +412,47 @@ export type Database = {
           run_id?: string;
           status?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "run_sources_run_id_fkey";
-            columns: ["run_id"];
-            isOneToOne: false;
-            referencedRelation: "runs";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
+      };
+      run_steps: {
+        Row: {
+          cost_usd: number;
+          created_at: string;
+          cumulative_usd: number;
+          id: string;
+          label: string;
+          metadata: Json;
+          provider: string | null;
+          run_id: string;
+        };
+        Insert: {
+          cost_usd?: number;
+          created_at?: string;
+          cumulative_usd?: number;
+          id?: string;
+          label: string;
+          metadata?: Json;
+          provider?: string | null;
+          run_id: string;
+        };
+        Update: {
+          cost_usd?: number;
+          created_at?: string;
+          cumulative_usd?: number;
+          id?: string;
+          label?: string;
+          metadata?: Json;
+          provider?: string | null;
+          run_id?: string;
+        };
+        Relationships: [];
       };
       runs: {
         Row: {
+          budget_usd: number;
+          cost_actual: number | null;
+          cost_estimated_high: number | null;
+          cost_estimated_low: number | null;
           cost_hard: number;
           cost_soft: number;
           cost_used: number;
@@ -352,6 +467,10 @@ export type Database = {
           status: string;
         };
         Insert: {
+          budget_usd?: number;
+          cost_actual?: number | null;
+          cost_estimated_high?: number | null;
+          cost_estimated_low?: number | null;
           cost_hard?: number;
           cost_soft?: number;
           cost_used?: number;
@@ -366,6 +485,10 @@ export type Database = {
           status?: string;
         };
         Update: {
+          budget_usd?: number;
+          cost_actual?: number | null;
+          cost_estimated_high?: number | null;
+          cost_estimated_low?: number | null;
           cost_hard?: number;
           cost_soft?: number;
           cost_used?: number;
@@ -413,39 +536,21 @@ export type Database = {
         };
         Relationships: [];
       };
-      run_analysis: {
+      system_flags: {
         Row: {
-          body: string;
-          created_at: string;
-          headline: string;
-          id: string;
-          project_id: string;
-          recommendations: string[];
-          run_id: string | null;
-          section: string;
-          takeaways: string[];
+          key: string;
+          updated_at: string;
+          value: Json;
         };
         Insert: {
-          body: string;
-          created_at?: string;
-          headline: string;
-          id?: string;
-          project_id: string;
-          recommendations?: string[];
-          run_id?: string | null;
-          section: string;
-          takeaways?: string[];
+          key: string;
+          updated_at?: string;
+          value?: Json;
         };
         Update: {
-          body?: string;
-          created_at?: string;
-          headline?: string;
-          id?: string;
-          project_id?: string;
-          recommendations?: string[];
-          run_id?: string | null;
-          section?: string;
-          takeaways?: string[];
+          key?: string;
+          updated_at?: string;
+          value?: Json;
         };
         Relationships: [];
       };
@@ -455,6 +560,7 @@ export type Database = {
           created_at: string;
           id: string;
           name: string;
+          settings: Json;
           slug: string;
         };
         Insert: {
@@ -462,6 +568,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           name: string;
+          settings?: Json;
           slug: string;
         };
         Update: {
@@ -469,13 +576,29 @@ export type Database = {
           created_at?: string;
           id?: string;
           name?: string;
+          settings?: Json;
           slug?: string;
         };
         Relationships: [];
       };
     };
     Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+    Functions: {
+      budget_spent_with_pending: { Args: { p_run_id: string }; Returns: number };
+      commit_charge: { Args: { p_real: number; p_reservation_id: string }; Returns: undefined };
+      release_charge: { Args: { p_reservation_id: string }; Returns: undefined };
+      release_expired_charges: { Args: Record<string, never>; Returns: number };
+      reserve_budget: {
+        Args: {
+          p_estimated: number;
+          p_expires_minutes?: number;
+          p_operation: string;
+          p_provider: string;
+          p_run_id: string;
+        };
+        Returns: Json;
+      };
+    };
     Enums: {
       insight_kind: "opp" | "thr" | "pat" | "ano";
       platform:
