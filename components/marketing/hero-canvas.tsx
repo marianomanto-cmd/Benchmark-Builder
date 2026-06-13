@@ -2,10 +2,11 @@
 
 import { useEffect, useRef } from "react";
 
-// "Ruido → inteligencia": a field of signal/noise particles that drift, then
-// converge into an ordered lattice (a report readout). Canvas 2D, no deps.
-// Pauses its rAF loop when offscreen; renders a static final state under
-// prefers-reduced-motion. dpr clamped ≤2 for performance.
+// Immersive "data dive": we fly forward through a 3D field of data particles;
+// brighter nodes wire into a shifting network — the feeling of slipping inside
+// the social graph. Canvas 2D, no deps. dpr clamped ≤2, pauses its rAF loop
+// when offscreen, renders a static frame under prefers-reduced-motion, and adds
+// a light mouse parallax.
 export function HeroCanvas({ className }: { className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -17,129 +18,105 @@ export function HeroCanvas({ className }: { className?: string }) {
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const INK = "#f4f1ea";
-    const ACC = "#f23a5e";
-    const SIGNAL = 34;
-    const NOISE = 66;
-    const TOTAL = SIGNAL + NOISE;
+    const INK = "244,241,234";
+    const ACC = "242,58,94";
+    const BG = "10,8,16";
 
-    let W = 0;
-    let H = 0;
-    let anchors: { x: number; y: number }[] = [];
-    type Node = {
-      x: number; y: number; vx: number; vy: number; sig: boolean; hero: boolean;
-      r: number; col: string; alpha: number; ai: number; ph: number; bx?: number; by?: number;
-    };
-    let nodes: Node[] = [];
+    let W = 0, H = 0, focal = 0, cx = 0, cy = 0;
+    let mx = 0, my = 0; // parallax target
+    let ox = 0, oy = 0; // smoothed offset
 
-    function layout() {
-      anchors = [];
-      const cols = 8;
-      const rows = 4;
-      const padX = W * 0.16;
-      const padY1 = H * 0.5;
-      const padY2 = H * 0.84;
-      const gw = (W - padX * 2) / (cols - 1);
-      const gh = (padY2 - padY1) / (rows - 1);
-      for (let r = 0; r < rows; r++) for (let i = 0; i < cols; i++) anchors.push({ x: padX + i * gw, y: padY1 + r * gh });
-    }
+    type P = { x: number; y: number; z: number; node: boolean; acc: boolean };
+    let ps: P[] = [];
+    let COUNT = 160;
+
     const rnd = (a: number, b: number) => a + Math.random() * (b - a);
-
+    function spawn(p: P, far = false) {
+      p.x = rnd(-1, 1);
+      p.y = rnd(-1, 1);
+      p.z = far ? rnd(0.9, 1) : rnd(0.08, 1);
+    }
     function size() {
       W = canvas!.clientWidth;
       H = canvas!.clientHeight;
       canvas!.width = Math.max(1, W * dpr);
       canvas!.height = Math.max(1, H * dpr);
       ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-      layout();
-    }
-    function init() {
-      nodes = [];
-      for (let i = 0; i < TOTAL; i++) {
-        const sig = i < SIGNAL;
-        nodes.push({
-          x: rnd(0, W), y: rnd(0, H), vx: rnd(-0.55, 0.55), vy: rnd(-0.55, 0.55),
-          sig, hero: i === 0, r: sig ? (i === 0 ? 6 : rnd(2.4, 4)) : rnd(1.4, 2.6),
-          col: i % 11 === 0 ? ACC : INK, alpha: sig ? rnd(0.55, 0.95) : rnd(0.2, 0.5), ai: 0, ph: rnd(0, 6.28),
+      focal = Math.min(W, H) * 0.9;
+      cx = W / 2;
+      cy = H / 2;
+      COUNT = W < 640 ? 90 : 160;
+      if (ps.length !== COUNT) {
+        ps = Array.from({ length: COUNT }, (_, i) => {
+          const p: P = { x: 0, y: 0, z: 0, node: i % 6 === 0, acc: i % 13 === 0 };
+          spawn(p);
+          return p;
         });
       }
     }
+    function project(p: P) {
+      const s = focal / p.z;
+      return {
+        sx: cx + (p.x + ox) * s * 0.5,
+        sy: cy + (p.y + oy) * s * 0.5,
+        r: Math.max(0.3, (1 / p.z) * (p.node ? 1.7 : 0.9)),
+      };
+    }
 
-    const CONV = 2.4;
-    let t0: number | null = null;
+    const SPEED = 0.0042;
     let raf = 0;
     let running = false;
 
-    function frame(ts: number) {
-      if (t0 === null) t0 = ts;
-      const t = (ts - t0) / 1000;
-      ctx!.clearRect(0, 0, W, H);
+    function frame() {
+      // motion-persistence trail (also paints the dark backdrop)
+      ctx!.fillStyle = `rgba(${BG},0.30)`;
+      ctx!.fillRect(0, 0, W, H);
+      ox += (mx - ox) * 0.04;
+      oy += (my - oy) * 0.04;
 
-      if (t > CONV + 0.2) {
-        ctx!.strokeStyle = "rgba(244,241,234,.06)";
-        ctx!.lineWidth = 1;
-        for (let a = 0; a < SIGNAL; a++) {
-          const n = nodes[a];
-          if (!n) continue;
-          for (let b = a + 1; b < SIGNAL; b++) {
-            const m = nodes[b];
-            const dx = n.x - m.x;
-            const dy = n.y - m.y;
-            if (dx * dx + dy * dy < 9000) {
-              ctx!.beginPath();
-              ctx!.moveTo(n.x, n.y);
-              ctx!.lineTo(m.x, m.y);
-              ctx!.stroke();
-            }
+      const proj: { sx: number; sy: number; acc: boolean }[] = [];
+      for (const p of ps) {
+        p.z -= SPEED;
+        if (p.z <= 0.05) spawn(p, true);
+        const { sx, sy, r } = project(p);
+        if (sx < -60 || sx > W + 60 || sy < -60 || sy > H + 60) continue;
+        const depth = 1 - p.z; // 0 far → 1 near
+        const a = Math.min(0.95, 0.12 + depth * 0.9);
+        ctx!.beginPath();
+        ctx!.arc(sx, sy, r, 0, 6.2832);
+        ctx!.fillStyle = p.acc ? `rgba(${ACC},${a})` : `rgba(${INK},${a * 0.7})`;
+        ctx!.fill();
+        if (p.node) proj.push({ sx, sy, acc: p.acc });
+      }
+      // network links between nearby projected nodes
+      for (let i = 0; i < proj.length; i++) {
+        for (let j = i + 1; j < proj.length; j++) {
+          const dx = proj[i].sx - proj[j].sx;
+          const dy = proj[i].sy - proj[j].sy;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < 16000) {
+            const a = (1 - d2 / 16000) * 0.2;
+            ctx!.strokeStyle = proj[i].acc || proj[j].acc ? `rgba(${ACC},${a})` : `rgba(${INK},${a * 0.6})`;
+            ctx!.lineWidth = 1;
+            ctx!.beginPath();
+            ctx!.moveTo(proj[i].sx, proj[i].sy);
+            ctx!.lineTo(proj[j].sx, proj[j].sy);
+            ctx!.stroke();
           }
         }
-      }
-
-      for (const n of nodes) {
-        if (t < CONV) {
-          n.x += n.vx;
-          n.y += n.vy;
-          if (n.x < 0 || n.x > W) n.vx *= -1;
-          if (n.y < 0 || n.y > H) n.vy *= -1;
-        } else if (n.sig) {
-          const an = anchors[n.ai || (n.ai = nodes.indexOf(n) % anchors.length)];
-          n.x += (an.x - n.x) * 0.07;
-          n.y += (an.y - n.y) * 0.07;
-          n.bx = Math.sin((t + n.ph) * 1.1) * 1.6;
-          n.by = Math.cos((t + n.ph) * 1.0) * 1.6;
-        } else {
-          n.alpha *= 0.9;
-          n.y += 0.6;
-        }
-        const px = n.x + (n.bx || 0);
-        const py = n.y + (n.by || 0);
-        if (n.hero && t > CONV) {
-          ctx!.beginPath();
-          ctx!.arc(px, py, n.r + 6, 0, 6.2832);
-          ctx!.strokeStyle = "rgba(242,58,94,.55)";
-          ctx!.lineWidth = 1.4;
-          ctx!.stroke();
-        }
-        ctx!.beginPath();
-        ctx!.arc(px, py, n.r, 0, 6.2832);
-        ctx!.fillStyle = n.hero ? ACC : n.col;
-        ctx!.globalAlpha = Math.max(n.alpha, 0);
-        ctx!.fill();
-        ctx!.globalAlpha = 1;
       }
       raf = requestAnimationFrame(frame);
     }
 
     function drawStatic() {
-      ctx!.clearRect(0, 0, W, H);
-      for (let i = 0; i < SIGNAL; i++) {
-        const a = anchors[i % anchors.length];
+      ctx!.fillStyle = `rgba(${BG},1)`;
+      ctx!.fillRect(0, 0, W, H);
+      for (const p of ps) {
+        const { sx, sy, r } = project(p);
         ctx!.beginPath();
-        ctx!.arc(a.x, a.y, i === 0 ? 6 : 3, 0, 6.2832);
-        ctx!.fillStyle = i === 0 ? ACC : INK;
-        ctx!.globalAlpha = 0.85;
+        ctx!.arc(sx, sy, r, 0, 6.2832);
+        ctx!.fillStyle = p.acc ? `rgba(${ACC},0.85)` : `rgba(${INK},0.5)`;
         ctx!.fill();
-        ctx!.globalAlpha = 1;
       }
     }
 
@@ -154,20 +131,19 @@ export function HeroCanvas({ className }: { className?: string }) {
     }
 
     size();
-    init();
-    if (reduced) {
-      drawStatic();
-    } else {
-      start();
-    }
+    if (reduced) drawStatic();
+    else start();
 
     const onResize = () => {
       size();
-      init();
-      t0 = null;
       if (reduced) drawStatic();
     };
+    const onMove = (e: PointerEvent) => {
+      mx = (e.clientX / window.innerWidth - 0.5) * 0.6;
+      my = (e.clientY / window.innerHeight - 0.5) * 0.6;
+    };
     window.addEventListener("resize", onResize);
+    window.addEventListener("pointermove", onMove, { passive: true });
 
     const io = new IntersectionObserver(
       (entries) => {
@@ -184,6 +160,7 @@ export function HeroCanvas({ className }: { className?: string }) {
       stop();
       io.disconnect();
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("pointermove", onMove);
     };
   }, []);
 
