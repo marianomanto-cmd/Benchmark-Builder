@@ -50,6 +50,7 @@ export function Btn({
   return (
     <button
       type="button"
+      className="bb-btn"
       onClick={onClick}
       disabled={disabled}
       style={{
@@ -57,14 +58,14 @@ export function Btn({
         padding: `0 ${sz.px}px`,
         fontSize: sz.fs,
         fontWeight: 500,
-        borderRadius: "var(--r-sm)",
+        borderRadius: "var(--r-md)",
         cursor: disabled ? "not-allowed" : "pointer",
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
         fontFamily: "var(--font-sans)",
         whiteSpace: "nowrap",
-        transition: "background 120ms ease-out, transform 80ms ease",
+        transition: "filter 140ms ease, transform 100ms ease, background 140ms ease, border-color 140ms ease",
         ...kinds[kind],
         ...dis,
         ...style,

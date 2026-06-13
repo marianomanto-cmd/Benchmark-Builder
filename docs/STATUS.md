@@ -130,6 +130,7 @@ Enum `platform`: instagram, tiktok, youtube, facebook, x, reddit, mastodon, blue
 - Escala editorial (`.t-hero`, `.t-section`, `.t-eyebrow`, `.t-lead`) con Newsreader gigante. `--series-*` monocromo + cliente en acento; Tremor `ink/sangria` con variantes `dark:` al nuevo acento.
 - **Home**: **video de fondo inmersivo GLOBAL** (Grok, muteado + loop, ~2.9MB; vive detrás del hero, el wizard y el run — `components/marketing/site-bg.tsx`, fijo z-index -1, body transparente) con scrim de legibilidad theme-aware. **Sin cortina**: al cargar ves la animación y a ~2.5s ("inmersión") aparecen tagline + box IA. Marquee de fuentes, "qué hace" (swap before/after), proceso 01–04, showcase del reporte, FAQ, footer interactivo. Smooth scroll (Lenis) + reveals; `prefers-reduced-motion`, focus-visible, AA.
 - Componentes del dashboard migrados a tokens semánticos (no rompen en dark). **Responsive** desde la home (nav mobile, type fluida, grillas que colapsan).
+- **Pase cosmético global** (vía tokens): radios más suaves (`--r-*`), **sombras visibles en dark** (`--sh-*`), scrollbars finos temáticos, `::selection` con acento, y hover/active consistente en botones (`.bb-btn`).
 
 ---
 
