@@ -27,6 +27,8 @@ export type MentionVM = {
   sentiment: SentimentKind;
   isAd: boolean;
   thumbType?: ThumbKind;
+  media?: string;
+  video?: string;
 };
 
 export type InsightVM = {

@@ -28,24 +28,46 @@ export function PlatformBadge({ platform, size = "md", label }: { platform: Plat
 // ============================================================
 export type ThumbKind = "photo" | "video" | "article" | "ad";
 
-export function ThumbPlaceholder({ kind, label }: { kind: ThumbKind; label?: string }) {
+export function ThumbPlaceholder({ kind, label, src, video }: { kind: ThumbKind; label?: string; src?: string; video?: string }) {
   const grad: Record<ThumbKind, string> = {
     photo: "linear-gradient(135deg, #d9c9b8, #a89e8b)",
     video: "linear-gradient(135deg, #2a241c, #635a4b)",
     article: "linear-gradient(135deg, #f4f1eb, #ddd6c7)",
     ad: "linear-gradient(135deg, #6b1a36, #8a2a5f)",
   };
+  const fill = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" } as const;
+  const showPlay = kind === "video" || !!video;
+  const onMedia = !!src || !!video;
   return (
-    <div style={{ position: "absolute", inset: 0, background: grad[kind], display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, transparent 0 14px, rgba(255,255,255,.08) 14px 15px)" }} />
-      {kind === "video" && (
-        <span style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,.85)", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--n900)", zIndex: 1 }}>
+    <div style={{ position: "absolute", inset: 0, background: grad[kind], display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+      {video ? (
+        <video
+          src={video}
+          poster={src}
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          onMouseEnter={(e) => { void e.currentTarget.play().catch(() => {}); }}
+          onMouseLeave={(e) => { e.currentTarget.pause(); }}
+          style={fill}
+        />
+      ) : src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={label || kind} loading="lazy" style={fill} />
+      ) : (
+        <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, transparent 0 14px, rgba(255,255,255,.08) 14px 15px)" }} />
+      )}
+      {showPlay && (
+        <span style={{ position: "relative", zIndex: 1, pointerEvents: "none", width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,.85)", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--n900)" }}>
           <Ic.play s={14} />
         </span>
       )}
-      <span style={{ position: "absolute", bottom: 8, left: 10, fontSize: 10, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: ".08em", color: kind === "video" || kind === "ad" ? "rgba(255,255,255,.8)" : "var(--n600)" }}>
-        {label || kind}
-      </span>
+      {label && (
+        <span style={{ position: "absolute", zIndex: 1, bottom: 8, left: 10, fontSize: 10, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: ".08em", color: kind === "video" || kind === "ad" || onMedia ? "rgba(255,255,255,.92)" : "var(--n600)", textShadow: onMedia ? "0 1px 4px rgba(0,0,0,.6)" : "none" }}>
+          {label}
+        </span>
+      )}
     </div>
   );
 }
@@ -64,6 +86,8 @@ export function MentionCard({
   isAd,
   thumbType,
   brand,
+  media,
+  video,
 }: {
   platform: PlatformKey;
   author: string;
@@ -75,6 +99,8 @@ export function MentionCard({
   isAd?: boolean;
   thumbType?: ThumbKind;
   brand: string;
+  media?: string;
+  video?: string;
 }) {
   return (
     <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", display: "flex", flexDirection: "column", position: "relative", boxShadow: "var(--sh-1)" }}>
@@ -92,8 +118,8 @@ export function MentionCard({
         <BBBadge tone="neutral" size="sm">{brand}</BBBadge>
       </div>
       {thumbType && (
-        <div style={{ height: 140, background: "var(--surface-2)", position: "relative", overflow: "hidden" }}>
-          <ThumbPlaceholder kind={thumbType} />
+        <div style={{ height: 150, background: "var(--surface-2)", position: "relative", overflow: "hidden" }}>
+          <ThumbPlaceholder kind={thumbType} src={media} video={video} />
         </div>
       )}
       <div style={{ padding: "10px 14px", flex: 1 }}>
@@ -257,22 +283,15 @@ export function CostMeter({ used, soft, hard, period }: { used: number; soft: nu
 // ============================================================
 // MediaThumb
 // ============================================================
-export function MediaThumb({ kind, platform, isAd, label, metrics, ratio = "4/5" }: { kind: ThumbKind; platform: PlatformKey; isAd?: boolean; label?: string; metrics?: string[]; ratio?: "4/5" | "1/1" | "9/16" }) {
+export function MediaThumb({ kind, platform, isAd, label, metrics, ratio = "4/5", src, video }: { kind: ThumbKind; platform: PlatformKey; isAd?: boolean; label?: string; metrics?: string[]; ratio?: "4/5" | "1/1" | "9/16"; src?: string; video?: string }) {
   return (
     <div style={{ position: "relative", borderRadius: "var(--r-sm)", overflow: "hidden", aspectRatio: ratio, background: "var(--surface-2)", border: isAd ? "1px solid var(--accent)" : "1px solid var(--border)" }}>
-      <ThumbPlaceholder kind={kind} label={label} />
-      <div style={{ position: "absolute", top: 6, left: 6 }}>
+      <ThumbPlaceholder kind={kind} label={label} src={src} video={video} />
+      <div style={{ position: "absolute", top: 6, left: 6, zIndex: 2 }}>
         <PlatformBadge platform={platform} size="sm" />
       </div>
       {isAd && (
-        <div style={{ position: "absolute", top: 6, right: 6, padding: "2px 6px", background: "var(--sa-base)", color: "#fff", fontSize: 9, fontFamily: "var(--font-mono)", letterSpacing: ".08em", borderRadius: 2, fontWeight: 500 }}>AD</div>
-      )}
-      {kind === "video" && (
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-          <span style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,.85)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--n900)" }}>
-            <Ic.play s={11} />
-          </span>
-        </div>
+        <div style={{ position: "absolute", top: 6, right: 6, zIndex: 2, padding: "2px 6px", background: "var(--sa-base)", color: "#fff", fontSize: 9, fontFamily: "var(--font-mono)", letterSpacing: ".08em", borderRadius: 2, fontWeight: 500 }}>AD</div>
       )}
       {metrics && (
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "14px 8px 6px", background: "linear-gradient(transparent, rgba(0,0,0,.5))", color: "#fff", fontSize: 11, fontFamily: "var(--font-mono)", display: "flex", gap: 8 }}>

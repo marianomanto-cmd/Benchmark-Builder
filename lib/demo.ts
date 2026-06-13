@@ -1,6 +1,10 @@
 import type { CompetitorVM, MentionVM, InsightVM, OverviewData } from "@/lib/view-models";
 import { sparkFor } from "@/lib/view-models";
 
+// Free placeholder media (Lorem Picsum + Google sample video). Swap for scraped.
+const pic = (s: string) => `https://picsum.photos/seed/bb-${s}/600/600`;
+const vid = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4";
+
 // Demo data for the Copa · Cartagena case. Used as a resilient fallback when
 // Supabase isn't reachable/seeded, so the deployed site never breaks.
 
@@ -25,11 +29,11 @@ export const DEMO_OVERVIEW: OverviewData = {
 };
 
 export const DEMO_MENTIONS: MentionVM[] = [
-  { platform: "instagram", author: "Avianca", handle: "avianca", ts: "hace 4 h", brand: "Avianca", body: "Cartagena en frecuencia diaria desde Bogotá y Medellín. Conocé los nuevos horarios ☀️", thumbType: "photo", sentiment: "pos", isAd: false, metrics: [["♡", "12,4k"], ["💬", "284"], ["↗", "842"]] },
-  { platform: "meta_ads", author: "Avianca", handle: "avianca · ad", ts: "activo · 12 d", brand: "Avianca", isAd: true, body: "Vuelos a Cartagena desde USD 89. Combiná con Medellín y Santa Marta. Reservá hasta el 30/05.", thumbType: "ad", sentiment: "pos", metrics: [["€", "USD 8–12k"], ["👁", "est. 1,4M"]] },
-  { platform: "tiktok", author: "LATAM Colombia", handle: "latamcol", ts: "hace 9 h", brand: "LATAM", body: "POV: tu primera vez en Cartagena. Etiquetá a quien te llevarías 👇 #latamtok", thumbType: "video", sentiment: "pos", isAd: false, metrics: [["▷", "1,2M"], ["♡", "98k"], ["💬", "3,4k"]] },
+  { platform: "instagram", author: "Avianca", handle: "avianca", ts: "hace 4 h", brand: "Avianca", body: "Cartagena en frecuencia diaria desde Bogotá y Medellín. Conocé los nuevos horarios ☀️", thumbType: "photo", media: pic("av-ig1"), sentiment: "pos", isAd: false, metrics: [["♡", "12,4k"], ["💬", "284"], ["↗", "842"]] },
+  { platform: "meta_ads", author: "Avianca", handle: "avianca · ad", ts: "activo · 12 d", brand: "Avianca", isAd: true, body: "Vuelos a Cartagena desde USD 89. Combiná con Medellín y Santa Marta. Reservá hasta el 30/05.", thumbType: "ad", media: pic("av-ad1"), sentiment: "pos", metrics: [["€", "USD 8–12k"], ["👁", "est. 1,4M"]] },
+  { platform: "tiktok", author: "LATAM Colombia", handle: "latamcol", ts: "hace 9 h", brand: "LATAM", body: "POV: tu primera vez en Cartagena. Etiquetá a quien te llevarías 👇 #latamtok", thumbType: "video", media: pic("la-tt1"), video: vid, sentiment: "pos", isAd: false, metrics: [["▷", "1,2M"], ["♡", "98k"], ["💬", "3,4k"]] },
   { platform: "youtube", author: "Wingo", handle: "wingo.col", ts: "hace 1 d", brand: "Wingo", body: "Vlog · Cartagena en 48h con vuelo Wingo · Costos reales · Tips de viaje 2026", thumbType: "video", sentiment: "neu", isAd: false, metrics: [["▷", "42k"], ["♡", "2,1k"]] },
-  { platform: "instagram", author: "Copa Airlines", handle: "copaairlines", ts: "hace 18 h", brand: "Copa", body: "Atardecer en Cartagena, vista desde el equipo Copa ✈️ #copaairlines", thumbType: "photo", sentiment: "pos", isAd: false, metrics: [["♡", "8,2k"], ["💬", "142"]] },
+  { platform: "instagram", author: "Copa Airlines", handle: "copaairlines", ts: "hace 18 h", brand: "Copa", body: "Atardecer en Cartagena, vista desde el equipo Copa ✈️ #copaairlines", thumbType: "photo", media: pic("co-ig1"), sentiment: "pos", isAd: false, metrics: [["♡", "8,2k"], ["💬", "142"]] },
   { platform: "web", author: "El Espectador", handle: "elespectador.com", ts: "03/05", brand: "—", body: "Avianca, LATAM y Wingo aumentan frecuencia a Cartagena para temporada 2026.", thumbType: "article", sentiment: "neu", isAd: false, metrics: [["📄", "prensa"], ["👁", "24k"]] },
   { platform: "x", author: "Arajet", handle: "arajetdom", ts: "hace 6 h", brand: "Arajet", body: "Promo a Cartagena desde RD$ 3.999 ida. Tarifa final con impuestos publicada.", sentiment: "neu", isAd: false, metrics: [["♡", "312"], ["🔁", "48"], ["💬", "22"]] },
   { platform: "reddit", author: "r/ColombiaTravel", handle: "u/sanmt", ts: "hace 2 d", brand: "—", body: "¿Vale la pena Wingo Bogotá–Cartagena? Compré ida + vuelta y hubo cambio de horario 2 veces…", sentiment: "neg", isAd: false, metrics: [["↑", "142"], ["💬", "38"]] },

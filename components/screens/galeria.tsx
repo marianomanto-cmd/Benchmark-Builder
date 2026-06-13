@@ -8,19 +8,30 @@ import type { PlatformKey } from "@/lib/platforms";
 import { AnalysisBlock } from "@/components/analysis-block";
 import type { AnalysisVM } from "@/lib/view-models";
 
-type Item = [ThumbKind, PlatformKey, string, string[], boolean?];
+type Item = [ThumbKind, PlatformKey, string, string[], boolean?, string?, string?];
 type Group = { name: string; count: number; items: Item[] };
 
+// Free placeholder media (Lorem Picsum images + Google sample videos). Swap for
+// the real scraped creatives once the media pipeline runs.
+const img = (s: string) => `https://picsum.photos/seed/bb-${s}/600/750`;
+const V = {
+  blazes: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+  joy: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+  fun: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+  bunny: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+  escapes: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+};
+
 const adGroups: Group[] = [
-  { name: "Avianca", count: 38, items: [["ad", "meta_ads", "creativo · 12d", ["USD 8–12k", "1,4M 👁"], true], ["ad", "meta_ads", "video · 14d", ["USD 12–18k", "1,8M 👁"], true], ["ad", "meta_ads", "carousel · 6d", ["USD 3–5k", "410k 👁"], true]] },
-  { name: "LATAM", count: 24, items: [["ad", "meta_ads", "creativo · 4d", ["USD 4–6k", "620k 👁"], true], ["ad", "meta_ads", "video · 8d", ["USD 6–9k", "940k 👁"], true], ["ad", "meta_ads", "static · 2d", ["USD 1–2k", "180k 👁"], true]] },
-  { name: "Copa", count: 14, items: [["ad", "meta_ads", "static · 9d", ["USD 5–8k", "680k 👁"], true], ["ad", "meta_ads", "creativo · 3d", ["USD 2–4k", "280k 👁"], true], ["ad", "meta_ads", "video · 5d", ["USD 3–5k", "340k 👁"], true]] },
+  { name: "Avianca", count: 38, items: [["ad", "meta_ads", "creativo · 12d", ["USD 8–12k", "1,4M 👁"], true, img("av1")], ["ad", "meta_ads", "video · 14d", ["USD 12–18k", "1,8M 👁"], true, img("av2"), V.blazes], ["ad", "meta_ads", "carousel · 6d", ["USD 3–5k", "410k 👁"], true, img("av3")]] },
+  { name: "LATAM", count: 24, items: [["ad", "meta_ads", "creativo · 4d", ["USD 4–6k", "620k 👁"], true, img("la1")], ["ad", "meta_ads", "video · 8d", ["USD 6–9k", "940k 👁"], true, img("la2"), V.joy], ["ad", "meta_ads", "static · 2d", ["USD 1–2k", "180k 👁"], true, img("la3")]] },
+  { name: "Copa", count: 14, items: [["ad", "meta_ads", "static · 9d", ["USD 5–8k", "680k 👁"], true, img("co1")], ["ad", "meta_ads", "creativo · 3d", ["USD 2–4k", "280k 👁"], true, img("co2")], ["ad", "meta_ads", "video · 5d", ["USD 3–5k", "340k 👁"], true, img("co3"), V.fun]] },
 ];
 
 const organicGroups: Group[] = [
-  { name: "Avianca · 84", count: 84, items: [["photo", "instagram", "sunset reel", ["12,4k ♡", "4 h"]], ["photo", "instagram", "crew", ["8,2k ♡", "12 h"]], ["video", "tiktok", "recorrido", ["480k ▷", "1 d"]]] },
-  { name: "LATAM · 56", count: 56, items: [["video", "tiktok", "POV viaje", ["1,2M ▷", "9 h"]], ["photo", "instagram", "mapa", ["3,2k ♡", "2 d"]], ["photo", "facebook", "noticia", ["820 ↗", "3 d"]]] },
-  { name: "Wingo · 42", count: 42, items: [["video", "youtube", "vlog 48h", ["42k ▷", "1 d"]], ["photo", "instagram", "tarifa", ["1,4k ♡", "2 d"]], ["video", "tiktok", "duet", ["98k ▷", "3 d"]]] },
+  { name: "Avianca · 84", count: 84, items: [["photo", "instagram", "sunset reel", ["12,4k ♡", "4 h"], false, img("ao1")], ["photo", "instagram", "crew", ["8,2k ♡", "12 h"], false, img("ao2")], ["video", "tiktok", "recorrido", ["480k ▷", "1 d"], false, img("ao3"), V.bunny]] },
+  { name: "LATAM · 56", count: 56, items: [["video", "tiktok", "POV viaje", ["1,2M ▷", "9 h"], false, img("lo1"), V.escapes], ["photo", "instagram", "mapa", ["3,2k ♡", "2 d"], false, img("lo2")], ["photo", "facebook", "noticia", ["820 ↗", "3 d"], false, img("lo3")]] },
+  { name: "Wingo · 42", count: 42, items: [["video", "youtube", "vlog 48h", ["42k ▷", "1 d"], false, img("wo1"), V.blazes], ["photo", "instagram", "tarifa", ["1,4k ♡", "2 d"], false, img("wo2")], ["video", "tiktok", "duet", ["98k ▷", "3 d"], false, img("wo3"), V.joy]] },
 ];
 
 function GalleryColumn({ kind }: { kind: "organic" | "ad" }) {
@@ -53,7 +64,7 @@ function GalleryColumn({ kind }: { kind: "organic" | "ad" }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
             {g.items.map((it, i) => (
-              <MediaThumb key={i} kind={it[0]} platform={it[1]} label={it[2]} metrics={it[3]} isAd={it[4]} />
+              <MediaThumb key={i} kind={it[0]} platform={it[1]} label={it[2]} metrics={it[3]} isAd={it[4]} src={it[5]} video={it[6]} />
             ))}
           </div>
         </div>

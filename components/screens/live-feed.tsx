@@ -77,7 +77,7 @@ export function LiveFeed({ mentions, analysis }: { mentions: MentionVM[]; analys
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, overflow: "auto", paddingBottom: 14 }}>
             {mentions.map((m, i) => (
-              <MentionCard key={i} platform={m.platform} author={m.author} handle={m.handle} ts={m.ts} brand={m.brand} body={m.body} thumbType={m.thumbType} sentiment={m.sentiment} isAd={m.isAd} metrics={m.metrics} />
+              <MentionCard key={i} platform={m.platform} author={m.author} handle={m.handle} ts={m.ts} brand={m.brand} body={m.body} thumbType={m.thumbType} sentiment={m.sentiment} isAd={m.isAd} metrics={m.metrics} media={m.media} video={m.video} />
             ))}
           </div>
         </div>
