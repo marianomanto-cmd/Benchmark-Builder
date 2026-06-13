@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { confLabel, sparkFor, type OverviewData, type MentionVM } from "@/lib/view-models";
-import { DEMO_OVERVIEW, DEMO_MENTIONS, DEMO_RUNS, DEMO_PROJECT_SLUG } from "@/lib/demo";
+import { confLabel, sparkFor, type OverviewData, type MentionVM, type AnalysisVM } from "@/lib/view-models";
+import { DEMO_OVERVIEW, DEMO_MENTIONS, DEMO_RUNS, DEMO_ANALYSIS, DEMO_PROJECT_SLUG } from "@/lib/demo";
 import { relativeTime } from "@/lib/sources/types";
 import type { PlatformKey, SentimentKind, ThumbKind } from "@/lib/platforms";
 
@@ -112,5 +112,26 @@ export async function getRecentRuns(
     }));
   } catch {
     return DEMO_RUNS;
+  }
+}
+
+// Per-section AI analysis (hero block). Seeded demo content until a real run
+// generates it with Claude + Grok.
+export async function getSectionAnalysis(section: string, slug: string = DEMO_PROJECT_SLUG): Promise<AnalysisVM | null> {
+  const fallback = section === "overview" ? DEMO_ANALYSIS : null;
+  try {
+    const supabase = await createClient();
+    const pid = await projectId(slug);
+    if (!pid) return fallback;
+    const { data } = await supabase
+      .from("run_analysis")
+      .select("headline, body, takeaways, recommendations")
+      .eq("project_id", pid)
+      .eq("section", section)
+      .maybeSingle();
+    if (!data) return fallback;
+    return { headline: data.headline, body: data.body, takeaways: data.takeaways, recommendations: data.recommendations };
+  } catch {
+    return fallback;
   }
 }

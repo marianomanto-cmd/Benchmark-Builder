@@ -1,7 +1,7 @@
 import { Overview } from "@/components/screens/overview";
-import { getOverviewData } from "@/lib/data";
+import { getOverviewData, getSectionAnalysis } from "@/lib/data";
 
 export default async function Page() {
-  const data = await getOverviewData();
-  return <Overview {...data} />;
+  const [data, analysis] = await Promise.all([getOverviewData(), getSectionAnalysis("overview")]);
+  return <Overview {...data} analysis={analysis} />;
 }

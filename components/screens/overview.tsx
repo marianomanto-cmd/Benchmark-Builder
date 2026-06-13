@@ -6,12 +6,13 @@ import { ScreenShell } from "@/components/shell/screen-shell";
 import { Ic } from "@/components/ui/icons";
 import { Btn, BBBadge, KPI } from "@/components/ui/primitives";
 import { CompetitorCard, CostMeter, MiniInsight } from "@/components/domain";
+import { AnalysisBlock } from "@/components/analysis-block";
 import { BarChart } from "@/components/tremor/BarChart";
 import { DonutChart } from "@/components/tremor/DonutChart";
 import { AreaChart } from "@/components/tremor/AreaChart";
 import type { AvailableChartColorsKeys } from "@/components/tremor/utils/chartColors";
 import { formatInt, formatPercent } from "@/lib/format";
-import type { OverviewData } from "@/lib/view-models";
+import type { OverviewData, AnalysisVM } from "@/lib/view-models";
 
 const MONTHS = ["Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic", "Ene", "Feb"];
 
@@ -38,7 +39,7 @@ const card: CSSProperties = {
 
 const ease = [0.2, 0.7, 0.3, 1] as const;
 
-export function Overview({ competitors, insights, run }: OverviewData) {
+export function Overview({ competitors, insights, run, analysis }: OverviewData & { analysis?: AnalysisVM | null }) {
   const donutPalette: AvailableChartColorsKeys[] = ["ink", "graphite", "taupe", "sand"];
   let gi = 0;
   const donutData = competitors.map((c) => ({ name: c.name, sov: Number(c.sov.replace(",", ".")) || 0 }));
@@ -75,6 +76,12 @@ export function Overview({ competitors, insights, run }: OverviewData) {
           <Btn kind="accent" iconRight={<Ic.arrow s={12} />}>Generar reporte</Btn>
         </div>
       </div>
+
+      {analysis && (
+        <div style={{ marginBottom: 18 }}>
+          <AnalysisBlock analysis={analysis} />
+        </div>
+      )}
 
       {/* KPIs (animated entrance) */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 18 }}>

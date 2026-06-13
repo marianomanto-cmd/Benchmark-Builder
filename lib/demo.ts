@@ -45,6 +45,23 @@ export const DEMO_MENTIONS: MentionVM[] = [
   { platform: "web", author: "Semana", handle: "semana.com", ts: "01/05", brand: "—", body: "Guerra de tarifas a Cartagena: el verano más competitivo en años.", thumbType: "article", sentiment: "mix", isAd: false, metrics: [["📄", "prensa"], ["👁", "41k"]] },
 ];
 
+export const DEMO_ANALYSIS = {
+  headline: "Avianca domina el volumen, pero Copa lidera en eficiencia de engagement.",
+  body: "En los últimos 60 días, Avianca concentró el 41,3 % de las menciones sobre Cartagena, casi cuadruplicando a Copa, y duplicó su inversión en Meta Ads. Copa, sin embargo, logra el mayor engagement por pieza con un perfil 78 % orgánico: una marca con alta afinidad y bajo gasto pago. La oportunidad está en escalar la cadencia paga sin diluir el tono orgánico que ya funciona.",
+  takeaways: [
+    "Avianca lidera SOV (41,3 %) y duplicó inversión en Meta Ads sobre Cartagena.",
+    "Copa logra el mayor engagement por pieza, con 78 % de contenido orgánico.",
+    "LATAM no usa TikTok orgánico para Cartagena — nicho abierto.",
+    "La conversación pico se da entre martes 18 h y jueves 11 h.",
+  ],
+  recommendations: [
+    "Sumar 1–2 creativos pagos por semana en Meta para la ruta.",
+    "Activar TikTok orgánico donde LATAM está ausente (POV/vlog).",
+    "Programar las piezas clave de martes a jueves por la mañana.",
+    "Monitorear y responder el hilo negativo de Wingo en Reddit.",
+  ],
+};
+
 export const DEMO_PROJECT_SLUG = "cartagena-q2-2026";
 
 export const DEMO_RUNS = [

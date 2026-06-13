@@ -413,6 +413,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      run_analysis: {
+        Row: {
+          body: string;
+          created_at: string;
+          headline: string;
+          id: string;
+          project_id: string;
+          recommendations: string[];
+          run_id: string | null;
+          section: string;
+          takeaways: string[];
+        };
+        Insert: {
+          body: string;
+          created_at?: string;
+          headline: string;
+          id?: string;
+          project_id: string;
+          recommendations?: string[];
+          run_id?: string | null;
+          section: string;
+          takeaways?: string[];
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          headline?: string;
+          id?: string;
+          project_id?: string;
+          recommendations?: string[];
+          run_id?: string | null;
+          section?: string;
+          takeaways?: string[];
+        };
+        Relationships: [];
+      };
       workspaces: {
         Row: {
           brand_color: string;

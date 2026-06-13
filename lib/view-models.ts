@@ -38,6 +38,8 @@ export type InsightVM = {
 
 export type RunVM = { number: number; used: number; soft: number; hard: number };
 
+export type AnalysisVM = { headline: string; body: string; takeaways: string[]; recommendations: string[] };
+
 export type OverviewData = {
   competitors: CompetitorVM[];
   insights: InsightVM[];
