@@ -132,7 +132,7 @@ export function ScreenShell({
             style={{ display: "flex", alignItems: "center", border: `1px solid ${colors.border}`, borderRadius: "var(--r-sm)", padding: "4px 10px", background: "var(--surface-2)", width: 280, cursor: "pointer" }}
           >
             <span style={{ color: "var(--text-faint)" }}><Ic.search s={12} /></span>
-            <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-muted)" }}>Buscar…</span>
+            <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-muted)" }}>Buscar en el run…</span>
             <span style={{ marginLeft: "auto", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)", padding: "1px 5px", border: `1px solid ${colors.border}`, borderRadius: 3 }}>⌘K</span>
           </button>
           <ThemeToggle />

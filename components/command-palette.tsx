@@ -4,18 +4,31 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "motion/react";
+import { DEMO_COMPETITORS, DEMO_INSIGHTS } from "@/lib/demo";
 
 type Item = { label: string; hint: string; href?: string; action?: () => void };
 
 const NAV: Item[] = [
-  { label: "Overview", hint: "Resumen del proyecto", href: "/" },
+  { label: "Overview", hint: "Resumen del run", href: "/overview" },
   { label: "Live feed", hint: "Stream de menciones", href: "/live-feed" },
   { label: "Comparativa", hint: "Matriz competidor × métrica", href: "/comparativa" },
   { label: "Galería", hint: "Orgánico vs ads", href: "/galeria" },
-  { label: "Plan de research", hint: "Aprobar y ejecutar un run", href: "/research-plan" },
+  { label: "FODA & Estrategia", hint: "SWOT + matriz + roadmap", href: "/swot" },
   { label: "Editor de reporte", hint: "Componer el deliverable", href: "/editor" },
   { label: "Reporte PDF", hint: "Deliverable final", href: "/reporte" },
-  { label: "Settings", hint: "Fuentes y actores de scraping", href: "/settings" },
+  { label: "Runs", hint: "Historial de runs", href: "/runs" },
+  { label: "Proyectos", hint: "Carpetas de runs", href: "/proyectos" },
+  { label: "Settings", hint: "Fuentes y actores", href: "/settings" },
+];
+
+// Run-scoped search index: the run's own entities (competitors, insights) and
+// key topics — so the header search finds content *inside* the current run.
+const RUN_ITEMS: Item[] = [
+  ...DEMO_COMPETITORS.map((c) => ({ label: c.name, hint: `Competidor · ${c.sov}% SOV · ${c.mentions} menc.`, href: "/comparativa" })),
+  ...DEMO_INSIGHTS.map((i) => ({ label: i.title, hint: "Insight del run", href: "/overview" })),
+  { label: "Anuncios pagos", hint: "Galería · ads", href: "/galeria" },
+  { label: "Sentimiento", hint: "Live feed", href: "/live-feed" },
+  { label: "TikTok / video", hint: "Galería · orgánico", href: "/galeria" },
 ];
 
 export function CommandPalette() {
@@ -59,7 +72,7 @@ export function CommandPalette() {
       hint: "Tema",
       action: () => setTheme(resolvedTheme === "dark" ? "light" : "dark"),
     };
-    return [...NAV, themeItem];
+    return [...RUN_ITEMS, ...NAV, themeItem];
   }, [resolvedTheme, setTheme]);
 
   const results = useMemo(() => {
@@ -104,7 +117,7 @@ export function CommandPalette() {
                   else if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(i - 1, 0)); }
                   else if (e.key === "Enter") { e.preventDefault(); run(results[idx]); }
                 }}
-                placeholder="Buscar pantalla o acción…"
+                placeholder="Buscar en el run (competidores, insights…) o ir a una pantalla…"
                 style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "var(--text)", fontFamily: "var(--font-sans)" }}
               />
               <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)", border: "1px solid var(--border)", borderRadius: 3, padding: "1px 5px" }}>ESC</span>
