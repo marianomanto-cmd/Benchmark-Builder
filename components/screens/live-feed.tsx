@@ -5,7 +5,8 @@ import { Ic } from "@/components/ui/icons";
 import { Btn, BBBadge } from "@/components/ui/primitives";
 import { MentionCard, PlatformBadge } from "@/components/domain";
 import type { PlatformKey } from "@/lib/platforms";
-import type { MentionVM } from "@/lib/view-models";
+import type { MentionVM, AnalysisVM } from "@/lib/view-models";
+import { AnalysisBlock } from "@/components/analysis-block";
 
 function FilterGroup({ title, items, platforms }: { title: string; items: (string | number | boolean | PlatformKey)[][]; platforms?: boolean }) {
   return (
@@ -36,10 +37,11 @@ function FilterGroup({ title, items, platforms }: { title: string; items: (strin
   );
 }
 
-export function LiveFeed({ mentions }: { mentions: MentionVM[] }) {
+export function LiveFeed({ mentions, analysis }: { mentions: MentionVM[]; analysis?: AnalysisVM | null }) {
   return (
     <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Live feed"]} badges={<BBBadge tone="success" size="sm">activo</BBBadge>} runMeta="2.418 menciones · 60 días">
-      <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 16, height: "100%" }}>
+      {analysis && <div style={{ marginBottom: 16 }}><AnalysisBlock analysis={analysis} /></div>}
+      <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 16 }}>
         {/* Filters */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <FilterGroup title="Competidores" items={[["Avianca", 998, true], ["LATAM", 581, true], ["Wingo", 312, true], ["Arajet", 287, false], ["Copa", 240, true]]} />

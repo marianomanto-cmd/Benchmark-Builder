@@ -62,6 +62,55 @@ export const DEMO_ANALYSIS = {
   ],
 };
 
+export const DEMO_ANALYSIS_BY_SECTION: Record<string, typeof DEMO_ANALYSIS> = {
+  overview: DEMO_ANALYSIS,
+  comparativa: {
+    headline: "La ventaja de Avianca es de volumen, no de eficiencia.",
+    body: "La matriz muestra a Avianca al frente en menciones, engagement y reach, pero su sentimiento positivo está apenas por encima del de Copa. Wingo y Arajet compiten por precio con bajo gasto pago. Copa sostiene un sentimiento positivo con la menor inversión: su desafío no es la percepción, sino la presencia.",
+    takeaways: [
+      "Avianca lidera todas las métricas de magnitud, pero no de sentimiento.",
+      "Copa iguala a Avianca en sentimiento con una fracción del volumen.",
+      "Wingo y Arajet juegan a precio, casi sin pauta.",
+      "LATAM muestra sentimiento mixto: oportunidad de contraste.",
+    ],
+    recommendations: [
+      "Comunicar la afinidad de marca como diferencial frente a Avianca.",
+      "Cerrar la brecha de presencia con cadencia, no con descuentos.",
+      "Vigilar el sentimiento mixto de LATAM para capitalizarlo.",
+    ],
+  },
+  "live-feed": {
+    headline: "Conversación mayormente positiva y orgánica; el riesgo está en Reddit.",
+    body: "El stream está dominado por contenido orgánico de tono positivo (atardeceres, POVs, vlogs). La señal negativa se concentra en Reddit, donde un hilo sobre cambios de horario de Wingo escala. Los anuncios de Avianca y LATAM marcan presencia paga constante.",
+    takeaways: [
+      "Predomina el contenido orgánico positivo en IG/TikTok.",
+      "Reddit concentra la conversación negativa (cambios de horario).",
+      "Avianca y LATAM mantienen pauta activa visible en el feed.",
+      "Copa aparece con buen engagement orgánico.",
+    ],
+    recommendations: [
+      "Responder el hilo de Reddit con info de cambios y compensaciones.",
+      "Amplificar el contenido orgánico positivo de mayor engagement.",
+      "Monitorear nuevos anuncios pagos de la competencia.",
+    ],
+  },
+  galeria: {
+    headline: "Avianca y LATAM apuestan al paid; el orgánico vive en TikTok.",
+    body: "La galería separa con claridad orgánico vs pago: Avianca y LATAM concentran el grueso de los creativos de Meta Ad Library (USD 18–28k estimados), mientras el contenido orgánico de mayor alcance vive en TikTok. Copa tiene poca presencia paga.",
+    takeaways: [
+      "Avianca y LATAM dominan el inventario de anuncios pagos.",
+      "El orgánico de mayor alcance está en TikTok.",
+      "Copa: baja presencia en Meta Ad Library.",
+      "Los formatos de video superan a las fotos en alcance.",
+    ],
+    recommendations: [
+      "Testear 1–2 creativos de video en Meta para la ruta.",
+      "Priorizar formato video/POV en el orgánico.",
+      "Evaluar igualar selectivamente la cadencia paga de Avianca.",
+    ],
+  },
+};
+
 export const DEMO_PROJECT_SLUG = "cartagena-q2-2026";
 
 export const DEMO_RUNS = [

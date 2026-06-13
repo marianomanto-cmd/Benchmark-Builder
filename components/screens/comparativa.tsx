@@ -6,6 +6,8 @@ import { Ic } from "@/components/ui/icons";
 import { Btn, SentimentChip } from "@/components/ui/primitives";
 import { PlatformBadge } from "@/components/domain";
 import type { PlatformKey, SentimentKind } from "@/lib/platforms";
+import { AnalysisBlock } from "@/components/analysis-block";
+import type { AnalysisVM } from "@/lib/view-models";
 
 const cols = [
   { name: "Avianca", brand: "A", accent: "var(--series-1)", isClient: false },
@@ -36,7 +38,7 @@ const platsByCol: PlatformKey[][] = [
   ["instagram", "youtube", "x", "meta_ads"],
 ];
 
-export function Comparativa() {
+export function Comparativa({ analysis }: { analysis?: AnalysisVM | null }) {
   return (
     <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Comparativa"]} runMeta="5 competidores · vista lado a lado">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
@@ -49,6 +51,8 @@ export function Comparativa() {
           <Btn kind="secondary" size="sm" icon={<Ic.copy s={11} />}>Insertar en reporte</Btn>
         </div>
       </div>
+
+      {analysis && <div style={{ marginBottom: 16 }}><AnalysisBlock analysis={analysis} /></div>}
 
       <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", boxShadow: "var(--sh-1)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>

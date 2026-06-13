@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { confLabel, sparkFor, type OverviewData, type MentionVM, type AnalysisVM } from "@/lib/view-models";
-import { DEMO_OVERVIEW, DEMO_MENTIONS, DEMO_RUNS, DEMO_ANALYSIS, DEMO_PROJECT_SLUG } from "@/lib/demo";
+import { DEMO_OVERVIEW, DEMO_MENTIONS, DEMO_RUNS, DEMO_ANALYSIS_BY_SECTION, DEMO_PROJECT_SLUG } from "@/lib/demo";
 import { relativeTime } from "@/lib/sources/types";
 import type { PlatformKey, SentimentKind, ThumbKind } from "@/lib/platforms";
 
@@ -147,7 +147,7 @@ export async function getRuns(
 // Per-section AI analysis (hero block). Seeded demo content until a real run
 // generates it with Claude + Grok.
 export async function getSectionAnalysis(section: string, slug: string = DEMO_PROJECT_SLUG): Promise<AnalysisVM | null> {
-  const fallback = section === "overview" ? DEMO_ANALYSIS : null;
+  const fallback = DEMO_ANALYSIS_BY_SECTION[section] ?? null;
   try {
     const supabase = await createClient();
     const pid = await projectId(slug);

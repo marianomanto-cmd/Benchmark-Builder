@@ -33,7 +33,7 @@ export function RunButton({ slug, platforms, keywords, label = "Aprobar y ejecut
         setState("done");
         const ok = (json.platforms ?? []).filter((p) => p.status === "done").length;
         setMsg(`${json.mentionsCount ?? 0} menciones · ${ok} fuentes ok`);
-        router.refresh();
+        router.push("/overview");
       } else {
         setState("error");
         setMsg(json.error ?? "Error en el run");

@@ -5,6 +5,8 @@ import { Ic } from "@/components/ui/icons";
 import { Btn } from "@/components/ui/primitives";
 import { MediaThumb, type ThumbKind } from "@/components/domain";
 import type { PlatformKey } from "@/lib/platforms";
+import { AnalysisBlock } from "@/components/analysis-block";
+import type { AnalysisVM } from "@/lib/view-models";
 
 type Item = [ThumbKind, PlatformKey, string, string[], boolean?];
 type Group = { name: string; count: number; items: Item[] };
@@ -60,7 +62,7 @@ function GalleryColumn({ kind }: { kind: "organic" | "ad" }) {
   );
 }
 
-export function Galeria() {
+export function Galeria({ analysis }: { analysis?: AnalysisVM | null }) {
   return (
     <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Galería"]} runMeta="218 piezas orgánicas · 84 anuncios pagos">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
@@ -73,6 +75,7 @@ export function Galeria() {
           <Btn kind="secondary" size="sm" iconRight={<Ic.eye s={11} />}>Modo presentación</Btn>
         </div>
       </div>
+      {analysis && <div style={{ marginBottom: 16 }}><AnalysisBlock analysis={analysis} /></div>}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
         <GalleryColumn kind="organic" />
         <GalleryColumn kind="ad" />

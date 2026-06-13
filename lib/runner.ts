@@ -4,6 +4,7 @@ import { sourceFor } from "@/lib/sources";
 import { relativeTime, type RawMention } from "@/lib/sources/types";
 import { scoreSentiments, scoreToSentiment, generateInsights } from "@/lib/ai";
 import { formatCompact } from "@/lib/format";
+import { DEMO_MENTIONS } from "@/lib/demo";
 import type { PlatformKey, SentimentKind } from "@/lib/platforms";
 
 export type RunResult = {
@@ -50,6 +51,10 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
   const projectSlug = slug ?? "cartagena-q2-2026";
   const { data: project } = await admin.from("projects").select("*").eq("slug", projectSlug).maybeSingle();
   if (!project) return { ok: false, error: `Proyecto no encontrado: ${projectSlug}` };
+
+  // Demo mode (default): produce a full run from canned data — no paid API calls.
+  // Set LIVE_RUN=true (with provider keys) to scrape + analyze for real.
+  if (process.env.LIVE_RUN !== "true") return runDemo(admin, project);
 
   const { data: competitors } = await admin
     .from("competitors")
@@ -234,4 +239,59 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[], keywo
     .eq("id", run.id);
 
   return { ok: true, runId: run.id, number, mentionsCount: inserted, cost: totalCost, platforms: summary };
+}
+
+// Demo run: creates a run and populates it with canned mentions (standard
+// responses). Lets the full flow be tested end-to-end without spending tokens.
+async function runDemo(
+  admin: NonNullable<ReturnType<typeof createAdminClient>>,
+  project: { id: string },
+): Promise<RunResult> {
+  const { data: last } = await admin
+    .from("runs")
+    .select("number")
+    .eq("project_id", project.id)
+    .order("number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const number = (last?.number ?? 0) + 1;
+
+  const { data: run, error: runErr } = await admin
+    .from("runs")
+    .insert({ project_id: project.id, number, status: "running", started_at: new Date().toISOString() })
+    .select("id")
+    .single();
+  if (runErr || !run) return { ok: false, error: `No se pudo crear el run: ${runErr?.message}` };
+
+  await admin.from("mentions").delete().eq("project_id", project.id);
+  const rows = DEMO_MENTIONS.map((m, i) => ({
+    project_id: project.id,
+    run_id: run.id,
+    platform: m.platform,
+    author: m.author,
+    handle: m.handle.replace(/^@/, ""),
+    ts_label: m.ts,
+    brand: m.brand,
+    body: m.body,
+    sentiment: m.sentiment,
+    is_ad: m.isAd,
+    thumb_type: m.thumbType ?? null,
+    metrics: m.metrics,
+    sort_order: i,
+  }));
+  await admin.from("mentions").insert(rows);
+
+  await admin
+    .from("runs")
+    .update({ status: "done", finished_at: new Date().toISOString(), mentions_count: rows.length, cost_used: 1.84 })
+    .eq("id", run.id);
+
+  return {
+    ok: true,
+    runId: run.id,
+    number,
+    mentionsCount: rows.length,
+    cost: 1.84,
+    platforms: [{ platform: "reddit", status: "demo", count: rows.length }],
+  };
 }
