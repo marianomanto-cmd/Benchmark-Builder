@@ -76,7 +76,7 @@ export function Galeria({ analysis }: { analysis?: AnalysisVM | null }) {
         </div>
       </div>
       {analysis && <div style={{ marginBottom: 16 }}><AnalysisBlock analysis={analysis} /></div>}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+      <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
         <GalleryColumn kind="organic" />
         <GalleryColumn kind="ad" />
       </div>

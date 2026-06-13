@@ -24,7 +24,7 @@ function PropRow({ k, v }: { k: string; v: string }) {
 export function Editor() {
   return (
     <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Reportes", "Cartagena Q2 · v3"]} badges={<BBBadge tone="info" size="sm">borrador</BBBadge>} runMeta="autoguardado hace 4 s">
-      <div style={{ display: "grid", gridTemplateColumns: "220px 1fr 280px", gap: 14, height: "100%" }}>
+      <div className="bb-editor" style={{ display: "grid", gridTemplateColumns: "220px 1fr 280px", gap: 14, height: "100%" }}>
         {/* outline */}
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 14, overflow: "auto" }}>
           <div className="t-micro">ÍNDICE · 14 PÁGINAS</div>
@@ -43,7 +43,7 @@ export function Editor() {
 
         {/* canvas */}
         <div style={{ background: "var(--surface-2)", borderRadius: "var(--r-md)", padding: 24, overflow: "auto" }}>
-          <div style={{ width: 680, margin: "0 auto", background: "#fff", boxShadow: "var(--sh-3)", minHeight: "100%", padding: "56px 64px", position: "relative" }}>
+          <div style={{ width: "100%", maxWidth: 680, margin: "0 auto", background: "#fff", boxShadow: "var(--sh-3)", minHeight: "100%", padding: "clamp(28px, 6vw, 56px) clamp(20px, 6vw, 64px)", position: "relative" }}>
             <div style={{ position: "absolute", top: 24, left: 24, right: 24, display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--n400)", fontFamily: "var(--font-mono)" }}>
               <span>BENCHMARK BUILDER · CARTAGENA Q2 2026</span>
               <span>04 / 14</span>

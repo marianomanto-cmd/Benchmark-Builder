@@ -54,8 +54,8 @@ export function Comparativa({ analysis }: { analysis?: AnalysisVM | null }) {
 
       {analysis && <div style={{ marginBottom: 16 }}><AnalysisBlock analysis={analysis} /></div>}
 
-      <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", boxShadow: "var(--sh-1)" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <div className="bb-scroll-x" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", boxShadow: "var(--sh-1)" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
           <thead>
             <tr>
               <th style={{ padding: "14px 16px", textAlign: "left", fontWeight: 500, fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--text-muted)", fontFamily: "var(--font-mono)", borderBottom: "1px solid var(--border)", width: 200 }}>Métrica</th>

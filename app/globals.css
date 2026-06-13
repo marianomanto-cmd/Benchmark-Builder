@@ -211,6 +211,29 @@ html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
 .lenis.lenis-stopped { overflow: hidden; }
 
+/* ============================================================
+ * Mobile foundation — sin scroll horizontal, sin solapamientos.
+ * Los componentes del dashboard usan estilos inline con grids/anchos
+ * fijos; estos helpers (con !important) los colapsan en pantallas chicas.
+ * Aplicá .bb-collapse a grids multi-columna, .bb-row a flex rows que
+ * deben apilarse, .bb-scroll-x a tablas/lienzos anchos, .bb-hide-sm a lo
+ * que se oculta en mobile.
+ * ========================================================== */
+html, body { overflow-x: hidden; max-width: 100%; }
+img, video, canvas { max-width: 100%; }
+* { min-width: 0; }
+
+@media (max-width: 860px) {
+  .bb-collapse { grid-template-columns: 1fr !important; }
+  .bb-row { flex-direction: column !important; align-items: stretch !important; }
+  .bb-scroll-x { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .bb-hide-sm { display: none !important; }
+  .bb-shell-content { padding: 14px !important; }
+  .bb-shell-header { padding: 0 12px !important; gap: 8px !important; }
+  .bb-editor { grid-template-columns: 1fr !important; height: auto !important; }
+  .bb-editor > * { overflow: visible !important; height: auto !important; }
+}
+
 /* Accessible focus ring. */
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
   outline: 2px solid var(--accent);

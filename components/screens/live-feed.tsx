@@ -41,7 +41,7 @@ export function LiveFeed({ mentions, analysis }: { mentions: MentionVM[]; analys
   return (
     <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Live feed"]} badges={<BBBadge tone="success" size="sm">activo</BBBadge>} runMeta="2.418 menciones · 60 días">
       {analysis && <div style={{ marginBottom: 16 }}><AnalysisBlock analysis={analysis} /></div>}
-      <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 16 }}>
+      <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 16 }}>
         {/* Filters */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <FilterGroup title="Competidores" items={[["Avianca", 998, true], ["LATAM", 581, true], ["Wingo", 312, true], ["Arajet", 287, false], ["Copa", 240, true]]} />
@@ -75,7 +75,7 @@ export function LiveFeed({ mentions, analysis }: { mentions: MentionVM[]; analys
             ))}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, overflow: "auto", paddingBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, overflow: "auto", paddingBottom: 14 }}>
             {mentions.map((m, i) => (
               <MentionCard key={i} platform={m.platform} author={m.author} handle={m.handle} ts={m.ts} brand={m.brand} body={m.body} thumbType={m.thumbType} sentiment={m.sentiment} isAd={m.isAd} metrics={m.metrics} />
             ))}

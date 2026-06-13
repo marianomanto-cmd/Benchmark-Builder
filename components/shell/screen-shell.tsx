@@ -93,8 +93,8 @@ export function ScreenShell({
 
       {/* main */}
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <header style={{ height: 56, background: colors.tb, borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", padding: "0 24px", gap: 12, flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, minWidth: 0 }}>
+        <header className="bb-shell-header" style={{ height: 56, background: colors.tb, borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", padding: "0 24px", gap: 12, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, minWidth: 0, overflow: "hidden" }}>
             {breadcrumb.map((b, i) => (
               <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                 <span style={{ color: i === breadcrumb.length - 1 ? colors.text : colors.muted, fontWeight: i === breadcrumb.length - 1 ? 500 : 400 }}>{b}</span>
@@ -107,6 +107,7 @@ export function ScreenShell({
           <div style={{ flex: 1 }} />
           <button
             type="button"
+            className="bb-hide-sm"
             onClick={() => window.dispatchEvent(new Event("bb:command"))}
             style={{ display: "flex", alignItems: "center", border: `1px solid ${colors.border}`, borderRadius: "var(--r-sm)", padding: "4px 10px", background: "var(--surface-2)", width: 280, cursor: "pointer" }}
           >
@@ -115,10 +116,10 @@ export function ScreenShell({
             <span style={{ marginLeft: "auto", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)", padding: "1px 5px", border: `1px solid ${colors.border}`, borderRadius: 3 }}>⌘K</span>
           </button>
           <ThemeToggle />
-          <Btn kind="ghost" size="sm" icon={<Ic.presentation s={12} />} onClick={() => router.push("/reporte")}>Presentación</Btn>
+          <span className="bb-hide-sm"><Btn kind="ghost" size="sm" icon={<Ic.presentation s={12} />} onClick={() => router.push("/reporte")}>Presentación</Btn></span>
           <Btn kind="primary" size="sm" icon={<Ic.bolt s={11} />} onClick={() => router.push("/")}>Nuevo run</Btn>
         </header>
-        <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 24 }}>{children}</div>
+        <div className="bb-shell-content" style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 24 }}>{children}</div>
       </main>
     </div>
   );

@@ -54,7 +54,7 @@ export function Overview({ competitors, insights, run, analysis }: OverviewData 
       runMeta={`run #${String(run.number).padStart(3, "0")} · hace 12 min · USD 1,84`}
     >
       {/* Hero header */}
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 20, marginBottom: 20 }}>
+      <div className="bb-row" style={{ display: "flex", alignItems: "flex-end", gap: 20, marginBottom: 20 }}>
         <div style={{ flex: 1 }}>
           <div className="t-micro" style={{ color: "var(--accent)" }}>BENCHMARK · 60 DÍAS · {competitors.length} COMPETIDORES</div>
           <h1 className="t-display" style={{ marginTop: 8, marginBottom: 6, fontSize: 44, lineHeight: "48px", letterSpacing: "-0.025em", color: "var(--text)" }}>
@@ -75,7 +75,7 @@ export function Overview({ competitors, insights, run, analysis }: OverviewData 
       )}
 
       {/* KPIs (animated entrance) */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 18 }}>
         {[
           <KPI key="m" label="Menciones · 60d" value="2.418" delta="+12,4%" up spark />,
           <KPI key="e" label="Engagement total" value="842k" delta="+8,1%" up spark />,
@@ -89,7 +89,7 @@ export function Overview({ competitors, insights, run, analysis }: OverviewData 
       </div>
 
       {/* Body grid: volume chart + insights/cost */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 14 }}>
+      <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 14 }}>
         <div style={{ ...card, padding: 18 }}>
           <div className="t-h3" style={{ color: "var(--text)" }}>Volumen por competidor</div>
           <div className="t-micro" style={{ marginTop: 4 }}>menciones · marzo–abril 2026</div>
@@ -119,7 +119,7 @@ export function Overview({ competitors, insights, run, analysis }: OverviewData 
       </div>
 
       {/* SOV donut + trend area */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
+      <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
         <div style={{ ...card, padding: 18 }}>
           <div className="t-h3" style={{ color: "var(--text)" }}>Share of voice</div>
           <div className="t-micro" style={{ marginTop: 4 }}>participación de menciones · 60 días</div>
@@ -167,7 +167,7 @@ export function Overview({ competitors, insights, run, analysis }: OverviewData 
           <div className="t-h3" style={{ color: "var(--text)" }}>Competidores</div>
           <a style={{ fontSize: 12, color: "var(--accent)", fontWeight: 500 }}>Ver todos →</a>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${competitors.length}, 1fr)`, gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
           {competitors.map((c, i) => (
             <motion.div key={c.handle} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: i * 0.05, ease }}>
               <CompetitorCard name={c.name} handle={c.handle} brand={c.brandLetter} accent={c.accent} platforms={c.platforms} mentions={c.mentions} sov={c.sov} sent={c.sentiment} sparkData={c.sparkData} />

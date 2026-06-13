@@ -21,10 +21,10 @@ export function RunsHistory({ runs }: { runs: Run[] }) {
           <div className="t-micro" style={{ color: "var(--accent)" }}>HISTORIAL</div>
           <div className="t-h1" style={{ marginTop: 6, color: "var(--text)" }}>Runs del proyecto</div>
         </div>
-        <Link href="/research-plan"><Btn kind="accent" size="sm" iconRight={<Ic.bolt s={11} />}>Nuevo run</Btn></Link>
+        <Link href="/"><Btn kind="accent" size="sm" iconRight={<Ic.bolt s={11} />}>Nuevo run</Btn></Link>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
         {runs.map((r) => (
           <Link
             key={r.number}
