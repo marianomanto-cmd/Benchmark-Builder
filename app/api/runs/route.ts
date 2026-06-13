@@ -14,13 +14,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
-  let body: { slug?: string; platforms?: PlatformKey[] } = {};
+  let body: { slug?: string; platforms?: PlatformKey[]; keywords?: string[] } = {};
   try {
     body = (await req.json()) as typeof body;
   } catch {
     // empty body is fine — defaults apply
   }
 
-  const result = await executeRun(body.slug, body.platforms);
+  const result = await executeRun(body.slug, body.platforms, body.keywords);
   return NextResponse.json(result, { status: result.ok ? 200 : 400 });
 }

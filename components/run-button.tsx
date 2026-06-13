@@ -9,7 +9,7 @@ type RunState = "idle" | "running" | "done" | "error";
 
 // Triggers POST /api/runs and surfaces inline status. Wired to the
 // "Aprobar y ejecutar" CTA on the Research Plan screen.
-export function RunButton({ slug }: { slug?: string }) {
+export function RunButton({ slug, platforms, keywords, label = "Aprobar y ejecutar" }: { slug?: string; platforms?: string[]; keywords?: string[]; label?: string }) {
   const router = useRouter();
   const [state, setState] = useState<RunState>("idle");
   const [msg, setMsg] = useState("");
@@ -21,7 +21,7 @@ export function RunButton({ slug }: { slug?: string }) {
       const res = await fetch("/api/runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug }),
+        body: JSON.stringify({ slug, platforms, keywords }),
       });
       const json = (await res.json()) as {
         ok: boolean;
@@ -52,7 +52,7 @@ export function RunButton({ slug }: { slug?: string }) {
         </span>
       )}
       <Btn kind="accent" size="md" loading={state === "running"} onClick={run} iconRight={state !== "running" ? <Ic.bolt s={12} /> : undefined}>
-        Aprobar y ejecutar
+        {label}
       </Btn>
     </div>
   );

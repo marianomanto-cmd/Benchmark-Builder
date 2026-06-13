@@ -43,7 +43,7 @@ function dominant(counts: Record<SentimentKind, number>): SentimentKind {
 
 // Executes a research run: scrape selected platforms, score sentiment with Grok,
 // upsert mentions, recompute competitor aggregates, regenerate insights, record cost.
-export async function executeRun(slug?: string, platforms?: PlatformKey[]): Promise<RunResult> {
+export async function executeRun(slug?: string, platforms?: PlatformKey[], keywordOverride?: string[]): Promise<RunResult> {
   const admin = createAdminClient();
   if (!admin) return { ok: false, error: "Falta SUPABASE_SERVICE_ROLE_KEY para escribir resultados." };
 
@@ -64,9 +64,12 @@ export async function executeRun(slug?: string, platforms?: PlatformKey[]): Prom
   const targets = platforms && platforms.length ? platforms : fromComps;
   if (targets.length === 0) return { ok: false, error: "El proyecto no tiene plataformas configuradas." };
 
-  const keywords = project.keywords.length
-    ? project.keywords
-    : Array.from(new Set([project.name.split("·")[0].trim(), ...comps.map((c) => c.name)]));
+  const keywords =
+    keywordOverride && keywordOverride.length
+      ? keywordOverride
+      : project.keywords.length
+        ? project.keywords
+        : Array.from(new Set([project.name.split("·")[0].trim(), ...comps.map((c) => c.name)]));
 
   // Create the run row.
   const { data: last } = await admin
