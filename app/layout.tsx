@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, JetBrains_Mono, Newsreader } from "next/font/google";
+import { Inter, JetBrains_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SmoothScroll } from "@/components/motion/smooth-scroll";
 
 /* HANDOFF §2.2 — three families, one mission each.
- * Geist (UI), JetBrains Mono (numerals), Newsreader (report + pull-quotes). */
-const geist = Geist({
+ * Inter (UI · giga-aligned), JetBrains Mono (numerals/labels), Newsreader
+ * (report + pull-quotes). The UI var keeps the name --font-geist for backward
+ * compatibility with the token map in globals.css (--font-sans → --font-geist). */
+const sans = Inter({
   subsets: ["latin"],
   variable: "--font-geist",
   display: "swap",
@@ -53,7 +55,7 @@ export default function RootLayout({
     <html
       lang="es"
       suppressHydrationWarning
-      className={`${geist.variable} ${jbMono.variable} ${newsreader.variable}`}
+      className={`${sans.variable} ${jbMono.variable} ${newsreader.variable}`}
     >
       <body>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
