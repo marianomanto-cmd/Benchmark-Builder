@@ -7,14 +7,13 @@
 
 ---
 
-## 0. ✅ Deploy de Vercel — RESUELTO (2026‑06‑13)
+## 0. ✅ Deploy de Vercel — causa encontrada y arreglada (2026‑06‑13)
 
-- **Síntoma:** Vercel quedó clavado construyendo `1d5b542` y no levantaba los commits nuevos de `main` (Task 1, rediseño, cortina, actores). El rediseño no se veía en producción.
-- **Causa raíz:** la **integración Git del proyecto Vercel se desconectó** (webhook muerto) ~16:25 UTC del 13/jun. El código estaba correcto en `main`; **no había ningún build fallido** (no era un error de build). Por eso ni los pushes nuevos ni el commit vacío `e7433c7` disparaban build.
-- **Diagnóstico (tools de Vercel):** Production Branch = `main` ✅; última deployment de producción = `1d5b542` (READY); **cero** deployments para los commits posteriores; `get_project` sin objeto `link` (repo desvinculado). Build local de `08cd8d4` verde (`next build`, 17 rutas, exit 0).
-- **Fix:** se reconectó el repo en **Vercel → Settings → Git** (Disconnect + Connect `marianomanto-cmd/Benchmark-Builder`, *Production Branch* = `main`) y se pusheó a `main` para disparar el deploy del HEAD. Auto-deploy de `main` restablecido; el plugin Vercel↔Claude queda operativo (deployments/logs inspeccionables desde Claude).
+- **Síntoma:** Vercel quedó construyendo `1d5b542` y no levantaba los commits nuevos de `main` (Task 1, rediseño, cortina, actores); ningún push posterior generaba deployment.
+- **Causa raíz (real):** el `vercel.json` agregado en `032332e` definía un **cron `*/5 * * * *`** para `/api/cron/cost`. En el **plan Hobby**, Vercel **sólo permite cron jobs diarios**, así que **rechazaba la creación de la deployment** de todo commit `032332e`+ (*"Hobby accounts are limited to daily cron jobs"*). Por eso no aparecían builds (ni fallidas): se rechazaban **antes** de construir. Los commits ≤ `1d5b542` (sin cron) deployaban bien, y el "Redeploy" de `1d5b542` también. No era el webhook ni la conexión.
+- **Fix:** se cambió el cron a **diario** (`0 6 * * *`) en `vercel.json`. Si se pasa a plan **Pro**, se puede volver a `*/5 * * * *`. Production Branch = `main` ✅, repo conectado + GitHub App con acceso ✅, build local de `493c114` verde.
 
-`main` contiene todo el trabajo (rediseño, cortina, Task 1, actores/discovery). Repo: `marianomanto-cmd/Benchmark-Builder`.
+`main` contiene todo el trabajo; con este fix el push a `main` vuelve a deployar el rediseño. Repo: `marianomanto-cmd/Benchmark-Builder`.
 
 ---
 
@@ -53,7 +52,7 @@ app/
   overview/ live-feed/ comparativa/ galeria/ research-plan/ editor/ reporte/ runs/ settings/
   api/runs/route.ts        POST → executeRun (acepta scope, adIntent, plan)
   api/runs/[id]/cost/route.ts   **GET → snapshot de costo del run (CostMeter)**
-  api/cron/cost/route.ts   **GET → libera reservas vencidas + checkCostAlerts (Vercel Cron 5min)**
+  api/cron/cost/route.ts   **GET → libera reservas vencidas + checkCostAlerts (Vercel Cron diario en Hobby; */5 en Pro)**
   api/discovery/route.ts   **POST → infiere ResearchPlan del prompt**
   api/settings/sources/route.ts  POST → guarda config de fuentes (por platform,scope)
   globals.css              Tokens light/dark (dark = default), escala editorial, lenis, marquee
@@ -114,7 +113,7 @@ Enum `platform`: instagram, tiktok, youtube, facebook, x, reddit, mastodon, blue
 **Modo de ejecución — `PIPELINE_MODE` (default `mock`):**
 - **mock**: conectores e IA devuelven **fixtures deterministas**; igual pasan por reserve/commit con **costo simulado** (valida el flujo completo a **costo cero**). Reemplaza al viejo `LIVE_RUN`.
 - **live**: una llamada paga ocurre **solo si las 3 condiciones simultáneas**: `PIPELINE_MODE=live` **y** flag del proveedor en `system_flags` **y** API key presente. Si falta cualquiera → no se gasta (fixture).
-- Crons: `GET /api/cron/cost` (Vercel Cron */5) y `npm run cost:check` liberan reservas vencidas + alertas (run>$50, provider>$100/día, aceleración >5×).
+- Crons: `GET /api/cron/cost` (Vercel Cron **diario `0 6 * * *`** en plan Hobby; `*/5` requiere Pro) y `npm run cost:check` liberan reservas vencidas + alertas (run>$50, provider>$100/día, aceleración >5×).
 - Validación: `npm run test:run-mock` (requiere `SUPABASE_SERVICE_ROLE_KEY` local) — re-run sin duplicar costos, kill-switch corta en <60s, total == estimación. RPCs validadas vía SQL.
 
 **Discovery (prompt → plan):** `lib/discovery` — `classifyPrompt` (Claude en live / **heurística determinista en mock**, costo cero) → `ResearchPlanSchema` (Zod). Señales: paid = "anuncios/publicidad/campañas/pauta"; organic = "qué se dice/conversación/sentimiento"; político = candidato/elección/partido. El wizard lo usa para pre-seleccionar scope/ad_intent.
@@ -164,7 +163,7 @@ Las keys reales viven solo en `.env.local` (gitignored), **nunca** commiteadas.
 **Hecho:** rediseño fourmula (dark default, home con cortina+box IA, responsive, 404, OG placeholder) · **Task 1 motor de costos** (estimate, reserva atómica, guardedCall, kill-switch, ledger/run_steps, crons, mock end-to-end costo cero) · **actores Apify orgánico/paid + discovery por prompt** (registry por `platform,scope`, planToJobs, routing comercial/político, wizard toggle + delta) · 7 pantallas + portal + wizard + runs + settings · pipeline de ingesta.
 
 **Pendiente (próximo):**
-1. ✅ **Deploy de Vercel — resuelto** (§0): reconexión de la integración Git; `main` vuelve a deployar y el rediseño se ve en producción.
+1. ✅ **Deploy de Vercel — resuelto** (§0): el `vercel.json` tenía un cron `*/5` no permitido en Hobby (Vercel rechazaba toda deployment `032332e`+); se pasó a cron **diario** y `main` vuelve a deployar.
 2. **Validar/pinear actores community** (Google/LinkedIn) en Vercel (slugs reales + build pin).
 3. **Task 2 — pipeline de medios** (imagen/video/voiceover): tablas `media_files`/`media_analysis`, `lib/media/` (download con borrado a 12h, extractFrames ffmpeg, extractAudio, analyzeImage/Frame con Claude vision + Zod, transcribe Whisper/captions, consolidate), todo idempotente, acotado y **bajo guard**; fixtures mock; render en `/galeria`. (Era el paso post-actores del plan.)
 
