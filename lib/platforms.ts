@@ -33,3 +33,5 @@ export const PLATFORMS: Record<PlatformKey, PlatformMeta> = {
 };
 
 export type SentimentKind = "pos" | "neu" | "neg" | "mix";
+export type ThumbKind = "photo" | "video" | "article" | "ad";
+export type InsightKind = "opp" | "thr" | "pat" | "ano";

@@ -5,22 +5,14 @@ import { Ic } from "@/components/ui/icons";
 import { Btn, BBBadge, KPI } from "@/components/ui/primitives";
 import { BBBarChart } from "@/components/ui/charts";
 import { CompetitorCard, CostMeter, MiniInsight } from "@/components/domain";
-import type { PlatformKey, SentimentKind } from "@/lib/platforms";
+import type { OverviewData } from "@/lib/view-models";
 
-const COMPETITORS: [string, string, string, string, PlatformKey[], string, string, SentimentKind][] = [
-  ["Avianca", "avianca", "A", "var(--n900)", ["instagram", "tiktok", "youtube", "x", "meta_ads"], "998", "41,3", "pos"],
-  ["LATAM Colombia", "latamcol", "L", "var(--n700)", ["instagram", "facebook", "x", "meta_ads"], "581", "24,0", "mix"],
-  ["Wingo", "wingo.col", "W", "var(--n500)", ["instagram", "tiktok", "facebook"], "312", "12,9", "neu"],
-  ["Arajet", "arajetdom", "J", "var(--n400)", ["instagram", "x", "web"], "287", "11,9", "neu"],
-  ["Copa Airlines", "copaairlines", "C", "var(--sa-base)", ["instagram", "youtube", "x", "meta_ads"], "240", "9,9", "pos"],
-];
-
-export function Overview() {
+export function Overview({ competitors, insights, run }: OverviewData) {
   return (
     <ScreenShell
       breadcrumb={["Proyectos", "Cartagena · Q2 2026"]}
       badges={<><BBBadge tone="success" size="sm">activo</BBBadge> <BBBadge tone="accent" size="sm">v2.3</BBBadge></>}
-      runMeta="run #042 · hace 12 min · USD 1,84"
+      runMeta={`run #${String(run.number).padStart(3, "0")} · hace 12 min · USD 1,84`}
     >
       {/* Tabs */}
       <div style={{ display: "flex", gap: 24, borderBottom: "1px solid var(--n200)", marginBottom: 20 }}>
@@ -34,7 +26,7 @@ export function Overview() {
       {/* Hero header */}
       <div style={{ display: "flex", alignItems: "flex-end", gap: 20, marginBottom: 20 }}>
         <div style={{ flex: 1 }}>
-          <div className="t-micro" style={{ color: "var(--sa-base)" }}>BENCHMARK · 60 DÍAS · 5 COMPETIDORES</div>
+          <div className="t-micro" style={{ color: "var(--sa-base)" }}>BENCHMARK · 60 DÍAS · {competitors.length} COMPETIDORES</div>
           <h1 className="t-display" style={{ marginTop: 8, marginBottom: 6, fontSize: 44, lineHeight: "48px", letterSpacing: "-0.025em" }}>
             Cartagena, en el aire <em style={{ fontFamily: "var(--font-serif)", fontWeight: 500, fontStyle: "italic", color: "var(--n700)" }}>de cuatro aerolíneas.</em>
           </h1>
@@ -82,12 +74,12 @@ export function Overview() {
           <div style={{ background: "#fff", border: "1px solid var(--n200)", borderRadius: "var(--r-md)", padding: 16 }}>
             <div className="t-micro">Insights destacados</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
-              <MiniInsight kind="opp" t="LATAM no usa TikTok orgánico" s="38 fuentes · 0,87" />
-              <MiniInsight kind="thr" t="Avianca duplicó spend en Meta" s="14 fuentes · 0,79" />
-              <MiniInsight kind="pat" t="Picos jueves 11h" s="62 fuentes · 0,92" />
+              {insights.map((i, idx) => (
+                <MiniInsight key={idx} kind={i.kind} t={i.title} s={`${i.sources} fuentes · ${i.confidence}`} />
+              ))}
             </div>
           </div>
-          <CostMeter used={42.18} soft={50} hard={75} period="run #042" />
+          <CostMeter used={run.used} soft={run.soft} hard={run.hard} period={`run #${String(run.number).padStart(3, "0")}`} />
         </div>
       </div>
 
@@ -97,9 +89,9 @@ export function Overview() {
           <div className="t-h3">Competidores</div>
           <a style={{ fontSize: 12, color: "var(--sa-base)", fontWeight: 500 }}>Ver todos →</a>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-          {COMPETITORS.map((c, i) => (
-            <CompetitorCard key={i} name={c[0]} handle={c[1]} brand={c[2]} accent={c[3]} platforms={c[4]} mentions={c[5]} sov={c[6]} sent={c[7]} sparkData={Array.from({ length: 14 }, (_, j) => Math.sin(j * 0.7 + i) * 8 + 12 + j * 1.2)} />
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${competitors.length}, 1fr)`, gap: 12 }}>
+          {competitors.map((c) => (
+            <CompetitorCard key={c.handle} name={c.name} handle={c.handle} brand={c.brandLetter} accent={c.accent} platforms={c.platforms} mentions={c.mentions} sov={c.sov} sent={c.sentiment} sparkData={c.sparkData} />
           ))}
         </div>
       </div>

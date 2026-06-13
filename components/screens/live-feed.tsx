@@ -5,6 +5,7 @@ import { Ic } from "@/components/ui/icons";
 import { Btn, BBBadge } from "@/components/ui/primitives";
 import { MentionCard, PlatformBadge } from "@/components/domain";
 import type { PlatformKey } from "@/lib/platforms";
+import type { MentionVM } from "@/lib/view-models";
 
 function FilterGroup({ title, items, platforms }: { title: string; items: (string | number | boolean | PlatformKey)[][]; platforms?: boolean }) {
   return (
@@ -35,7 +36,7 @@ function FilterGroup({ title, items, platforms }: { title: string; items: (strin
   );
 }
 
-export function LiveFeed() {
+export function LiveFeed({ mentions }: { mentions: MentionVM[] }) {
   return (
     <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Live feed"]} badges={<BBBadge tone="success" size="sm">activo</BBBadge>} runMeta="2.418 menciones · 60 días">
       <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 16, height: "100%" }}>
@@ -73,12 +74,9 @@ export function LiveFeed() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, overflow: "auto", paddingBottom: 14 }}>
-            <MentionCard platform="instagram" author="Avianca" handle="avianca" ts="hace 4 h" brand="Avianca" body="Cartagena en frecuencia diaria desde Bogotá y Medellín. Conocé los nuevos horarios de mañana ☀️" thumbType="photo" sentiment="pos" metrics={[["♡", "12,4k"], ["💬", "284"], ["↗", "842"]]} />
-            <MentionCard platform="meta_ads" author="Avianca" handle="avianca · ad" ts="activo · 12 d" brand="Avianca" isAd body="Vuelos a Cartagena desde USD 89. Combiná con Medellín y Santa Marta. Reservá hasta el 30/05." thumbType="ad" sentiment="pos" metrics={[["€", "USD 8–12k"], ["👁", "est. 1,4M"]]} />
-            <MentionCard platform="tiktok" author="LATAM Colombia" handle="latamcol" ts="hace 9 h" brand="LATAM" body="POV: tu primera vez en Cartagena. Etiquetá a quien te llevarías 👇 #latamtok" thumbType="video" sentiment="pos" metrics={[["▷", "1,2M"], ["♡", "98k"], ["💬", "3,4k"]]} />
-            <MentionCard platform="youtube" author="Wingo" handle="wingo.col" ts="hace 1 d" brand="Wingo" body="Vlog · Cartagena en 48h con vuelo Wingo · Costos reales · Tips de viaje 2026" thumbType="video" sentiment="neu" metrics={[["▷", "42k"], ["♡", "2,1k"]]} />
-            <MentionCard platform="instagram" author="Copa Airlines" handle="copaairlines" ts="hace 18 h" brand="Copa" body="Atardecer en Cartagena, vista desde el equipo Copa ✈️ #copaairlines" thumbType="photo" sentiment="pos" metrics={[["♡", "8,2k"], ["💬", "142"]]} />
-            <MentionCard platform="web" author="El Espectador" handle="elespectador.com" ts="03/05" brand="—" body="Avianca, LATAM y Wingo aumentan frecuencia a Cartagena para temporada 2026." thumbType="article" sentiment="neu" metrics={[["📄", "prensa"], ["👁", "24k"]]} />
+            {mentions.map((m, i) => (
+              <MentionCard key={i} platform={m.platform} author={m.author} handle={m.handle} ts={m.ts} brand={m.brand} body={m.body} thumbType={m.thumbType} sentiment={m.sentiment} isAd={m.isAd} metrics={m.metrics} />
+            ))}
           </div>
         </div>
       </div>
