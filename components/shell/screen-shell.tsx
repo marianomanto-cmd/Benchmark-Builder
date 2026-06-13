@@ -81,7 +81,7 @@ export function ScreenShell({
       )}
 
       {/* compact sidebar — hidden on mobile (replaced by the drawer) */}
-      <aside className="bb-sidebar" style={{ width: 64, background: colors.sb, borderRight: `1px solid ${colors.border}`, display: "flex", flexDirection: "column", alignItems: "center", padding: "14px 0", gap: 6, position: "relative", flexShrink: 0 }}>
+      <aside className="bb-sidebar" style={{ width: 64, background: "color-mix(in srgb, #181410 72%, transparent)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderRight: `1px solid ${colors.border}`, display: "flex", flexDirection: "column", alignItems: "center", padding: "14px 0", gap: 6, position: "relative", flexShrink: 0 }}>
         <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 2, background: "var(--accent)" }} />
         <Link href="/" style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", marginBottom: 8 }}>
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff" }} />
@@ -108,7 +108,7 @@ export function ScreenShell({
 
       {/* main */}
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <header className="bb-shell-header" style={{ height: 56, background: colors.tb, borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", padding: "0 24px", gap: 12, flexShrink: 0 }}>
+        <header className="bb-shell-header" style={{ height: 56, background: "color-mix(in srgb, var(--surface) 72%, transparent)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", padding: "0 24px", gap: 12, flexShrink: 0 }}>
           <button type="button" className="bb-only-sm" onClick={() => setNavOpen(true)} aria-label="Abrir menú" style={{ border: "none", background: "transparent", color: colors.text, cursor: "pointer", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 4, marginLeft: -4 }}>
             <Menu size={20} />
           </button>
