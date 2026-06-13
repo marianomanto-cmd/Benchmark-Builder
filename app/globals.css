@@ -223,11 +223,15 @@ html, body { overflow-x: hidden; max-width: 100%; }
 img, video, canvas { max-width: 100%; }
 * { min-width: 0; }
 
+.bb-only-sm { display: none; }
+
 @media (max-width: 860px) {
   .bb-collapse { grid-template-columns: 1fr !important; }
   .bb-row { flex-direction: column !important; align-items: stretch !important; }
   .bb-scroll-x { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
   .bb-hide-sm { display: none !important; }
+  .bb-sidebar { display: none !important; }
+  .bb-only-sm { display: inline-flex !important; }
   .bb-shell-content { padding: 14px !important; }
   .bb-shell-header { padding: 0 12px !important; gap: 8px !important; }
   .bb-editor { grid-template-columns: 1fr !important; height: auto !important; }
