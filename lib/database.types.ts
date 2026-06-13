@@ -54,6 +54,7 @@ export type Database = {
           sentiment: Database["public"]["Enums"]["sentiment_kind"];
           sort_order: number;
           sov: number;
+          targets: string[];
         };
         Insert: {
           accent: string;
@@ -70,6 +71,7 @@ export type Database = {
           sentiment?: Database["public"]["Enums"]["sentiment_kind"];
           sort_order?: number;
           sov?: number;
+          targets?: string[];
         };
         Update: {
           accent?: string;
@@ -86,6 +88,7 @@ export type Database = {
           sentiment?: Database["public"]["Enums"]["sentiment_kind"];
           sort_order?: number;
           sov?: number;
+          targets?: string[];
         };
         Relationships: [
           {
@@ -105,6 +108,7 @@ export type Database = {
           id: string;
           kind: Database["public"]["Enums"]["insight_kind"];
           project_id: string;
+          run_id: string | null;
           sort_order: number;
           sources: number;
           title: string;
@@ -116,6 +120,7 @@ export type Database = {
           id?: string;
           kind: Database["public"]["Enums"]["insight_kind"];
           project_id: string;
+          run_id?: string | null;
           sort_order?: number;
           sources?: number;
           title: string;
@@ -127,6 +132,7 @@ export type Database = {
           id?: string;
           kind?: Database["public"]["Enums"]["insight_kind"];
           project_id?: string;
+          run_id?: string | null;
           sort_order?: number;
           sources?: number;
           title?: string;
@@ -139,6 +145,13 @@ export type Database = {
             referencedRelation: "projects";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "insights_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
         ];
       };
       mentions: {
@@ -148,6 +161,8 @@ export type Database = {
           brand: string;
           competitor_id: string | null;
           created_at: string;
+          engagement: Json;
+          external_id: string | null;
           handle: string;
           id: string;
           is_ad: boolean;
@@ -155,10 +170,13 @@ export type Database = {
           permalink: string | null;
           platform: Database["public"]["Enums"]["platform"];
           project_id: string;
+          published_at: string | null;
+          run_id: string | null;
           sentiment: Database["public"]["Enums"]["sentiment_kind"];
           sort_order: number;
           thumb_type: Database["public"]["Enums"]["thumb_kind"] | null;
           ts_label: string;
+          url: string | null;
         };
         Insert: {
           author: string;
@@ -166,6 +184,8 @@ export type Database = {
           brand: string;
           competitor_id?: string | null;
           created_at?: string;
+          engagement?: Json;
+          external_id?: string | null;
           handle: string;
           id?: string;
           is_ad?: boolean;
@@ -173,10 +193,13 @@ export type Database = {
           permalink?: string | null;
           platform: Database["public"]["Enums"]["platform"];
           project_id: string;
+          published_at?: string | null;
+          run_id?: string | null;
           sentiment: Database["public"]["Enums"]["sentiment_kind"];
           sort_order?: number;
           thumb_type?: Database["public"]["Enums"]["thumb_kind"] | null;
           ts_label: string;
+          url?: string | null;
         };
         Update: {
           author?: string;
@@ -184,6 +207,8 @@ export type Database = {
           brand?: string;
           competitor_id?: string | null;
           created_at?: string;
+          engagement?: Json;
+          external_id?: string | null;
           handle?: string;
           id?: string;
           is_ad?: boolean;
@@ -191,10 +216,13 @@ export type Database = {
           permalink?: string | null;
           platform?: Database["public"]["Enums"]["platform"];
           project_id?: string;
+          published_at?: string | null;
+          run_id?: string | null;
           sentiment?: Database["public"]["Enums"]["sentiment_kind"];
           sort_order?: number;
           thumb_type?: Database["public"]["Enums"]["thumb_kind"] | null;
           ts_label?: string;
+          url?: string | null;
         };
         Relationships: [
           {
@@ -211,12 +239,22 @@ export type Database = {
             referencedRelation: "projects";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "mentions_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
         ];
       };
       projects: {
         Row: {
           created_at: string;
+          geo: string[];
           id: string;
+          keywords: string[];
+          languages: string[];
           name: string;
           period_days: number;
           slug: string;
@@ -225,7 +263,10 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
+          geo?: string[];
           id?: string;
+          keywords?: string[];
+          languages?: string[];
           name: string;
           period_days?: number;
           slug: string;
@@ -234,7 +275,10 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          geo?: string[];
           id?: string;
+          keywords?: string[];
+          languages?: string[];
           name?: string;
           period_days?: number;
           slug?: string;
@@ -251,15 +295,60 @@ export type Database = {
           },
         ];
       };
+      run_sources: {
+        Row: {
+          cost: number;
+          created_at: string;
+          error: string | null;
+          id: string;
+          mentions_count: number;
+          platform: Database["public"]["Enums"]["platform"];
+          run_id: string;
+          status: string;
+        };
+        Insert: {
+          cost?: number;
+          created_at?: string;
+          error?: string | null;
+          id?: string;
+          mentions_count?: number;
+          platform: Database["public"]["Enums"]["platform"];
+          run_id: string;
+          status?: string;
+        };
+        Update: {
+          cost?: number;
+          created_at?: string;
+          error?: string | null;
+          id?: string;
+          mentions_count?: number;
+          platform?: Database["public"]["Enums"]["platform"];
+          run_id?: string;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "run_sources_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       runs: {
         Row: {
           cost_hard: number;
           cost_soft: number;
           cost_used: number;
           created_at: string;
+          error: string | null;
+          finished_at: string | null;
           id: string;
+          mentions_count: number;
           number: number;
           project_id: string;
+          started_at: string | null;
           status: string;
         };
         Insert: {
@@ -267,9 +356,13 @@ export type Database = {
           cost_soft?: number;
           cost_used?: number;
           created_at?: string;
+          error?: string | null;
+          finished_at?: string | null;
           id?: string;
+          mentions_count?: number;
           number: number;
           project_id: string;
+          started_at?: string | null;
           status?: string;
         };
         Update: {
@@ -277,9 +370,13 @@ export type Database = {
           cost_soft?: number;
           cost_used?: number;
           created_at?: string;
+          error?: string | null;
+          finished_at?: string | null;
           id?: string;
+          mentions_count?: number;
           number?: number;
           project_id?: string;
+          started_at?: string | null;
           status?: string;
         };
         Relationships: [

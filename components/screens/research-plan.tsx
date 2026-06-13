@@ -4,6 +4,7 @@ import { ScreenShell } from "@/components/shell/screen-shell";
 import { Ic } from "@/components/ui/icons";
 import { Btn, BBBadge } from "@/components/ui/primitives";
 import { PlatformBadge } from "@/components/domain";
+import { RunButton } from "@/components/run-button";
 import type { PlatformKey } from "@/lib/platforms";
 
 const sources: [PlatformKey, string, string[], string, string][] = [
@@ -85,7 +86,7 @@ export function ResearchPlan() {
             <Btn kind="secondary" size="md">Editar plan</Btn>
             <div style={{ flex: 1 }} />
             <Btn kind="ghost" size="md">Cancelar</Btn>
-            <Btn kind="accent" size="md" iconRight={<Ic.bolt s={12} />}>Aprobar y ejecutar</Btn>
+            <RunButton slug="cartagena-q2-2026" />
           </div>
         </div>
       </div>

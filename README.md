@@ -55,15 +55,28 @@ npm run dev                  # http://localhost:3000
 
 ### Variables de entorno
 
-| Var | Descripción |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase (pública) |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Publishable/anon key (pública, va al browser) |
+Ver [`.env.example`](.env.example). Las de Supabase (`NEXT_PUBLIC_*`) se inyectan solas
+en Vercel. Para correr benchmarks reales hacen falta además: `SUPABASE_SERVICE_ROLE_KEY`
+(escritura del runner), `XAI_API_KEY` (Grok), `APIFY_TOKEN` y `META_AD_LIBRARY_TOKEN`.
 
-En Vercel se inyectan solas vía la integración Supabase↔Vercel.
+## Pipeline de ingesta
+
+`POST /api/runs { slug?, platforms? }` dispara un run (`lib/runner.ts`): scrapea las
+fuentes, puntúa sentimiento con Grok, hace upsert de menciones, recalcula agregados de
+competidores, regenera insights y registra costo. Adaptadores en `lib/sources/`:
+
+| Fuente | Proveedor |
+|---|---|
+| Reddit · Mastodon · Bluesky | API pública (sin token) |
+| Instagram · TikTok · X · YouTube · Facebook · Web | Apify (`APIFY_TOKEN`) |
+| Meta Ad Library | API oficial (`META_AD_LIBRARY_TOKEN`) |
+| Sentimiento + insights | xAI Grok (`XAI_API_KEY`) |
+
+Sin credenciales, cada fuente se marca `skipped` y la UI sigue mostrando el caso demo.
 
 ## Estado
 
-Las 7 pantallas están implementadas con el design system completo y datos del caso de
-demo (mock). Próximo: schema de DB en Supabase, runner de scraping/IA y datos en vivo.
-Decisiones abiertas en `design/HANDOFF.md` §10 (schema, billing, modelo de auth).
+7 pantallas con el design system completo. Schema + seed en Supabase. Overview y Live
+feed leen datos reales (con fallback a demo). Pipeline de ingesta completo y cableado al
+botón "Aprobar y ejecutar" — listo para enchufar tokens. Decisiones abiertas en
+`design/HANDOFF.md` §10 (billing, modelo de auth).
