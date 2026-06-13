@@ -59,7 +59,8 @@ export function ScreenShell({
           <nav style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: "min(78vw, 280px)", background: colors.sb, borderRight: `1px solid ${colors.border}`, display: "flex", flexDirection: "column", padding: "16px 12px", gap: 4, overflowY: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px 12px" }}>
               <Link href="/" onClick={() => setNavOpen(false)} style={{ display: "inline-flex", alignItems: "center", gap: 9, color: "#fff", textDecoration: "none", fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase" }}>
-                <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--accent)" }} /> Phema
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/logo.jpg" alt="" width={22} height={22} style={{ borderRadius: "50%", objectFit: "cover", display: "block" }} /> Phema
               </Link>
               <button type="button" onClick={() => setNavOpen(false)} aria-label="Cerrar menú" style={{ border: "none", background: "transparent", color: "#847a68", cursor: "pointer", display: "inline-flex" }}><X size={18} /></button>
             </div>
@@ -83,8 +84,9 @@ export function ScreenShell({
       {/* compact sidebar — hidden on mobile (replaced by the drawer) */}
       <aside className="bb-sidebar" style={{ width: 64, background: "color-mix(in srgb, #181410 72%, transparent)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderRight: `1px solid ${colors.border}`, display: "flex", flexDirection: "column", alignItems: "center", padding: "14px 0", gap: 6, position: "relative", flexShrink: 0 }}>
         <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 2, background: "var(--accent)" }} />
-        <Link href="/" style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", marginBottom: 8 }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff" }} />
+        <Link href="/" title="Phema · inicio" style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", display: "block", marginBottom: 8, flexShrink: 0 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo.jpg" alt="Phema" width={32} height={32} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         </Link>
         {NAV.filter((i) => i.href !== "/settings").map((item) => {
           const active = isActive(item.href);

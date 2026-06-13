@@ -133,7 +133,8 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
         {/* header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 9, fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-            <span style={{ width: 9, height: 9, borderRadius: "50%", background: "var(--accent)" }} /> Phema
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/logo.jpg" alt="" width={22} height={22} style={{ borderRadius: "50%", objectFit: "cover", display: "block" }} /> Phema
           </div>
           <div style={{ flex: 1 }} />
           <button type="button" onClick={onClose} aria-label="Cerrar" style={{ width: 36, height: 36, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text-muted)", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>

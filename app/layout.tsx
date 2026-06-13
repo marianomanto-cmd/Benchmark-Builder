@@ -30,6 +30,7 @@ const newsreader = Newsreader({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://benchmark-builder.vercel.app"),
+  icons: { icon: "/brand/logo.jpg" },
   title: {
     default: "Phema — De mil señales, una sola lectura.",
     template: "%s · Phema",

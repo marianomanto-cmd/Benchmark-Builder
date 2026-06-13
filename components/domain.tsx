@@ -119,7 +119,11 @@ export function MentionCard({
       </div>
       {thumbType && (
         <div style={{ height: 150, background: "var(--surface-2)", position: "relative", overflow: "hidden" }}>
-          <ThumbPlaceholder kind={thumbType} src={media} video={video} />
+          <ThumbPlaceholder
+            kind={thumbType}
+            src={media ?? `https://picsum.photos/seed/bb-${encodeURIComponent((handle || author) + "-" + body.slice(0, 10))}/600/400`}
+            video={video ?? (thumbType === "video" ? "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4" : undefined)}
+          />
         </div>
       )}
       <div style={{ padding: "10px 14px", flex: 1 }}>
