@@ -37,15 +37,15 @@ export function Btn({
     lg: { h: 40, px: 18, fs: 14, ic: 14 },
   };
   const kinds: Record<BtnKind, CSSProperties> = {
-    primary: { background: "var(--n900)", color: "#fff", border: "1px solid var(--n900)" },
-    secondary: { background: "#fff", color: "var(--n900)", border: "1px solid var(--n300)" },
-    accent: { background: "var(--sa-base)", color: "#fff", border: "1px solid var(--sa-base)" },
-    ghost: { background: "transparent", color: "var(--n700)", border: "1px solid transparent" },
-    destructive: { background: "#fff", color: "var(--danger)", border: "1px solid var(--danger)" },
+    primary: { background: "var(--text)", color: "var(--bg)", border: "1px solid var(--text)" },
+    secondary: { background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border-strong)" },
+    accent: { background: "var(--accent)", color: "var(--accent-ink)", border: "1px solid var(--accent)" },
+    ghost: { background: "transparent", color: "var(--text-muted)", border: "1px solid transparent" },
+    destructive: { background: "var(--surface)", color: "var(--danger)", border: "1px solid var(--danger)" },
   };
   const sz = sizes[size];
   const dis: CSSProperties = disabled
-    ? { opacity: 0.45, background: "var(--n200)", color: "var(--n500)", border: "1px solid var(--n200)" }
+    ? { opacity: 0.45, background: "var(--surface-2)", color: "var(--text-faint)", border: "1px solid var(--border)" }
     : {};
   return (
     <button
@@ -99,8 +99,8 @@ export function BBBadge({
     warn: { c: "var(--warn)" },
     danger: { c: "var(--danger)" },
     info: { c: "var(--info)" },
-    accent: { c: "var(--sa-base)" },
-    neutral: { c: "var(--n700)" },
+    accent: { c: "var(--accent)" },
+    neutral: { c: "var(--text-muted)" },
   };
   const t = tones[tone];
   return (
@@ -149,9 +149,9 @@ export function Field({
   mono?: boolean;
   textarea?: boolean;
 }) {
-  const border = error ? "var(--danger)" : focused ? "var(--n900)" : "var(--n300)";
+  const border = error ? "var(--danger)" : focused ? "var(--accent)" : "var(--border-strong)";
   const ring = focused
-    ? "0 0 0 3px rgba(24,20,16,.08)"
+    ? "0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent)"
     : error
       ? "0 0 0 3px rgba(184,38,29,.10)"
       : "none";
@@ -161,7 +161,7 @@ export function Field({
         style={{
           fontSize: 10,
           letterSpacing: ".1em",
-          color: error ? "var(--danger)" : "var(--n500)",
+          color: error ? "var(--danger)" : "var(--text-muted)",
           textTransform: "uppercase",
           fontFamily: "var(--font-mono)",
           marginBottom: 6,
@@ -171,7 +171,7 @@ export function Field({
       </div>
       <div style={{ position: "relative" }}>
         {search && (
-          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--n500)" }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}>
             <Ic.search />
           </span>
         )}
@@ -181,19 +181,19 @@ export function Field({
             padding: `${textarea ? 8 : 0}px 12px ${textarea ? 8 : 0}px ${search ? 32 : 12}px`,
             border: `1px solid ${border}`,
             borderRadius: "var(--r-sm)",
-            background: "#fff",
+            background: "var(--surface)",
             display: "flex",
             alignItems: textarea ? "flex-start" : "center",
             fontSize: 13,
-            color: value ? "var(--n900)" : "var(--n500)",
+            color: value ? "var(--text)" : "var(--text-faint)",
             fontFamily: mono ? "var(--font-mono)" : "inherit",
             boxShadow: ring,
             transition: "box-shadow 150ms ease, border-color 150ms ease",
           }}
         >
-          {value || <span style={{ color: "var(--n500)" }}>{ph || (textarea ? "Observaciones del scrapeo…" : "—")}</span>}
+          {value || <span style={{ color: "var(--text-faint)" }}>{ph || (textarea ? "Observaciones del scrapeo…" : "—")}</span>}
           {select && (
-            <span style={{ marginLeft: "auto", color: "var(--n500)" }}>
+            <span style={{ marginLeft: "auto", color: "var(--text-muted)" }}>
               <Ic.arrowDown />
             </span>
           )}
@@ -233,13 +233,13 @@ export function Toast({
         border: `1px solid ${tone.c}`,
         borderLeft: `3px solid ${tone.c}`,
         borderRadius: "var(--r-sm)",
-        background: kind === "danger" ? "var(--danger-soft)" : "#fff",
+        background: kind === "danger" ? "var(--danger-soft)" : "var(--surface)",
       }}
     >
       <div style={{ color: tone.c, marginTop: 2 }}>{kind === "success" ? <Ic.check s={12} /> : <Ic.alert s={14} />}</div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--n900)" }}>{title}</div>
-        <div style={{ fontSize: 12, color: "var(--n600)", marginTop: 2 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>{title}</div>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
           {body} · <a style={{ color: tone.c, textDecoration: "underline" }}>{action}</a>
         </div>
       </div>
@@ -257,7 +257,7 @@ export function Skel({ w, h }: { w: number | string; h: number | string }) {
       style={{
         width: w,
         height: h,
-        background: "linear-gradient(90deg, var(--n100) 0%, var(--n200) 50%, var(--n100) 100%)",
+        background: "linear-gradient(90deg, var(--surface-2) 0%, var(--border) 50%, var(--surface-2) 100%)",
         backgroundSize: "200% 100%",
         borderRadius: 3,
       }}
@@ -271,15 +271,15 @@ export function Skel({ w, h }: { w: number | string; h: number | string }) {
 export function SentimentChip({ kind, label, big }: { kind: SentimentKind; label?: string; big?: boolean }) {
   const map: Record<SentimentKind, { c: string; t: string }> = {
     pos: { c: "var(--success)", t: "positivo" },
-    neu: { c: "var(--n500)", t: "neutro" },
+    neu: { c: "var(--text-muted)", t: "neutro" },
     neg: { c: "var(--danger)", t: "negativo" },
     mix: { c: "var(--warn)", t: "mixto" },
   };
-  const m = map[kind] ?? { c: "var(--n500)", t: "—" };
+  const m = map[kind] ?? { c: "var(--text-muted)", t: "—" };
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
       <span style={{ width: big ? 10 : 8, height: big ? 10 : 8, borderRadius: "50%", background: m.c }} />
-      <span style={{ fontSize: big ? 12 : 11, color: "var(--n700)" }}>{label || m.t}</span>
+      <span style={{ fontSize: big ? 12 : 11, color: "var(--text-muted)" }}>{label || m.t}</span>
     </span>
   );
 }
@@ -311,7 +311,7 @@ export function KPI({
   const ink = tone === "ink";
   if (skeleton) {
     return (
-      <div style={{ height: 108, padding: 14, border: "1px solid var(--n200)", borderRadius: "var(--r-sm)", display: "flex", flexDirection: "column", gap: 8, justifyContent: "center" }}>
+      <div style={{ height: 108, padding: 14, border: "1px solid var(--border)", borderRadius: "var(--r-sm)", display: "flex", flexDirection: "column", gap: 8, justifyContent: "center" }}>
         <Skel w="40%" h={10} />
         <Skel w="65%" h={20} />
       </div>
@@ -319,11 +319,11 @@ export function KPI({
   }
   if (empty) {
     return (
-      <div style={{ height: 108, padding: 14, border: "1px dashed var(--n300)", borderRadius: "var(--r-sm)" }}>
-        <div className="t-micro" style={{ color: "var(--n500)" }}>— SIN DATOS —</div>
-        <div style={{ height: 10, marginTop: 10, background: "var(--n100)", borderRadius: 2 }} />
-        <div style={{ height: 8, marginTop: 6, width: "40%", background: "var(--n100)", borderRadius: 2 }} />
-        <div className="t-small" style={{ color: "var(--n500)", marginTop: 14 }}>Sin menciones para el rango.</div>
+      <div style={{ height: 108, padding: 14, border: "1px dashed var(--border-strong)", borderRadius: "var(--r-sm)" }}>
+        <div className="t-micro" style={{ color: "var(--text-muted)" }}>— SIN DATOS —</div>
+        <div style={{ height: 10, marginTop: 10, background: "var(--surface-2)", borderRadius: 2 }} />
+        <div style={{ height: 8, marginTop: 6, width: "40%", background: "var(--surface-2)", borderRadius: 2 }} />
+        <div className="t-small" style={{ color: "var(--text-muted)", marginTop: 14 }}>Sin menciones para el rango.</div>
       </div>
     );
   }

@@ -81,7 +81,7 @@ export function ResearchPlan() {
           {STEPS.map((label, i) => (
             <div key={label} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ width: 22, height: 22, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontFamily: "var(--font-mono)", background: i <= step ? "var(--sa-base)" : "var(--surface-2)", color: i <= step ? "#fff" : "var(--text-muted)", border: i <= step ? "none" : "1px solid var(--border)" }}>{i < step ? "✓" : i + 1}</span>
+                <span style={{ width: 22, height: 22, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontFamily: "var(--font-mono)", background: i <= step ? "var(--accent)" : "var(--surface-2)", color: i <= step ? "#fff" : "var(--text-muted)", border: i <= step ? "none" : "1px solid var(--border)" }}>{i < step ? "✓" : i + 1}</span>
                 <span style={{ fontSize: 12, fontWeight: i === step ? 600 : 400, color: i === step ? "var(--text)" : "var(--text-muted)", whiteSpace: "nowrap" }}>{label}</span>
               </div>
               {i < STEPS.length - 1 && <div style={{ flex: 1, height: 1, background: "var(--border)" }} />}
@@ -132,7 +132,7 @@ export function ResearchPlan() {
                 const on = comps.has(c.handle);
                 return (
                   <label key={c.handle} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: "var(--r-sm)", border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`, background: on ? "var(--accent-soft)" : "var(--surface)", cursor: "pointer" }}>
-                    <input type="checkbox" checked={on} onChange={() => setComps((s) => toggle(s, c.handle))} style={{ width: 16, height: 16, accentColor: "var(--sa-base)" }} />
+                    <input type="checkbox" checked={on} onChange={() => setComps((s) => toggle(s, c.handle))} style={{ width: 16, height: 16, accentColor: "var(--accent)" }} />
                     <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", minWidth: 150 }}>{c.name}{c.isClient && <span style={{ fontSize: 9, color: "var(--accent)", fontFamily: "var(--font-mono)", marginLeft: 6 }}>CLIENTE</span>}</span>
                     <div style={{ display: "flex", gap: 4 }}>{c.platforms.map((p) => <PlatformBadge key={p} platform={p} size="sm" />)}</div>
                     <span style={{ marginLeft: "auto", fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{c.followersLabel} followers</span>
@@ -187,7 +187,7 @@ export function ResearchPlan() {
                   const on = src.has(s.key);
                   return (
                     <label key={s.key} style={{ display: "flex", alignItems: "center", gap: 14, padding: "11px 0", borderTop: i ? "1px solid var(--border)" : "none", opacity: on ? 1 : 0.5, cursor: "pointer" }}>
-                      <input type="checkbox" checked={on} onChange={() => setSrc((p) => toggle(p, s.key))} style={{ width: 16, height: 16, accentColor: "var(--sa-base)" }} />
+                      <input type="checkbox" checked={on} onChange={() => setSrc((p) => toggle(p, s.key))} style={{ width: 16, height: 16, accentColor: "var(--accent)" }} />
                       <PlatformBadge platform={s.key} size="md" />
                       <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text)", minWidth: 130 }}>{s.label}</span>
                       <span style={{ flex: 1, fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{s.note}</span>

@@ -44,8 +44,8 @@ export function ScreenShell({
       <CommandPalette />
       {/* sidebar compact */}
       <aside style={{ width: 64, background: colors.sb, borderRight: `1px solid ${colors.border}`, display: "flex", flexDirection: "column", alignItems: "center", padding: "14px 0", gap: 6, position: "relative", flexShrink: 0 }}>
-        <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 2, background: "var(--sa-base)" }} />
-        <Link href="/" style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--sa-base)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", marginBottom: 8 }}>
+        <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 2, background: "var(--accent)" }} />
+        <Link href="/" style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", marginBottom: 8 }}>
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff" }} />
         </Link>
         {NAV.map((item) => {
@@ -64,7 +64,7 @@ export function ScreenShell({
                 borderRadius: "var(--r-sm)",
                 color: active ? "#fff" : "#847a68",
                 background: active ? "#2a241c" : "transparent",
-                borderLeft: active ? "2px solid var(--sa-base)" : "2px solid transparent",
+                borderLeft: active ? "2px solid var(--accent)" : "2px solid transparent",
                 marginLeft: active ? -2 : 0,
               }}
             >
@@ -89,7 +89,7 @@ export function ScreenShell({
         >
           {NavIc.cog(15)}
         </Link>
-        <span style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--n400)", marginTop: 6 }} />
+        <span style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--border-strong)", marginTop: 6 }} />
       </aside>
 
       {/* main */}
@@ -99,11 +99,11 @@ export function ScreenShell({
             {breadcrumb.map((b, i) => (
               <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                 <span style={{ color: i === breadcrumb.length - 1 ? colors.text : colors.muted, fontWeight: i === breadcrumb.length - 1 ? 500 : 400 }}>{b}</span>
-                {i < breadcrumb.length - 1 && <span style={{ color: "var(--n300)" }}>/</span>}
+                {i < breadcrumb.length - 1 && <span style={{ color: "var(--text-faint)" }}>/</span>}
               </span>
             ))}
             {badges}
-            {runMeta && <span style={{ color: "var(--n400)", fontFamily: "var(--font-mono)", fontSize: 11, marginLeft: 6 }}>· {runMeta}</span>}
+            {runMeta && <span style={{ color: "var(--border-strong)", fontFamily: "var(--font-mono)", fontSize: 11, marginLeft: 6 }}>· {runMeta}</span>}
           </div>
           <div style={{ flex: 1 }} />
           <button

@@ -61,21 +61,21 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
   const inputStyle: CSSProperties = {
     height: 32,
     padding: "0 10px",
-    border: "1px solid var(--n300)",
+    border: "1px solid var(--border-strong)",
     borderRadius: "var(--r-sm)",
     fontSize: 12,
     fontFamily: "var(--font-mono)",
-    background: "#fff",
-    color: "var(--n900)",
+    background: "var(--surface)",
+    color: "var(--text)",
   };
 
   return (
     <div style={{ maxWidth: 860 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
         <div>
-          <div className="t-micro" style={{ color: "var(--sa-base)" }}>SETTINGS · FUENTES</div>
+          <div className="t-micro" style={{ color: "var(--accent)" }}>SETTINGS · FUENTES</div>
           <div className="t-h1" style={{ marginTop: 6 }}>Fuentes y actores de scraping</div>
-          <div className="t-body" style={{ color: "var(--n600)", marginTop: 6, maxWidth: 560 }}>
+          <div className="t-body" style={{ color: "var(--text-muted)", marginTop: 6, maxWidth: 560 }}>
             Activá o desactivá cada fuente y editá el actor de Apify sin salir de la app. Los cambios se aplican en el próximo run.
           </div>
         </div>
@@ -85,14 +85,14 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
         </div>
       </div>
 
-      <div style={{ background: "#fff", border: "1px solid var(--n200)", borderRadius: "var(--r-md)", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 2fr 0.8fr 0.8fr", gap: 12, padding: "10px 16px", background: "var(--n50)", borderBottom: "1px solid var(--n200)" }}>
+      <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 2fr 0.8fr 0.8fr", gap: 12, padding: "10px 16px", background: "var(--surface-2)", borderBottom: "1px solid var(--border)" }}>
           {["Fuente", "Actor de Apify", "Límite", "Activa"].map((h) => (
             <div key={h} className="t-micro">{h}</div>
           ))}
         </div>
         {rows.map((r) => (
-          <div key={r.platform} style={{ display: "grid", gridTemplateColumns: "1.4fr 2fr 0.8fr 0.8fr", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--n100)", alignItems: "center", opacity: r.enabled ? 1 : 0.55 }}>
+          <div key={r.platform} style={{ display: "grid", gridTemplateColumns: "1.4fr 2fr 0.8fr 0.8fr", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--border)", alignItems: "center", opacity: r.enabled ? 1 : 0.55 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <PlatformBadge platform={r.platform} size="md" />
               <span style={{ fontSize: 13, fontWeight: 500 }}>{r.name}</span>
@@ -105,7 +105,7 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
                 style={inputStyle}
               />
             ) : (
-              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--n500)" }}>API pública / oficial · sin actor</span>
+              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>API pública / oficial · sin actor</span>
             )}
             <input
               type="number"
@@ -120,7 +120,7 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
                 type="checkbox"
                 checked={r.enabled}
                 onChange={(e) => patch(r.platform, { enabled: e.target.checked })}
-                style={{ width: 16, height: 16, accentColor: "var(--sa-base)" }}
+                style={{ width: 16, height: 16, accentColor: "var(--accent)" }}
               />
             </label>
           </div>

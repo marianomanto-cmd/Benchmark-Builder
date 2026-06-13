@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#0A0810"/>
+  <!-- scattered noise (left) -->
+  <g fill="#F4F1EA">
+    <circle cx="120" cy="140" r="3" opacity="0.35"/>
+    <circle cx="200" cy="420" r="2.4" opacity="0.3"/>
+    <circle cx="90" cy="300" r="2" opacity="0.25"/>
+    <circle cx="260" cy="220" r="3.4" opacity="0.4"/>
+    <circle cx="170" cy="500" r="2" opacity="0.22"/>
+    <circle cx="300" cy="360" r="2.6" opacity="0.3"/>
+    <circle cx="150" cy="240" r="2" opacity="0.28"/>
+    <circle cx="240" cy="120" r="2.2" opacity="0.26"/>
+    <circle cx="330" cy="480" r="2" opacity="0.24"/>
+    <circle cx="110" cy="420" r="2.4" opacity="0.3"/>
+  </g>
+  <!-- ordered lattice (right) -->
+  <g fill="#F4F1EA" opacity="0.9">
+    <!-- generated grid 6x4 -->
+    <g>
+      <circle cx="620" cy="220" r="4"/><circle cx="720" cy="220" r="4"/><circle cx="820" cy="220" r="4"/><circle cx="920" cy="220" r="4"/><circle cx="1020" cy="220" r="4"/><circle cx="1120" cy="220" r="4"/>
+      <circle cx="620" cy="300" r="4"/><circle cx="720" cy="300" r="4"/><circle cx="820" cy="300" r="4"/><circle cx="920" cy="300" r="4"/><circle cx="1020" cy="300" r="4"/><circle cx="1120" cy="300" r="4"/>
+      <circle cx="620" cy="380" r="4"/><circle cx="720" cy="380" r="4"/><circle cx="820" cy="380" r="4"/><circle cx="920" cy="380" r="4"/><circle cx="1020" cy="380" r="4"/><circle cx="1120" cy="380" r="4"/>
+      <circle cx="620" cy="460" r="4"/><circle cx="720" cy="460" r="4"/><circle cx="820" cy="460" r="4"/><circle cx="920" cy="460" r="4"/><circle cx="1020" cy="460" r="4"/><circle cx="1120" cy="460" r="4"/>
+    </g>
+  </g>
+  <!-- accent signal -->
+  <circle cx="820" cy="300" r="7" fill="#F23A5E"/>
+  <circle cx="820" cy="300" r="14" stroke="#F23A5E" stroke-width="1.5" opacity="0.6"/>
+</svg>

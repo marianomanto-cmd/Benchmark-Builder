@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, JetBrains_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SmoothScroll } from "@/components/motion/smooth-scroll";
 
 /* HANDOFF §2.2 — three families, one mission each.
  * Geist (UI), JetBrains Mono (numerals), Newsreader (report + pull-quotes). */
@@ -25,9 +26,22 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Benchmark Builder",
+  metadataBase: new URL("https://benchmark-builder.vercel.app"),
+  title: {
+    default: "Benchmark Builder — De mil señales, una sola lectura.",
+    template: "%s · Benchmark Builder",
+  },
   description:
-    "Research competitivo y social listening asistido por IA. Inteligencia de marca, presentable.",
+    "Toda la conversación de tu categoría —redes, prensa y anuncios— analizada con IA y convertida en un reporte que se vende.",
+  openGraph: {
+    title: "Benchmark Builder — De mil señales, una sola lectura.",
+    description:
+      "Inteligencia competitiva y social listening asistido por IA. El reporte que se vende, en un clic.",
+    type: "website",
+    locale: "es_AR",
+    images: [{ url: "/og.svg", width: 1200, height: 630, alt: "Benchmark Builder" }],
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({
@@ -42,8 +56,8 @@ export default function RootLayout({
       className={`${geist.variable} ${jbMono.variable} ${newsreader.variable}`}
     >
       <body>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
-          {children}
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+          <SmoothScroll>{children}</SmoothScroll>
         </ThemeProvider>
       </body>
     </html>

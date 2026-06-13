@@ -87,6 +87,7 @@
   --text-faint: var(--n400);
   --accent: var(--sa-base);
   --accent-soft: var(--sa-soft);
+  --accent-ink: #ffffff;
   /* dataviz series — theme-aware (monochrome scale + sangría client) */
   --series-1: var(--n900);
   --series-2: var(--n700);
@@ -95,23 +96,26 @@
   --series-client: var(--sa-base);
 }
 
-/* Dark theme — warm stone mirror (HANDOFF dark tokens) */
+/* Dark theme — DEFAULT site language (fourmula-inspired near-black plum).
+ * Two colors: near-black canvas + bright sangría accent. */
 .dark {
-  --bg: #0e0c09;
-  --surface: #1a1612;
-  --surface-2: #221c15;
-  --border: #2a241c;
-  --border-strong: #3d352a;
-  --text: #ece7dd;
-  --text-muted: #a89e8b;
-  --text-faint: #847a68;
-  --accent: var(--sa-light);
-  --accent-soft: #2a1620;
-  --series-1: #ece7dd;
+  --bg: #0a0810;
+  --surface: #15131c;
+  --surface-2: #1c1924;
+  --border: rgba(244, 241, 234, 0.10);
+  --border-strong: rgba(244, 241, 234, 0.18);
+  --text: #f4f1ea;
+  --text-muted: #8c8696;
+  --text-faint: #5a5563;
+  --accent: #f23a5e;            /* on-brand sangría, high-sat to pop on black */
+  --accent-ink: #0a0810;        /* text on the accent */
+  --accent-soft: #241019;
+  /* dashboard series stay monochrome (brand comparison), client in accent */
+  --series-1: #f4f1ea;
   --series-2: #c7bdab;
-  --series-3: #a89e8b;
-  --series-4: #635a4b;
-  --series-client: var(--sa-light);
+  --series-3: #8c8696;
+  --series-4: #5a5563;
+  --series-client: #f23a5e;
   color-scheme: dark;
 }
 
@@ -149,6 +153,70 @@ html, body {
 .t-micro { font-size: 11px; line-height: 14px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--n500); }
 .t-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .t-serif { font-family: var(--font-serif); }
+
+/* ============================================================
+ * Editorial type scale (fourmula language) — headlines ARE the design.
+ * ========================================================== */
+.t-hero {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(2.6rem, 7.4vw, 6.3rem);
+  line-height: 0.96;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.t-section {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 1.0;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.t-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.t-lead {
+  font-size: clamp(1rem, 1.4vw, 1.18rem);
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+/* eyebrow accent dot */
+.t-eyebrow .dot,
+.eyebrow-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Marquee ticker (sources). */
+@keyframes bb-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.bb-marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: bb-marquee 32s linear infinite;
+  will-change: transform;
+}
+.bb-marquee:hover .bb-marquee-track { animation-play-state: paused; }
+
+/* Lenis smooth scroll. */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+/* Accessible focus ring. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 
 /* Skeleton shimmer (HANDOFF §3.1) */
 @keyframes bb-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }

@@ -18,7 +18,7 @@ export function PlatformBadge({ platform, size = "md", label }: { platform: Plat
       <span style={{ width: sz, height: sz, borderRadius: "var(--r-xs)", background: p.color, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         {glyph(Math.round(sz * 0.65))}
       </span>
-      {label && <span style={{ fontSize: 12, color: "var(--n700)" }}>{p.name}</span>}
+      {label && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{p.name}</span>}
     </span>
   );
 }
@@ -121,7 +121,7 @@ export function MentionCard({
 function Stat({ label, value, raw }: { label: string; value: ReactNode; raw?: boolean }) {
   return (
     <div>
-      <div style={{ fontSize: 10, letterSpacing: ".08em", color: "var(--n500)", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>{label}</div>
+      <div style={{ fontSize: 10, letterSpacing: ".08em", color: "var(--text-muted)", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>{label}</div>
       <div style={{ fontSize: raw ? 12 : 15, fontFamily: raw ? "inherit" : "var(--font-mono)", fontWeight: 500, color: "var(--text)", marginTop: 3 }}>{value}</div>
     </div>
   );
@@ -151,10 +151,10 @@ export function CompetitorCard({
   return (
     <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 36, height: 36, borderRadius: "var(--r-sm)", background: accent || "var(--n200)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 13, fontFamily: "var(--font-sans)" }}>{brand}</div>
+        <div style={{ width: 36, height: 36, borderRadius: "var(--r-sm)", background: accent || "var(--border-strong)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 13, fontFamily: "var(--font-sans)" }}>{brand}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>{name}</div>
-          <div style={{ fontSize: 11, color: "var(--n500)", fontFamily: "var(--font-mono)" }}>@{handle}</div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>@{handle}</div>
         </div>
         <Ic.more />
       </div>
@@ -166,7 +166,7 @@ export function CompetitorCard({
       <div style={{ height: 36, position: "relative" }}>
         <Sparkline data={sparkData} accent={accent} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, paddingTop: 10, borderTop: "1px solid var(--n100)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
         <Stat label="menciones" value={mentions} />
         <Stat label="SOV" value={`${sov} %`} />
         <Stat label="sentim." value={<SentimentChip kind={sent} />} raw />
@@ -189,20 +189,20 @@ export function InsightCard({ kind, title, body, sources, confidence }: { kind: 
   };
   const c = cfg[kind];
   return (
-    <div style={{ background: "#fff", border: "1px solid var(--n200)", borderRadius: "var(--r-md)", padding: 16, display: "flex", flexDirection: "column", gap: 10, borderLeft: `3px solid ${c.c}` }}>
+    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 16, display: "flex", flexDirection: "column", gap: 10, borderLeft: `3px solid ${c.c}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 7px", borderRadius: 99, color: c.c, border: `1px solid ${c.c}`, fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: ".06em", fontWeight: 500 }}>
           {c.icon}{c.name}
         </span>
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--n500)", letterSpacing: ".06em" }}>CONF · {confidence}</span>
+        <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-muted)", letterSpacing: ".06em" }}>CONF · {confidence}</span>
       </div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--n900)", textWrap: "balance", lineHeight: "19px" }}>{title}</div>
-      <div style={{ fontSize: 13, color: "var(--n600)", lineHeight: "19px", textWrap: "pretty" }}>{body}</div>
-      <div style={{ marginTop: "auto", paddingTop: 8, borderTop: "1px solid var(--n100)", display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--n500)", fontFamily: "var(--font-mono)" }}>
-        soportado por <b style={{ color: "var(--n900)" }}>{sources}</b> fuentes
+      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", textWrap: "balance", lineHeight: "19px" }}>{title}</div>
+      <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: "19px", textWrap: "pretty" }}>{body}</div>
+      <div style={{ marginTop: "auto", paddingTop: 8, borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+        soportado por <b style={{ color: "var(--text)" }}>{sources}</b> fuentes
         <div style={{ flex: 1 }} />
-        <a style={{ color: "var(--sa-base)", textDecoration: "underline" }}>Ver evidencia →</a>
+        <a style={{ color: "var(--accent)", textDecoration: "underline" }}>Ver evidencia →</a>
       </div>
     </div>
   );
@@ -211,16 +211,16 @@ export function InsightCard({ kind, title, body, sources, confidence }: { kind: 
 export function AlertCard({ severity, title, body, when, evidence }: { severity: "high" | "med" | "low"; title: string; body: string; when: string; evidence?: string }) {
   const cfg = { high: { c: "var(--danger)", name: "ALTA" }, med: { c: "var(--warn)", name: "MEDIA" }, low: { c: "var(--info)", name: "BAJA" } }[severity];
   return (
-    <div style={{ background: "#fff", border: "1px solid var(--n200)", borderRadius: "var(--r-md)", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ width: 8, height: 8, borderRadius: "50%", background: cfg.c }} />
         <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: cfg.c, letterSpacing: ".08em", fontWeight: 500 }}>SEV · {cfg.name}</span>
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--n500)" }}>{when}</span>
+        <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{when}</span>
       </div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--n900)" }}>{title}</div>
-      <div style={{ fontSize: 12, color: "var(--n600)", lineHeight: "18px" }}>{body}</div>
-      {evidence && <div style={{ padding: 8, background: "var(--n50)", borderRadius: "var(--r-sm)", fontSize: 11, color: "var(--n700)", fontFamily: "var(--font-mono)" }}>{evidence}</div>}
+      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{title}</div>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: "18px" }}>{body}</div>
+      {evidence && <div style={{ padding: 8, background: "var(--surface-2)", borderRadius: "var(--r-sm)", fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{evidence}</div>}
       <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
         <Btn kind="ghost" size="sm">Marcar leída</Btn>
         <Btn kind="ghost" size="sm">Descartar</Btn>
