@@ -106,6 +106,8 @@ Datos seed cargados: 1 workspace (Copa), 1 project (cartagena-q2-2026), 5 compet
 4. Upsert de menciones (dedup por external_id), recálculo de agregados de competidores, regeneración de insights, costo y estado del run.
 - **Sin credenciales, cada fuente se marca `skipped`** y la UI muestra el caso demo → el deploy nunca se rompe.
 
+**Modo DEMO (default):** si `LIVE_RUN` ≠ `true`, "Aprobar y ejecutar" crea un run real poblado con **respuestas estándar canónicas** (menciones/insights/análisis demo), sin llamar a Apify/Claude/Grok. Solo escribe en Supabase (requiere `SUPABASE_SERVICE_ROLE_KEY`, gratis). Con `LIVE_RUN=true` + keys, scrapea y analiza de verdad.
+
 ---
 
 ## 6. Diseño / theming
@@ -123,9 +125,9 @@ Datos seed cargados: 1 workspace (Copa), 1 project (cartagena-q2-2026), 5 compet
 | `/` | Portal de bienvenida (animado, campo IA, runs recientes) | ✅ |
 | `/research-plan` | **Wizard** (problema → competidores+magnitud → alcance/fechas → estimación) | ✅ |
 | `/overview` | Dashboard: análisis IA + KPIs + Bar/Donut/Area (Tremor) + insights + cost + competidores | ✅ |
-| `/live-feed` | Stream de menciones + filtros | ✅ (dark) · análisis: seed en DB, falta render |
-| `/comparativa` | Matriz competidor × métrica | ✅ (dark) · análisis: seed en DB, falta render |
-| `/galeria` | Orgánico vs pago (Meta Ad Library) | ✅ (dark) · análisis: seed en DB, falta render |
+| `/live-feed` | Stream de menciones + filtros | ✅ (dark) · análisis ✅ |
+| `/comparativa` | Matriz competidor × métrica | ✅ (dark) · análisis ✅ |
+| `/galeria` | Orgánico vs pago (Meta Ad Library) | ✅ (dark) · análisis ✅ |
 | `/editor` | Editor de reporte (3 columnas, hoja blanca) | ✅ (dark) |
 | `/reporte` | Reporte PDF (deliverable, página US Letter) | ✅ (dark visor) |
 | `/runs` | Historial de runs | ✅ |
@@ -156,11 +158,10 @@ Reddit/Mastodon/Bluesky no requieren key.
 
 ## 9. Hecho vs pendiente
 
-**Hecho:** 7 pantallas + portal + wizard + runs; design system light/dark; Tremor charts; pipeline de ingesta completo (adapters + runner + IA, listo para tokens); ⌘K; bloque de análisis (Overview); historial de runs; settings de fuentes; deploy en Vercel.
+**Hecho:** 7 pantallas + portal + wizard + runs; design system light/dark; Tremor charts; pipeline de ingesta completo (adapters + runner + IA, listo para tokens); **run en modo DEMO (`LIVE_RUN`) para probar el flujo completo sin gastar tokens**; ⌘K; **bloque de análisis en todas las secciones**; historial de runs; settings de fuentes; deploy en Vercel.
 
 **Pendiente:**
-- Renderizar el bloque de análisis en Comparativa/Live feed/Galería (seed ya en DB).
-- **Cablear el runner para generar el análisis por sección** con Claude+Grok (código a sumar; gasta tokens solo en run real).
+- **Cablear el runner (modo LIVE) para generar el análisis por sección** con Claude+Grok (hoy usa respuestas estándar demo).
 - **Export PDF/PPT** real (hoy `/reporte` es preview).
 - **Mobile / responsive** (las grillas son de ancho fijo; falta layout responsivo + bottom-tabs).
 - **Imágenes reales** (hero/empty states/thumbnails) con Gemini.
