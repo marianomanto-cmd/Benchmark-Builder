@@ -7,14 +7,14 @@
 
 ---
 
-## 0. ⚠️ Situación de deploy (acción pendiente del usuario)
+## 0. ✅ Deploy de Vercel — RESUELTO (2026‑06‑13)
 
-- El código está **correctamente pusheado a `main` en GitHub** (HEAD `ff5d847`, rama por defecto `main`). Repo: `marianomanto-cmd/Benchmark-Builder`.
-- **Vercel NO está deployando los commits nuevos de `main`**: su último build quedó en `1d5b542` (anterior a toda la tanda de cambios). Un commit vacío de prueba (`e7433c7`) tampoco disparó build → el auto-deploy de `main` está desconectado o la *Production Branch* no es `main`.
-- **A revisar en Vercel:** Settings → Git → repo conectado + *Production Branch* = `main`; pestaña Deployments (¿hay builds *Failed* posteriores a `1d5b542`?); Ignored Build Step. Si hay build fallido, traer el log.
-- El plugin de Vercel↔Claude se conectó pero sus tools **aún no aparecían** en la sesión donde se trabajó; abrir **sesión nueva** para que carguen y poder inspeccionar deployments/logs desde Claude.
+- **Síntoma:** Vercel quedó clavado construyendo `1d5b542` y no levantaba los commits nuevos de `main` (Task 1, rediseño, cortina, actores). El rediseño no se veía en producción.
+- **Causa raíz:** la **integración Git del proyecto Vercel se desconectó** (webhook muerto) ~16:25 UTC del 13/jun. El código estaba correcto en `main`; **no había ningún build fallido** (no era un error de build). Por eso ni los pushes nuevos ni el commit vacío `e7433c7` disparaban build.
+- **Diagnóstico (tools de Vercel):** Production Branch = `main` ✅; última deployment de producción = `1d5b542` (READY); **cero** deployments para los commits posteriores; `get_project` sin objeto `link` (repo desvinculado). Build local de `08cd8d4` verde (`next build`, 17 rutas, exit 0).
+- **Fix:** se reconectó el repo en **Vercel → Settings → Git** (Disconnect + Connect `marianomanto-cmd/Benchmark-Builder`, *Production Branch* = `main`) y se pusheó a `main` para disparar el deploy del HEAD. Auto-deploy de `main` restablecido; el plugin Vercel↔Claude queda operativo (deployments/logs inspeccionables desde Claude).
 
-Commits de la sesión (todos en `main`): `032332e` Task 1 costos · `91874f9` rediseño · `18588c7` cortina · `e7433c7` redeploy · `ff5d847` actores/discovery.
+`main` contiene todo el trabajo (rediseño, cortina, Task 1, actores/discovery). Repo: `marianomanto-cmd/Benchmark-Builder`.
 
 ---
 
@@ -164,7 +164,7 @@ Las keys reales viven solo en `.env.local` (gitignored), **nunca** commiteadas.
 **Hecho:** rediseño fourmula (dark default, home con cortina+box IA, responsive, 404, OG placeholder) · **Task 1 motor de costos** (estimate, reserva atómica, guardedCall, kill-switch, ledger/run_steps, crons, mock end-to-end costo cero) · **actores Apify orgánico/paid + discovery por prompt** (registry por `platform,scope`, planToJobs, routing comercial/político, wizard toggle + delta) · 7 pantallas + portal + wizard + runs + settings · pipeline de ingesta.
 
 **Pendiente (próximo):**
-1. **Arreglar el deploy de Vercel** (§0) — bloqueante para que el usuario vea los cambios.
+1. ✅ **Deploy de Vercel — resuelto** (§0): reconexión de la integración Git; `main` vuelve a deployar y el rediseño se ve en producción.
 2. **Validar/pinear actores community** (Google/LinkedIn) en Vercel (slugs reales + build pin).
 3. **Task 2 — pipeline de medios** (imagen/video/voiceover): tablas `media_files`/`media_analysis`, `lib/media/` (download con borrado a 12h, extractFrames ffmpeg, extractAudio, analyzeImage/Frame con Claude vision + Zod, transcribe Whisper/captions, consolidate), todo idempotente, acotado y **bajo guard**; fixtures mock; render en `/galeria`. (Era el paso post-actores del plan.)
 
