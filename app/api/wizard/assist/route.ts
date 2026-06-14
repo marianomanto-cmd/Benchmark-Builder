@@ -4,6 +4,9 @@ import { assistFor, recommendationsFor } from "@/lib/discovery/suggest";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isApiEnabled } from "@/lib/cost/ledger";
 import { pipelineMode, hasProviderKey } from "@/lib/cost/config";
+import { isLocale, type Locale } from "@/lib/i18n";
+
+const LANG: Record<Locale, string> = { es: "español rioplatense", en: "English", pt: "português" };
 
 export const runtime = "nodejs";
 
@@ -34,7 +37,7 @@ function coerce(s: Partial<WizardState> | undefined): WizardState {
 }
 
 export async function POST(req: Request) {
-  let body: { step?: number; state?: Partial<WizardState> } = {};
+  let body: { step?: number; state?: Partial<WizardState>; locale?: string } = {};
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -42,10 +45,11 @@ export async function POST(req: Request) {
   }
   const step = Number(body.step ?? 0);
   const state = coerce(body.state);
+  const locale: Locale = isLocale(body.locale) ? body.locale : "es";
 
   // Deterministic heuristic — always the baseline and the fallback.
-  const heuristic = assistFor(step, state);
-  const recommendations = recommendationsFor(step, state);
+  const heuristic = assistFor(step, state, locale);
+  const recommendations = recommendationsFor(step, state, locale);
 
   const admin = createAdminClient();
   const flagOn = admin ? await isApiEnabled(admin, "claude") : false;
@@ -60,7 +64,7 @@ export async function POST(req: Request) {
       system:
         "Sos un asistente que ayuda a completar un brief de research competitivo, paso a paso. " +
         "Dado el paso y los datos cargados, evaluá si alcanzan para un buen análisis. " +
-        'Devolvé SOLO un JSON {"ok":boolean,"msg":string,"recommendations":string[]}. msg en español rioplatense, 1 frase. ' +
+        `Devolvé SOLO un JSON {"ok":boolean,"msg":string,"recommendations":string[]}. msg y recommendations en ${LANG[locale]}, 1 frase msg. ` +
         "recommendations: 2-3 acciones concretas para mejorar el brief (ej. industrias/temas a descartar, competidores faltantes, ventana de tiempo). " +
         "Si está todo bien, confirmá en msg y dejá recommendations con 1 sugerencia opcional. " +
         "No menciones que sos IA ni ningún modelo/proveedor.",
