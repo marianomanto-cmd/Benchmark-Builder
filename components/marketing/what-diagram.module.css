@@ -3,13 +3,29 @@
  * refs/Que-hace.html → variante C. Acento de marca (sangría) en el vórtice;
  * --viz-accent (ámbar) en el contenido del núcleo. */
 
+/* Carded frame (espejo de la maqueta): contiene copy + vórtice, ancho acotado
+ * y centrado para que el texto quede cerca del vórtice y sea legible. */
+.card {
+  max-width: 980px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--surface) 64%, transparent);
+  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  box-shadow: var(--sh-3);
+  padding: clamp(24px, 4vw, 44px);
+  overflow: hidden;
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1fr 420px;
-  gap: 40px;
+  gap: clamp(28px, 3.5vw, 48px);
   align-items: center;
 }
 
+.lede { max-width: 460px; }
 .lede .eb { margin-bottom: 16px; }
 .h3 {
   font-family: var(--font-serif);
@@ -20,7 +36,7 @@
   color: var(--text);
 }
 .h3 em { color: var(--viz-accent); font-style: italic; }
-.lp { font-size: 13.5px; line-height: 20px; color: var(--text-muted); max-width: 420px; margin: 0; }
+.lp { font-size: 14px; line-height: 21px; color: var(--text-muted); margin: 0; }
 
 /* the vortex */
 .vortex { position: relative; width: 420px; height: 420px; margin: 0 auto; }

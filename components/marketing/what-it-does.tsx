@@ -27,26 +27,28 @@ export function WhatItDoes() {
   return (
     <section id="que-hace" className={s.section}>
       <div className={s.container}>
-        <div className={d.grid}>
-          <Reveal className={d.lede}>
-            <div className={`${s.eyebrow} ${d.eb}`}><span className="eyebrow-dot" /> {t("what.vEyebrow")}</div>
-            <h2 className={d.h3}>{t("what.vTitle")}<br /><em>{t("what.vEm")}</em></h2>
-            <p className={d.lp}>{t("what.lead")}</p>
-          </Reveal>
+        <div className={d.card}>
+          <div className={d.grid}>
+            <Reveal className={d.lede}>
+              <div className={`${s.eyebrow} ${d.eb}`}>{t("what.vEyebrow")}</div>
+              <h2 className={d.h3}>{t("what.vTitle")}<br /><em>{t("what.vEm")}</em></h2>
+              <p className={d.lp}>{t("what.lead")}</p>
+            </Reveal>
 
-          <div className={d.vortex}>
-            <VortexCanvas className={d.canvas} />
-            <div className={d.core}>
-              <div className={d.ct}>{t("what.coreTag")}</div>
-              <div className={d.ch}>{t("what.coreHead")}</div>
-              {BARS.map((b) => (
-                <div className={d.mbar} key={b.lab}>
-                  <span className={d.ml}>{b.lab}</span>
-                  <div className={d.mt}>
-                    <div className={d.mf} style={{ width: filled ? b.w : 0, opacity: b.lead ? 1 : 0.5 }} />
+            <div className={d.vortex}>
+              <VortexCanvas className={d.canvas} />
+              <div className={d.core}>
+                <div className={d.ct}>{t("what.coreTag")}</div>
+                <div className={d.ch}>{t("what.coreHead")}</div>
+                {BARS.map((b) => (
+                  <div className={d.mbar} key={b.lab}>
+                    <span className={d.ml}>{b.lab}</span>
+                    <div className={d.mt}>
+                      <div className={d.mf} style={{ width: filled ? b.w : 0, opacity: b.lead ? 1 : 0.5 }} />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </div>
