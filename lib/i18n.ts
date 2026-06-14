@@ -206,6 +206,21 @@ const es: Dict = {
   "what.note0": "“Vlog Cartagena 48h con Wingo”",
   "what.note1": "“¿Vale la pena Bogotá–Cartagena?”",
   "what.note2": "“Promo a Cartagena RD$ 3.999”",
+  // testimonials (clientes ficticios — demo)
+  "testi.eyebrow": "Testimonios",
+  "testi.title": "Lo que dicen quienes ya lo presentan.",
+  "testi.r1": "Head of Brand",
+  "testi.r2": "Growth Lead",
+  "testi.r3": "Directora de Marketing",
+  "testi.r4": "Brand Manager",
+  "testi.r5": "Insights Lead",
+  "testi.r6": "Social Media Manager",
+  "testi.c1": "Pasé de tres días armando un PPT a presentar el panorama competitivo en una mañana. El cliente lo entendió en diez segundos.",
+  "testi.c2": "Por fin veo cuánto y cómo pauta la competencia sin abrir veinte pestañas. Lo uso en cada pitch.",
+  "testi.c3": "El FODA con matriz de acciones nos ahorró la reunión de siempre: ya veníamos con la jugada decidida.",
+  "testi.c4": "Lo más fuerte es el “antes/después”: el ruido de mil menciones convertido en una sola lectura vendible.",
+  "testi.c5": "Detectamos un hueco de mercado que ni sabíamos que existía. Ese insight pagó la herramienta solo.",
+  "testi.c6": "Cambié el idioma del reporte y lo mandé a la regional sin reescribir nada. Enorme.",
 };
 
 const en: Dict = {
@@ -393,6 +408,21 @@ const en: Dict = {
   "what.note0": "“Cartagena in 48h with Wingo — vlog”",
   "what.note1": "“Is Bogotá–Cartagena worth it?”",
   "what.note2": "“Cartagena deal from RD$ 3,999”",
+  // testimonials (fictional clients — demo)
+  "testi.eyebrow": "Testimonials",
+  "testi.title": "What people who already present it say.",
+  "testi.r1": "Head of Brand",
+  "testi.r2": "Growth Lead",
+  "testi.r3": "Marketing Director",
+  "testi.r4": "Brand Manager",
+  "testi.r5": "Insights Lead",
+  "testi.r6": "Social Media Manager",
+  "testi.c1": "I went from three days building a deck to presenting the competitive picture in one morning. The client got it in ten seconds.",
+  "testi.c2": "I finally see how much and how competitors advertise without opening twenty tabs. I use it in every pitch.",
+  "testi.c3": "The SWOT with an action matrix saved us the usual meeting: we showed up with the move already decided.",
+  "testi.c4": "The killer part is the before/after: the noise of a thousand mentions turned into one sellable read.",
+  "testi.c5": "We spotted a market gap we didn't even know existed. That insight paid for the tool by itself.",
+  "testi.c6": "I switched the report's language and sent it to the regional team without rewriting a thing. Huge.",
 };
 
 const pt: Dict = {
@@ -580,6 +610,21 @@ const pt: Dict = {
   "what.note0": "“Vlog Cartagena 48h com a Wingo”",
   "what.note1": "“Vale a pena Bogotá–Cartagena?”",
   "what.note2": "“Promo Cartagena por RD$ 3.999”",
+  // testimonials (clientes fictícios — demo)
+  "testi.eyebrow": "Depoimentos",
+  "testi.title": "O que dizem quem já apresenta.",
+  "testi.r1": "Head de Marca",
+  "testi.r2": "Growth Lead",
+  "testi.r3": "Diretora de Marketing",
+  "testi.r4": "Brand Manager",
+  "testi.r5": "Insights Lead",
+  "testi.r6": "Social Media Manager",
+  "testi.c1": "Saí de três dias montando um deck para apresentar o panorama competitivo numa manhã. O cliente entendeu em dez segundos.",
+  "testi.c2": "Finalmente vejo quanto e como a concorrência anuncia sem abrir vinte abas. Uso em cada pitch.",
+  "testi.c3": "A SWOT com matriz de ações nos poupou a reunião de sempre: já chegamos com a jogada decidida.",
+  "testi.c4": "O mais forte é o “antes/depois”: o ruído de mil menções virou uma única leitura vendável.",
+  "testi.c5": "Detectamos uma lacuna de mercado que nem sabíamos que existia. Esse insight pagou a ferramenta sozinho.",
+  "testi.c6": "Mudei o idioma do relatório e mandei para a regional sem reescrever nada. Gigante.",
 };
 
 const MESSAGES: Record<Locale, Dict> = { es, en, pt };
