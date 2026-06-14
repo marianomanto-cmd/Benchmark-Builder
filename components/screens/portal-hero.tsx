@@ -5,21 +5,17 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { Sparkles, ArrowRight } from "lucide-react";
 import { HomeWizard } from "@/components/screens/home-wizard";
+import { useI18n } from "@/components/i18n-provider";
 import s from "@/components/marketing/marketing.module.css";
 
 export type RunSummary = { number: number; mentions: number; cost: number; when: string; title?: string; slug?: string };
 
-const EXAMPLES = [
-  "una nueva ruta a Cartagena",
-  "las tarifas que publicita Avianca",
-  "el lanzamiento de clase ejecutiva",
-  "qué se dice en X sobre los retrasos",
-  "el contenido orgánico vs pago de la competencia",
-];
+const EX_KEYS = ["hero.ex0", "hero.ex1", "hero.ex2", "hero.ex3", "hero.ex4"];
 
 const EASE = [0.2, 0.7, 0.2, 1] as const;
 
 export function PortalHero({ runs }: { runs: RunSummary[] }) {
+  const { t } = useI18n();
   const [q, setQ] = useState("");
   const [ph, setPh] = useState(0);
   const [focused, setFocused] = useState(false);
@@ -37,8 +33,8 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
   }, []);
 
   useEffect(() => {
-    const t = setInterval(() => setPh((i) => (i + 1) % EXAMPLES.length), 2800);
-    return () => clearInterval(t);
+    const id = setInterval(() => setPh((i) => (i + 1) % EX_KEYS.length), 2800);
+    return () => clearInterval(id);
   }, []);
 
   // The wizard lives ON the home: opening it shows the step-by-step frame inline
@@ -60,15 +56,15 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
     <section className={s.hero}>
       <div className={`${s.container} ${s.heroInner}`}>
         <motion.div {...rise(0.05)} className={s.eyebrow}>
-          <span className="eyebrow-dot" /> Inteligencia competitiva · Social listening
+          <span className="eyebrow-dot" /> {t("hero.eyebrow")}
         </motion.div>
 
         <motion.h1 {...rise(0.12)} className="t-hero" style={{ marginTop: 18, maxWidth: "16ch" }}>
-          ¿Qué querés investigar <em style={{ fontStyle: "italic", color: "var(--accent)" }}>hoy</em>?
+          {t("hero.titleBefore")}<em style={{ fontStyle: "italic", color: "var(--accent)" }}>{t("hero.titleEm")}</em>{t("hero.titleAfter")}
         </motion.h1>
 
         <motion.p {...rise(0.2)} className="t-lead" style={{ marginTop: 20, maxWidth: "52ch" }}>
-          Describí tu pregunta de negocio. Armamos el marco, estimamos el costo y producimos un reporte que se vende.
+          {t("hero.lead")}
         </motion.p>
 
         <motion.form {...rise(0.28)} className={s.box} onSubmit={(e) => { e.preventDefault(); go(q); }}>
@@ -81,18 +77,18 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
               onChange={(e) => setQ(e.target.value)}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
-              placeholder={`Ej: ${EXAMPLES[ph]}…`}
-              aria-label="¿Qué querés investigar hoy?"
+              placeholder={t("hero.placeholder", { ex: t(EX_KEYS[ph]) })}
+              aria-label={t("hero.aria")}
             />
-            <button type="submit" className={s.boxBtn} aria-label="Empezar investigación">
+            <button type="submit" className={s.boxBtn} aria-label={t("hero.start")}>
               <ArrowRight size={18} />
             </button>
           </div>
 
           <div className={s.chips}>
-            {EXAMPLES.slice(0, 3).map((ex) => (
-              <button key={ex} type="button" className={s.chip} onClick={() => { setQ(ex); inputRef.current?.focus(); }}>
-                {ex}
+            {EX_KEYS.slice(0, 3).map((k) => (
+              <button key={k} type="button" className={s.chip} onClick={() => { setQ(t(k)); inputRef.current?.focus(); }}>
+                {t(k)}
               </button>
             ))}
           </div>
@@ -101,14 +97,14 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
         {runs.length > 0 && (
           <motion.div {...rise(0.44)} className={s.runs}>
             <div className={s.runsHead}>
-              <div className="t-eyebrow">Runs recientes</div>
-              <Link href="/runs" className={s.runsLink}>Ver todos →</Link>
+              <div className="t-eyebrow">{t("hero.recentRuns")}</div>
+              <Link href="/runs" className={s.runsLink}>{t("common.viewAll")}</Link>
             </div>
             <div className={s.runsGrid}>
               {runs.slice(0, 3).map((r) => (
                 <Link key={r.number} href={`/overview${r.slug ? `?case=${r.slug}` : ""}`} className={s.runCard}>
                   <div className={s.runNo}>run #{String(r.number).padStart(3, "0")}</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{r.title ?? "Investigación"}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{r.title ?? t("hero.investigation")}</div>
                   <div className={s.runMeta}>
                     <span>{r.when}</span>
                     <span>USD {r.cost.toFixed(2)}</span>

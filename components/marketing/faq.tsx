@@ -3,24 +3,26 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Reveal } from "@/components/motion/reveal";
+import { useI18n } from "@/components/i18n-provider";
 import s from "./marketing.module.css";
 
 const ITEMS = [
-  { q: "¿De dónde salen los datos?", a: "De fuentes públicas: redes sociales, prensa y bibliotecas de anuncios. Usamos los handles reales de cada competidor y un barrido multi-fuente; nada se inventa." },
-  { q: "¿Cuánto cuesta un run?", a: "Lo ves antes de empezar. El asistente estima un rango (bajo–alto) por fuente y por análisis, y el run nunca supera el presupuesto que fijás." },
-  { q: "¿Qué incluye el análisis?", a: "Texto, imagen, video y voiceover. Detecta sentimiento, ángulos creativos y patrones por competidor, y los resume en takeaways y recomendaciones accionables." },
-  { q: "¿Puedo revisar runs anteriores?", a: "Sí. Cada run queda guardado y es revisitable, con su reporte exportable a PDF o presentación." },
+  { q: "faq.q1", a: "faq.a1" },
+  { q: "faq.q2", a: "faq.a2" },
+  { q: "faq.q3", a: "faq.a3" },
+  { q: "faq.q4", a: "faq.a4" },
 ];
 
 export function Faq() {
   const [open, setOpen] = useState<number | null>(0);
+  const { t } = useI18n();
   return (
     <section id="faq" className={s.section}>
       <div className={s.container}>
         <Reveal>
           <div className={s.sectionHead}>
-            <div className={s.eyebrow}><span className="eyebrow-dot" /> Preguntas</div>
-            <h2 className="t-section statement">Lo esencial, sin vueltas.</h2>
+            <div className={s.eyebrow}><span className="eyebrow-dot" /> {t("faq.eyebrow")}</div>
+            <h2 className="t-section statement">{t("faq.title")}</h2>
           </div>
         </Reveal>
 
@@ -30,7 +32,7 @@ export function Faq() {
             return (
               <div key={it.q} className={s.faqItem}>
                 <button className={s.faqQ} aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : i)}>
-                  {it.q}
+                  {t(it.q)}
                   <span className="icon">{isOpen ? "—" : "+"}</span>
                 </button>
                 <AnimatePresence initial={false}>
@@ -42,7 +44,7 @@ export function Faq() {
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.35, ease: [0.2, 0.7, 0.2, 1] }}
                     >
-                      <p className={s.faqAInner}>{it.a}</p>
+                      <p className={s.faqAInner}>{t(it.a)}</p>
                     </motion.div>
                   )}
                 </AnimatePresence>
