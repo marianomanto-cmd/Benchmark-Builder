@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSelect } from "@/components/language-select";
 import { useI18n } from "@/components/i18n-provider";
+import { useSession } from "@/components/session-provider";
 import s from "./marketing.module.css";
 
 const LINKS = [
@@ -18,6 +19,7 @@ const LINKS = [
 export function SiteNav() {
   const [open, setOpen] = useState(false);
   const { t } = useI18n();
+  const { user, login } = useSession();
   return (
     <header className={s.nav}>
       <div className={`${s.container} ${s.navInner}`}>
@@ -25,15 +27,27 @@ export function SiteNav() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/logo.jpg" alt="Phema" width={26} height={26} className="bb-logo" style={{ borderRadius: "50%", objectFit: "cover", display: "block" }} /> Phema
         </Link>
-        <nav className={s.menu} aria-label="Principal">
-          {LINKS.map((l) => (
-            <a key={l.href} href={l.href} className={s.menuLink}>{t(l.key)}</a>
-          ))}
-        </nav>
+        {!user && (
+          <nav className={s.menu} aria-label="Principal">
+            {LINKS.map((l) => (
+              <a key={l.href} href={l.href} className={s.menuLink}>{t(l.key)}</a>
+            ))}
+          </nav>
+        )}
         <div className={s.navRight}>
           <LanguageSelect compact />
           <ThemeToggle />
-          <Link href="/research-plan" className={`${s.cta} ${s.navCtaDesktop}`}>{t("common.generateReport")}</Link>
+          {user ? (
+            <>
+              <Link href="/dashboard" className={`${s.cta} ${s.navCtaDesktop}`}>{t("nav.dashboard")}</Link>
+              <Link href="/dashboard" aria-label={user.name} style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", border: "1px solid var(--border-strong)", display: "inline-block", flexShrink: 0 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={user.avatar} alt="" width={30} height={30} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              </Link>
+            </>
+          ) : (
+            <button type="button" onClick={login} className={`${s.cta} ${s.navCtaDesktop}`}>{t("nav.signin")}</button>
+          )}
           <button
             type="button"
             className={s.navToggle}
@@ -47,10 +61,14 @@ export function SiteNav() {
       </div>
       {open && (
         <div className={s.mobileMenu}>
-          {LINKS.map((l) => (
+          {!user && LINKS.map((l) => (
             <a key={l.href} href={l.href} onClick={() => setOpen(false)}>{t(l.key)}</a>
           ))}
-          <Link href="/research-plan" onClick={() => setOpen(false)}>{t("common.generateReport")} →</Link>
+          {user ? (
+            <Link href="/dashboard" onClick={() => setOpen(false)}>{t("nav.dashboard")} →</Link>
+          ) : (
+            <button type="button" onClick={() => { setOpen(false); login(); }} style={{ textAlign: "left", border: "none", background: "transparent", color: "inherit", font: "inherit", cursor: "pointer", padding: 0 }}>{t("nav.signin")} →</button>
+          )}
         </div>
       )}
     </header>

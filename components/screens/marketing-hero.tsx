@@ -1,0 +1,62 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { ArrowRight } from "lucide-react";
+import { HomeWizard } from "@/components/screens/home-wizard";
+import { useI18n } from "@/components/i18n-provider";
+import { useSession } from "@/components/session-provider";
+import s from "@/components/marketing/marketing.module.css";
+
+const EASE = [0.2, 0.7, 0.2, 1] as const;
+
+// Logged-out hero: hooks + CTA (no prompt box). The CTA opens the wizard for the
+// first report; finishing it creates the account (session) and enters the app.
+export function MarketingHero() {
+  const { t } = useI18n();
+  const { login } = useSession();
+  const [wizard, setWizard] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const id = setTimeout(() => setReady(true), reduced ? 0 : 700);
+    return () => clearTimeout(id);
+  }, []);
+
+  const rise = (d: number) => ({
+    initial: { opacity: 0, y: 16 },
+    animate: ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 },
+    transition: { duration: 0.7, delay: d, ease: EASE },
+  });
+
+  return (
+    <>
+      <section className={s.hero}>
+        <div className={`${s.container} ${s.heroInner}`}>
+          <motion.div {...rise(0.05)} className={s.eyebrow}><span className="eyebrow-dot" /> {t("hero.eyebrow")}</motion.div>
+          <motion.h1 {...rise(0.12)} className="t-hero" style={{ marginTop: 18, maxWidth: "18ch" }}>
+            {t("home.hookA")} <em style={{ fontStyle: "italic", color: "var(--accent)" }}>{t("home.hookEm")}</em>
+          </motion.h1>
+          <motion.p {...rise(0.2)} className="t-lead" style={{ marginTop: 20, maxWidth: "54ch" }}>{t("home.hookLead")}</motion.p>
+          <motion.div {...rise(0.3)} style={{ marginTop: 30, display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setWizard(true)}
+              style={{ display: "inline-flex", alignItems: "center", gap: 10, height: 54, padding: "0 26px", borderRadius: 999, border: "none", background: "var(--accent)", color: "var(--accent-ink)", fontSize: 16, fontWeight: 600, cursor: "pointer", boxShadow: "0 14px 34px color-mix(in srgb, var(--accent) 40%, transparent)" }}
+            >
+              {t("home.cta")} <ArrowRight size={18} />
+            </button>
+            <div>
+              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{t("home.ctaSub")}</div>
+              <button type="button" onClick={login} style={{ marginTop: 2, border: "none", background: "transparent", color: "var(--accent)", fontWeight: 600, fontSize: 13, cursor: "pointer", padding: 0 }}>{t("home.haveAccount")} →</button>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+      <AnimatePresence>
+        {wizard && <HomeWizard initialQuery="" onClose={() => setWizard(false)} />}
+      </AnimatePresence>
+    </>
+  );
+}

@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useRouter } from "next/navigation";
 import { FAKE_USER, SESSION_COOKIE, type User } from "@/lib/session";
 
-type SessionValue = { user: User | null; login: () => void; logout: () => void };
+type SessionValue = { user: User | null; signIn: () => void; login: () => void; logout: () => void };
 
 const SessionContext = createContext<SessionValue | null>(null);
 
@@ -26,7 +26,8 @@ export function SessionProvider({ initialLoggedIn = false, children }: { initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function login() {
+  // Set the session without navigating (used when finishing the first report).
+  function signIn() {
     setUser(FAKE_USER);
     try {
       localStorage.setItem(SESSION_COOKIE, "1");
@@ -34,6 +35,10 @@ export function SessionProvider({ initialLoggedIn = false, children }: { initial
     } catch {
       /* ignore */
     }
+  }
+
+  function login() {
+    signIn();
     router.push("/dashboard");
     router.refresh();
   }
@@ -50,9 +55,9 @@ export function SessionProvider({ initialLoggedIn = false, children }: { initial
     router.refresh();
   }
 
-  return <SessionContext.Provider value={{ user, login, logout }}>{children}</SessionContext.Provider>;
+  return <SessionContext.Provider value={{ user, signIn, login, logout }}>{children}</SessionContext.Provider>;
 }
 
 export function useSession(): SessionValue {
-  return useContext(SessionContext) ?? { user: null, login: () => {}, logout: () => {} };
+  return useContext(SessionContext) ?? { user: null, signIn: () => {}, login: () => {}, logout: () => {} };
 }

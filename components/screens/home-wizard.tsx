@@ -7,6 +7,7 @@ import { Sparkles, ArrowRight, ArrowLeft, X, Check, Wand2, Loader2, Newspaper, G
 import { suggestFor, assistFor, detectCategory } from "@/lib/discovery/suggest";
 import { PlatformBadge } from "@/components/domain";
 import { useI18n } from "@/components/i18n-provider";
+import { useSession } from "@/components/session-provider";
 import type { TFn } from "@/lib/i18n";
 import type { PlatformKey } from "@/lib/platforms";
 
@@ -42,6 +43,7 @@ const PERIOD_KEY: Record<string, string> = { "30 días": "wizard.period.30", "60
 export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; onClose: () => void }) {
   const router = useRouter();
   const { t, locale } = useI18n();
+  const { signIn } = useSession();
   const [step, setStep] = useState(0);
 
   // Step 0 — brand
@@ -164,7 +166,7 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
         body: JSON.stringify({ slug: "cartagena-q2-2026", platforms, keywords: [problem || brand], scope, adIntent: "commercial", plan }),
       });
       const json = (await res.json()) as { ok: boolean; error?: string };
-      if (json.ok) router.push("/overview");
+      if (json.ok) { signIn(); router.push("/overview"); } // first report → account created
       else { setError(json.error ?? "Error"); setRunning(false); }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
