@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSelect } from "@/components/language-select";
 import { useI18n } from "@/components/i18n-provider";
 import { useSession } from "@/components/session-provider";
+import { UserMenu } from "@/components/user-menu";
 import s from "./marketing.module.css";
 
 const LINKS = [
@@ -40,10 +41,7 @@ export function SiteNav() {
           {user ? (
             <>
               <Link href="/dashboard" className={`${s.cta} ${s.navCtaDesktop}`}>{t("nav.dashboard")}</Link>
-              <Link href="/dashboard" aria-label={user.name} style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", border: "1px solid var(--border-strong)", display: "inline-block", flexShrink: 0 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={user.avatar} alt="" width={30} height={30} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              </Link>
+              <UserMenu />
             </>
           ) : (
             <button type="button" onClick={login} className={`${s.cta} ${s.navCtaDesktop}`}>{t("nav.signin")}</button>
