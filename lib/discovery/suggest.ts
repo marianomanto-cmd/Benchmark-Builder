@@ -87,8 +87,9 @@ export function suggestFor(field: SuggestField, text: string): string[] {
   return SUGGESTIONS[detectCategory(text)][field];
 }
 
-// Short "AI assistant" message per step: tells the user whether what they gave
-// is enough for the analysis, or what would sharpen it. Deterministic.
+// Short "AI assistant" message per step (compact 3-step wizard + confirm):
+// 0 = tu marca, 1 = competencia (mercados+competidores+descartes),
+// 2 = alcance (scope+redes+ventana), 3 = confirmar. Deterministic.
 export function assistFor(
   step: number,
   s: { brand: string; brandDesc: string; igUrl: string; problem: string; geo: string[]; competitors: string[]; discards: string[] },
@@ -103,22 +104,15 @@ export function assistFor(
         return { ok: true, msg: "Bien. Si sumás tu Instagram/web, el análisis pasa de competitivo a comparativo (tu marca vs. la categoría)." };
       return { ok: true, msg: "Perfecto: con tu marca, qué hacen y tus redes puedo comparar tu desempeño contra la competencia." };
     }
-    case 1:
-      return s.geo.length
-        ? { ok: true, msg: `Voy a acotar la escucha a ${s.geo.join(", ")}. Podés sumar o quitar mercados.` }
-        : { ok: false, msg: "Decime al menos un país o ciudad para no traer ruido de otros mercados. ¿No sabés? Te sugiero." };
+    case 1: {
+      if (!s.geo.length)
+        return { ok: false, msg: "Decime al menos un mercado (país o ciudad) para no traer ruido de otros. ¿No sabés? Te sugiero." };
+      if (s.competitors.length < 2)
+        return { ok: false, msg: `Mercados ok (${s.geo.join(", ")}). Sumá 2+ competidores para una comparativa sólida — o te sugiero según tu categoría.` };
+      return { ok: true, msg: `Listo: ${s.competitors.length} competidores en ${s.geo.join(", ")}. Los descartes son opcionales para sacar ruido.` };
+    }
     case 2:
-      return s.competitors.length >= 2
-        ? { ok: true, msg: `${s.competitors.length} competidores cargados — suficiente para una comparativa sólida.` }
-        : { ok: false, msg: "Con 2+ competidores la comparativa rinde mucho más. Si no los tenés claros, te sugiero según tu categoría." };
-    case 3:
-      return { ok: true, msg: "Orgánico mide la conversación; sumar paid revela cuánto y cómo invierte la competencia (bibliotecas de anuncios)." };
-    case 4:
-      return s.discards.length
-        ? { ok: true, msg: `Voy a descartar menciones de ${s.discards.join(", ")} para que el análisis quede limpio.` }
-        : { ok: true, msg: "Opcional: descartar temas (política, deportes, religión) saca ruido si tu marca aparece en esos contextos." };
-    case 5:
-      return { ok: true, msg: "Una ventana de 30–90 días suele dar buena señal sin diluir tendencias. 60 días es un buen default." };
+      return { ok: true, msg: "Elegí dónde escuchar y la ventana. Orgánico mide la conversación; sumar paid revela cuánto y cómo invierte la competencia (anuncios)." };
     default:
       return { ok: true, msg: "" };
   }

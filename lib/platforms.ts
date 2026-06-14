@@ -29,7 +29,7 @@ export const PLATFORMS: Record<PlatformKey, PlatformMeta> = {
   tiktok: { name: "TikTok", short: "TT", color: "#111111" },
   youtube: { name: "YouTube", short: "YT", color: "#c4302b" },
   facebook: { name: "Facebook", short: "FB", color: "#1877f2" },
-  x: { name: "X / Grok", short: "X", color: "#0f0f0f" },
+  x: { name: "X", short: "X", color: "#0f0f0f" },
   reddit: { name: "Reddit", short: "RD", color: "#ff4500" },
   mastodon: { name: "Mastodon", short: "MS", color: "#6364ff" },
   bluesky: { name: "Bluesky", short: "BS", color: "#1083fe" },

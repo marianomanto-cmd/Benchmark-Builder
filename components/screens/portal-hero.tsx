@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { Sparkles, ArrowRight, Wand2, Compass } from "lucide-react";
+import { Sparkles, ArrowRight } from "lucide-react";
 import { HomeWizard } from "@/components/screens/home-wizard";
 import s from "@/components/marketing/marketing.module.css";
 
@@ -97,15 +97,6 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
             ))}
           </div>
         </motion.form>
-
-        <motion.div {...rise(0.36)} className={s.actions}>
-          <button type="button" className={s.actionBtn} onClick={() => go("", "guided")}>
-            <Wand2 size={15} style={{ color: "var(--accent)" }} /> Análisis guiado
-          </button>
-          <button type="button" className={s.actionBtn} onClick={() => go("", "general")}>
-            <Compass size={15} style={{ color: "var(--accent)" }} /> Análisis general
-          </button>
-        </motion.div>
 
         {runs.length > 0 && (
           <motion.div {...rise(0.44)} className={s.runs}>
