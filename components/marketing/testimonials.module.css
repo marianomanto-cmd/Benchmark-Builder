@@ -8,12 +8,19 @@
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
 }
+/* Local keyframe: a CSS-module `animation` referencing the GLOBAL bb-marquee
+ * keyframe gets renamed by CSS Modules and never runs — so define it here. */
+@keyframes testiScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
 .track {
   display: flex;
   gap: 16px;
   width: max-content;
   padding: 4px 8px;
-  animation: bb-marquee 64s linear infinite;
+  animation: testiScroll 64s linear infinite;
+  will-change: transform;
 }
 .marquee:hover .track { animation-play-state: paused; }
 
