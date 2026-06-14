@@ -8,6 +8,7 @@ import { LanguageSelect } from "@/components/language-select";
 import { useI18n } from "@/components/i18n-provider";
 import { useSession } from "@/components/session-provider";
 import { UserMenu } from "@/components/user-menu";
+import { SignInModal } from "@/components/sign-in-modal";
 import s from "./marketing.module.css";
 
 const LINKS = [
@@ -19,8 +20,9 @@ const LINKS = [
 
 export function SiteNav() {
   const [open, setOpen] = useState(false);
+  const [signin, setSignin] = useState(false);
   const { t } = useI18n();
-  const { user, login } = useSession();
+  const { user } = useSession();
   return (
     <header className={s.nav}>
       <div className={`${s.container} ${s.navInner}`}>
@@ -44,7 +46,7 @@ export function SiteNav() {
               <UserMenu />
             </>
           ) : (
-            <button type="button" onClick={login} className={`${s.cta} ${s.navCtaDesktop}`}>{t("nav.signin")}</button>
+            <button type="button" onClick={() => setSignin(true)} className={`${s.cta} ${s.navCtaDesktop}`}>{t("nav.signin")}</button>
           )}
           <button
             type="button"
@@ -65,10 +67,11 @@ export function SiteNav() {
           {user ? (
             <Link href="/dashboard" onClick={() => setOpen(false)}>{t("nav.dashboard")} →</Link>
           ) : (
-            <button type="button" onClick={() => { setOpen(false); login(); }} style={{ textAlign: "left", border: "none", background: "transparent", color: "inherit", font: "inherit", cursor: "pointer", padding: 0 }}>{t("nav.signin")} →</button>
+            <button type="button" onClick={() => { setOpen(false); setSignin(true); }} style={{ textAlign: "left", border: "none", background: "transparent", color: "inherit", font: "inherit", cursor: "pointer", padding: 0 }}>{t("nav.signin")} →</button>
           )}
         </div>
       )}
+      {signin && <SignInModal onClose={() => setSignin(false)} />}
     </header>
   );
 }

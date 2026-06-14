@@ -12,3 +12,13 @@ export const FAKE_USER: User = {
   initials: "MM",
   avatar: "https://i.pravatar.cc/120?img=68",
 };
+
+// Single gated account (demo). Real auth (Google / Microsoft / signup) comes
+// later — this is a client-side stub, NOT a security boundary.
+// TODO: reemplazar por auth real (OAuth + verificación server-side).
+export const AUTH_EMAIL = "marianomanto@gmail.com";
+export const AUTH_PASSWORD = "marianomanto";
+
+export function checkCredentials(email: string, password: string): boolean {
+  return email.trim().toLowerCase() === AUTH_EMAIL && password === AUTH_PASSWORD;
+}

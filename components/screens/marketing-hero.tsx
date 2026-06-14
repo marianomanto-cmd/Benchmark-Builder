@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import { HomeWizard } from "@/components/screens/home-wizard";
+import { SignInModal } from "@/components/sign-in-modal";
 import { useI18n } from "@/components/i18n-provider";
-import { useSession } from "@/components/session-provider";
 import s from "@/components/marketing/marketing.module.css";
 
 const EASE = [0.2, 0.7, 0.2, 1] as const;
@@ -14,8 +14,8 @@ const EASE = [0.2, 0.7, 0.2, 1] as const;
 // first report; finishing it creates the account (session) and enters the app.
 export function MarketingHero() {
   const { t } = useI18n();
-  const { login } = useSession();
   const [wizard, setWizard] = useState(false);
+  const [signin, setSignin] = useState(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -49,13 +49,14 @@ export function MarketingHero() {
             </button>
             <div>
               <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{t("home.ctaSub")}</div>
-              <button type="button" onClick={login} style={{ marginTop: 2, border: "none", background: "transparent", color: "var(--accent)", fontWeight: 600, fontSize: 13, cursor: "pointer", padding: 0 }}>{t("home.haveAccount")} →</button>
+              <button type="button" onClick={() => setSignin(true)} style={{ marginTop: 2, border: "none", background: "transparent", color: "var(--accent)", fontWeight: 600, fontSize: 13, cursor: "pointer", padding: 0 }}>{t("home.haveAccount")} →</button>
             </div>
           </motion.div>
         </div>
       </section>
       <AnimatePresence>
         {wizard && <HomeWizard initialQuery="" onClose={() => setWizard(false)} />}
+        {signin && <SignInModal onClose={() => setSignin(false)} />}
       </AnimatePresence>
     </>
   );
