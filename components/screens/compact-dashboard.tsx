@@ -19,9 +19,8 @@ export function CompactDashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
           {accounts.map((a) => {
             const st = accountStats(a);
-            const main = a.projects[0]?.caseSlug ?? "cartagena-q2-2026";
             return (
-              <Link key={a.slug} href={`/overview?case=${main}`} className="bb-lift" style={{ textDecoration: "none", color: "inherit", display: "block", background: "color-mix(in srgb, var(--surface) 70%, transparent)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 16, boxShadow: "var(--sh-1)" }}>
+              <Link key={a.slug} href={`/cuenta/${a.slug}`} className="bb-lift" style={{ textDecoration: "none", color: "inherit", display: "block", background: "color-mix(in srgb, var(--surface) 70%, transparent)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 16, boxShadow: "var(--sh-1)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 12 }}>
                   <span style={{ width: 38, height: 38, borderRadius: 11, background: `color-mix(in srgb, ${a.accent} 22%, transparent)`, color: a.accent, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 15, flexShrink: 0 }}>{a.letter}</span>
                   <div style={{ minWidth: 0 }}>

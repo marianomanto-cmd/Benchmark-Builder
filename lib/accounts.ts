@@ -80,3 +80,25 @@ export function accountStats(a: DirAccount) {
     lastRun: runs[0]?.when ?? "—",
   };
 }
+
+export function getAccount(slug: string): DirAccount | undefined {
+  return DEMO_ACCOUNTS.find((a) => a.slug === slug);
+}
+
+// Find a project (by its slug) along with the account it belongs to.
+export function getProject(slug: string): { account: DirAccount; project: DirProject } | undefined {
+  for (const a of DEMO_ACCOUNTS) {
+    const project = a.projects.find((p) => p.slug === slug);
+    if (project) return { account: a, project };
+  }
+  return undefined;
+}
+
+export function projectStats(p: DirProject) {
+  return {
+    runs: p.runs.length,
+    spend: Math.round(p.runs.reduce((s, r) => s + r.cost, 0) * 100) / 100,
+    mentions: p.runs.reduce((s, r) => s + r.mentions, 0),
+    lastRun: p.runs[0]?.when ?? "—",
+  };
+}

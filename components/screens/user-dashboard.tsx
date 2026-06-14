@@ -67,7 +67,6 @@ export function UserDashboard() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14, marginBottom: 24 }}>
         {DEMO_ACCOUNTS.map((a, i) => {
           const s = accountStats(a);
-          const main = a.projects[0]?.caseSlug ?? "cartagena-q2-2026";
           return (
             <motion.div key={a.slug} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: i * 0.04, ease }} className="bb-lift" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 16, boxShadow: "var(--sh-1)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 12 }}>
@@ -76,13 +75,13 @@ export function UserDashboard() {
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</div>
                   <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{t(a.industryKey)}</div>
                 </div>
-                <Link href={`/overview?case=${main}`} style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, color: "var(--accent)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>{t("dash.open")} <Ic.arrow s={11} /></Link>
+                <Link href={`/cuenta/${a.slug}`} style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, color: "var(--accent)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>{t("dash.open")} <Ic.arrow s={11} /></Link>
               </div>
 
               {/* projects */}
               <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
                 {a.projects.map((p) => (
-                  <Link key={p.slug} href={`/overview?case=${p.caseSlug}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 8px", borderRadius: "var(--r-sm)", textDecoration: "none", color: "var(--text)", background: "var(--surface-2)" }}>
+                  <Link key={p.slug} href={`/proyecto/${p.slug}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 8px", borderRadius: "var(--r-sm)", textDecoration: "none", color: "var(--text)", background: "var(--surface-2)" }}>
                     <span style={{ fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
                     <span style={{ flexShrink: 0, fontSize: 10.5, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{t("dash.runsN", { n: p.runs.length })}</span>
                   </Link>

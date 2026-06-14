@@ -361,6 +361,9 @@ const es: Dict = {
   "dash.qa4": "Philip Kotler",
   "dash.qa5": "Phema",
   "dash.qa6": "Phema",
+  "acct.eyebrow": "CUENTA",
+  "proj.eyebrow": "PROYECTO",
+  "proj.runs": "Runs",
 };
 
 const en: Dict = {
@@ -697,6 +700,9 @@ const en: Dict = {
   "dash.q4": "The best advertising is done by satisfied customers.",
   "dash.q5": "A good question beats a thousand dashboards.",
   "dash.q6": "Listening to the market is half the strategy.",
+  "acct.eyebrow": "ACCOUNT",
+  "proj.eyebrow": "PROJECT",
+  "proj.runs": "Runs",
 };
 
 const pt: Dict = {
@@ -1033,6 +1039,9 @@ const pt: Dict = {
   "dash.q4": "A melhor publicidade é feita por clientes satisfeitos.",
   "dash.q5": "Uma boa pergunta vale mais que mil dashboards.",
   "dash.q6": "Escutar o mercado é metade da estratégia.",
+  "acct.eyebrow": "CONTA",
+  "proj.eyebrow": "PROJETO",
+  "proj.runs": "Runs",
 };
 
 const MESSAGES: Record<Locale, Dict> = { es, en, pt };
