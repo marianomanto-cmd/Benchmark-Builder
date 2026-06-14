@@ -322,7 +322,7 @@ const es: Dict = {
   // marketing home (sin sesión)
   "home.hookA": "Inteligencia competitiva,",
   "home.hookEm": "en una sola lectura.",
-  "home.hookLead": "Espiá tu categoría desde adentro: redes, prensa y anuncios convertidos en un reporte que se vende. Sin planillas, sin adivinar.",
+  "home.hookLead": "Investigá tu categoría entera: redes, prensa y anuncios convertidos en un reporte que se vende solo. Sin planillas, sin adivinar.",
   "home.cta": "Comencemos",
   "home.ctaSub": "Armá tu primer reporte en minutos.",
   "home.haveAccount": "Ya tengo cuenta",
@@ -667,7 +667,7 @@ const en: Dict = {
   // marketing home (signed out)
   "home.hookA": "Competitive intelligence,",
   "home.hookEm": "in a single read.",
-  "home.hookLead": "Spy on your category from the inside: social, press and ads turned into a report that sells. No spreadsheets, no guessing.",
+  "home.hookLead": "Research your entire category: social, press and ads turned into a report that sells itself. No spreadsheets, no guessing.",
   "home.cta": "Let's start",
   "home.ctaSub": "Build your first report in minutes.",
   "home.haveAccount": "I already have an account",
@@ -1006,7 +1006,7 @@ const pt: Dict = {
   // marketing home (sem sessão)
   "home.hookA": "Inteligência competitiva,",
   "home.hookEm": "numa só leitura.",
-  "home.hookLead": "Espie sua categoria por dentro: redes, imprensa e anúncios convertidos num relatório que vende. Sem planilhas, sem adivinhar.",
+  "home.hookLead": "Investigue sua categoria inteira: redes, imprensa e anúncios convertidos num relatório que se vende sozinho. Sem planilhas, sem adivinhar.",
   "home.cta": "Vamos começar",
   "home.ctaSub": "Monte seu primeiro relatório em minutos.",
   "home.haveAccount": "Já tenho conta",
