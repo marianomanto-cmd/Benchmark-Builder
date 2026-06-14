@@ -364,6 +364,19 @@ const es: Dict = {
   "acct.eyebrow": "CUENTA",
   "proj.eyebrow": "PROYECTO",
   "proj.runs": "Runs",
+  "dash.newAccount": "Nueva cuenta",
+  "dash.newProject": "Nuevo proyecto",
+  "dash.accountName": "Nombre de la cuenta",
+  "dash.projectName": "Nombre del proyecto",
+  "dash.industry": "Industria (opcional)",
+  "dash.create": "Crear",
+  "dash.cancel": "Cancelar",
+  "dash.delete": "Borrar",
+  "dash.confirmAccount": "¿Borrar la cuenta «{name}» y sus proyectos?",
+  "dash.confirmProject": "¿Borrar el proyecto «{name}»?",
+  "dash.emptyProjects": "Sin proyectos todavía.",
+  "dash.notFound": "No encontrado.",
+  "proj.empty": "Sin runs todavía.",
 };
 
 const en: Dict = {
@@ -703,6 +716,19 @@ const en: Dict = {
   "acct.eyebrow": "ACCOUNT",
   "proj.eyebrow": "PROJECT",
   "proj.runs": "Runs",
+  "dash.newAccount": "New account",
+  "dash.newProject": "New project",
+  "dash.accountName": "Account name",
+  "dash.projectName": "Project name",
+  "dash.industry": "Industry (optional)",
+  "dash.create": "Create",
+  "dash.cancel": "Cancel",
+  "dash.delete": "Delete",
+  "dash.confirmAccount": "Delete account “{name}” and its projects?",
+  "dash.confirmProject": "Delete project “{name}”?",
+  "dash.emptyProjects": "No projects yet.",
+  "dash.notFound": "Not found.",
+  "proj.empty": "No runs yet.",
 };
 
 const pt: Dict = {
@@ -1042,6 +1068,19 @@ const pt: Dict = {
   "acct.eyebrow": "CONTA",
   "proj.eyebrow": "PROJETO",
   "proj.runs": "Runs",
+  "dash.newAccount": "Nova conta",
+  "dash.newProject": "Novo projeto",
+  "dash.accountName": "Nome da conta",
+  "dash.projectName": "Nome do projeto",
+  "dash.industry": "Indústria (opcional)",
+  "dash.create": "Criar",
+  "dash.cancel": "Cancelar",
+  "dash.delete": "Excluir",
+  "dash.confirmAccount": "Excluir a conta “{name}” e seus projetos?",
+  "dash.confirmProject": "Excluir o projeto “{name}”?",
+  "dash.emptyProjects": "Sem projetos ainda.",
+  "dash.notFound": "Não encontrado.",
+  "proj.empty": "Sem runs ainda.",
 };
 
 const MESSAGES: Record<Locale, Dict> = { es, en, pt };

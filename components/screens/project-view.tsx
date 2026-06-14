@@ -6,17 +6,29 @@ import { ScreenShell } from "@/components/shell/screen-shell";
 import { Btn, BBBadge } from "@/components/ui/primitives";
 import { Ic } from "@/components/ui/icons";
 import { useI18n } from "@/components/i18n-provider";
-import { projectStats, type DirAccount, type DirProject } from "@/lib/accounts";
+import { useDirectory, findProject } from "@/lib/directory-store";
+import { projectStats } from "@/lib/accounts";
 
 const ease = [0.2, 0.7, 0.3, 1] as const;
 
-export function ProjectView({ account, project }: { account: DirAccount; project: DirProject }) {
+export function ProjectView({ slug }: { slug: string }) {
   const { t } = useI18n();
+  const { accounts } = useDirectory();
+  const found = findProject(accounts, slug);
+
+  if (!found) {
+    return (
+      <ScreenShell breadcrumb={["@nav.dashboard"]} nav="app">
+        <div style={{ padding: "48px 16px", textAlign: "center", color: "var(--text-muted)" }}>{t("dash.notFound")}</div>
+      </ScreenShell>
+    );
+  }
+
+  const { account, project } = found;
   const s = projectStats(project);
 
   return (
     <ScreenShell breadcrumb={["@nav.dashboard", account.name, project.name]} nav="app">
-      {/* header */}
       <div className="bb-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, marginBottom: 18 }}>
         <div style={{ minWidth: 0 }}>
           <div className="t-micro" style={{ color: "var(--accent)" }}>{t("proj.eyebrow")} · {account.name}</div>
@@ -28,8 +40,8 @@ export function ProjectView({ account, project }: { account: DirAccount; project
         <Link href="/"><Btn kind="accent" size="sm" iconRight={<Ic.bolt s={11} />}>{t("shell.newRun")}</Btn></Link>
       </div>
 
-      {/* runs */}
       <div className="t-h3" style={{ color: "var(--text)", marginBottom: 10 }}>{t("proj.runs")}</div>
+      {project.runs.length === 0 && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{t("proj.empty")}</div>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
         {project.runs.map((r, i) => (
           <motion.div key={r.number} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: i * 0.05, ease }}>
