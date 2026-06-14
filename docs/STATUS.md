@@ -1,6 +1,6 @@
 # Phatia — Estado de desarrollo (repo: Benchmark-Builder)
 
-> Documento de contexto para consultar en otra conversación. Última actualización: 2026‑06‑14 (orquestación: Wizard Assistant/Haiku + Planner/QuerySpec + Grok web; wizard 3 pasos; seed multi-caso; actores automáticos). Producto: **Phatia** (repo: Benchmark-Builder).
+> Documento de contexto para consultar en otra conversación. Última actualización: 2026‑06‑14 (monetización por **créditos**: config único + modal de suscripción al cerrar el wizard sin login + saldo en header/dashboard + asistente del run gasta créditos; directorio editable CRUD; orquestación Wizard Assistant/Haiku + Planner/QuerySpec + Grok web; wizard 3 pasos; seed multi-caso; actores automáticos). Producto: **Phatia** (repo: Benchmark-Builder).
 > App de **research competitivo y social listening asistido por IA**. Caso demo: **Copa Airlines vs Avianca / LATAM / Wingo / Arajet · ruta Cartagena**.
 >
 > ⚠️ **Mantené este documento actualizado en cada cambio** (regla en `AGENTS.md` → "Documentation discipline"). Un cambio no está terminado hasta que la doc lo refleja.
@@ -63,7 +63,8 @@ components/
                            **deliverable, faq, site-footer, marketing.module.css**
   motion/                  **smooth-scroll (Lenis), reveal (whileInView)**
   screens/                 portal (compone marketing), portal-hero (cortina+canvas+box IA),
-                           **home-wizard (wizard embebido)**, overview, live-feed, comparativa, galeria,
+                           **home-wizard (wizard embebido)**, **subscription-modal (paywall de créditos)**, **user-dashboard / account-view / project-view (directorio)**,
+                           overview, live-feed, comparativa, galeria,
                            **swot (FODA+estrategia)**, editor, report-pdf, runs, research-plan (legacy)
   ui/ tremor/ shell/ domain.tsx analysis-block.tsx command-palette.tsx run-button.tsx **run-assistant.tsx** theme-*
 lib/
@@ -75,6 +76,8 @@ lib/
                            grok-x, index (**sourceFor(platform, scope)** + metaAdsOfficial), **select-actor (elección automática por caso)**
   runner.ts                **executeRun(slug, platforms?, keywords?, {scope, adIntent, plan})** — jobs organic+paid
   runner-fixtures.ts       **fixtures mock: demoRawMentions, demoAdMentions, demoScores, demoInsightDrafts**
+  credits/                 **config.ts (FUENTE ÚNICA de la matemática: 1 cr = US$0,10, reporte = 120 cr, asistente = 2 cr, tiers Basic/Pro⭐/Marketer, helpers reportsFor/usdPerReport) + store.ts (saldo en localStorage `phatia_credits`, hook `useCredits` → balance/setCredits/addCredits/spend)** — monetización por créditos
+  directory-store.ts       **directorio EDITABLE (localStorage `phatia_directory`): crear/borrar cuentas y proyectos, `useDirectory` (sembrado de los casos demo)**
   ai/ data.ts demo.ts **demo-cases.ts (registro multi-caso por slug)** **i18n.ts (ES/EN/PT)** **session.ts (auth sim) accounts.ts (cuentas→proyectos→runs)** view-models.ts database.types.ts supabase/ format.ts
 scripts/                   **test-run-mock.ts, cost-check.ts** (tsx --conditions=react-server --env-file=.env.local)
 supabase/migrations/       DDL versionado (incluye cost_controls, paid_platforms_enum, source_settings_scope, runs_research_plan)
@@ -102,6 +105,8 @@ Base: **workspaces** (+`settings` jsonb) · **projects** (+`budget_monthly_usd`)
 **RPCs:** `budget_spent_with_pending`, `reserve_budget` (lock por run `pg_advisory_xact_lock` FM-05; caps run/project-mensual/workspace-mensual; devuelve ok|soft(≥80%)|hard|error), `commit_charge` (idempotente), `release_charge`, `release_expired_charges`.
 
 Enum `platform`: instagram, tiktok, youtube, facebook, x, reddit, mastodon, bluesky, web, meta_ads, **google_ads, linkedin_ads**. RLS `public read` en todas (escrituras = service role). **Auth/multi-tenancy sin definir** (pendiente).
+
+**Créditos (monetización) — sin tabla aún:** el saldo vive **client-side** en `localStorage` (`phatia_credits`, hook `useCredits`) como stub mientras no hay billing. La matemática es **un solo lugar** (`lib/credits/config.ts`): `CREDIT_USD=0,10`, `REPORT_COST=120 cr`, `ASSISTANT_COST=2 cr`, y tiers Basic (US$60/600 cr ≈ 5 rep.), **Pro⭐ (US$200/2.400 cr ≈ 20 rep.)**, Marketer (US$450/6.000 cr ≈ 50 rep.). **Pendiente backend:** tablas de plan/saldo/transacciones + checkout real (Stripe) — hoy elegir un tier es un stub que carga el saldo y redirige al panel (`// TODO: reemplazar por checkout real`). Cancelación = reembolso de `créditos_restantes × US$0,10`.
 
 ---
 
@@ -137,7 +142,7 @@ Enum `platform`: instagram, tiktok, youtube, facebook, x, reddit, mastodon, blue
 
 ## 7. Pantallas / rutas
 
-`/` portal + **wizard de research embebido en el home** (paso a paso asistido por IA: marca → mercados → competidores → orgánico/paid → descartes → fechas → costo; botón "no sé, sugerime" + validación por paso) · `/overview` dashboard · `/live-feed` · `/comparativa` · `/galeria` (orgánico vs pago) · **`/swot` (FODA + matriz act/wait/react/fall back + roadmap corto/mediano/largo)** · `/editor` · `/reporte` · `/runs` · `/settings` · `/not-found`. El shell del run trae un **asistente flotante** (consulta IA acotada a los resultados, con aviso de costo; si la pregunta se va de alcance, invita a iniciar una nueva investigación). Todo **responsive** (sin scroll horizontal). `/research-plan` queda como ruta legacy. Extras: ⌘K, transiciones, skeletons.
+`/` portal + **wizard de research embebido en el home** (paso a paso asistido por IA: marca → mercados → competidores → orgánico/paid → descartes → fechas → costo; botón "no sé, sugerime" + validación por paso) · `/overview` dashboard · `/live-feed` · `/comparativa` · `/galeria` (orgánico vs pago) · **`/swot` (FODA + matriz act/wait/react/fall back + roadmap corto/mediano/largo)** · `/editor` · `/reporte` · `/runs` · `/settings` · `/not-found`. El shell del run trae un **asistente flotante** (consulta IA acotada a los resultados, **descuenta 2 créditos por consulta**; sin saldo invita a cargar un plan; si la pregunta se va de alcance, invita a iniciar una nueva investigación) y un **pill de saldo de créditos** en el header (link al panel). Al **cerrar el wizard sin sesión** aparece el **modal de suscripción** (3 planes; ver §9). Todo **responsive** (sin scroll horizontal). `/research-plan` queda como ruta legacy. Extras: ⌘K, transiciones, skeletons.
 
 ---
 
@@ -179,6 +184,8 @@ Las keys reales viven solo en `.env.local` (gitignored), **nunca** commiteadas.
 **Home + wizard + viz (sesión 14/jun c):** **paleta de gráficos** coherente — nuevo `--viz-accent` (gold) para data-viz (charts/diagrama/cliente) separado del accent de marca (sangría sigue en chrome); se sacó el coral. **Sección "Qué hace"** = diagrama SVG animado (ruido → constelación → "una lectura"), determinista (SSR-safe), loop, reduced-motion, traducible (`what.*`). **Sección de testimoniales** (clientes ficticios, marquesina auto-scroll, foto+nombre+rol+LinkedIn de demo, `testi.*`). **Asistente del wizard = globos "tipo mención"** anclados a cada campo (no popup): al 1er "Siguiente" salen las recomendaciones desde los campos; si se ignoran, el 2º click avanza. Recomendaciones/sugerencias **context-aware** (usan marca+desc+problema+competidores ⇒ competidores sugeridos on-category). i18n del wizard en `suggest.ts` (`assistFor`/`recommendationsFor` con `locale`, recs ahora `{field,text}`).
 
 **Arquitectura de usuario (sesión 14/jun d):** **sesión simulada** (`lib/session.ts` + `SessionProvider`, cookie `phema_session`; auth real Google/signup = futuro). Usuario fake "Mariano Manto" con login/logout y menú en el header. **Modelo de directorio** (`lib/accounts.ts`): **Cuentas (clientes) → Proyectos → Runs**, derivado de los casos seed. **Dos homes** (branch por cookie en `app/page.tsx`): sin sesión → marketing con hooks/taglines + CTA "Comencemos" (abre el wizard; al terminar el 1er reporte se "crea la cuenta" vía `signIn`), **sin prompt box**; con sesión → hero con prompt box + **dashboard compacto** de cuentas (+ "ver todo" → `/dashboard`). **`/dashboard`** = vista de usuario completa (KPIs, marquesina de citas, grilla de cuentas, actividad reciente). **Navegación jerárquica respetada:** dashboard → **`/cuenta/[slug]`** (lista los proyectos de la cuenta) → **`/proyecto/[slug]`** (lista los runs del proyecto) → **`/overview?case=`** (el run). Nada de saltar de cuenta directo a un run. **Sidebar contextual** (`ScreenShell nav`): dentro de un run = tabs del run (sin "Proyectos"); fuera = "Mi panel". Todo trilingüe (`dash.*`, `home.*`, `nav.*`). **Pendiente:** auth real (Google/signup) + billing + multi-tenancy en DB.
+
+**Directorio editable + Monetización por créditos (sesión 14/jun e):** **CRUD del directorio** (`lib/directory-store.ts`, `localStorage` + evento de sync, sembrado de los casos demo): crear/borrar **cuentas** y crear/borrar **proyectos** desde `/dashboard`, `/cuenta/[slug]` y `/proyecto/[slug]` (`useDirectory`). **Modelo de créditos** (`lib/credits/config.ts` = fuente única; nada hardcodeado en la UI): 1 crédito = **US$0,10**, **reporte = 120 cr**, **asistente del run = 2 cr/consulta**; 3 planes (Basic US$60/600 cr, **Pro⭐ US$200/2.400 cr**, Marketer US$450/6.000 cr) con helpers `reportsFor`/`usdPerReport`. **Saldo** en `localStorage` (`useCredits`), visible como **pill en el header del shell** y como **KPI "Créditos"** del dashboard (reemplaza "Gasto total US$" — el consumo se desacopla del signo $). **Modal de suscripción** (`components/screens/subscription-modal.tsx`): al **terminar el wizard sin sesión** (o sin créditos suficientes), el botón "Aprobar y ejecutar" abre un paywall de 3 columnas (Pro destacado; cada card: nombre, precio/mes, créditos/mes, ≈N reportes, precio efectivo por reporte, CTA; línea "Cancelá cuando quieras. Te devolvemos los créditos que no usaste."). Elegir un tier = **stub**: `signIn()` + carga el saldo del plan + redirige a `/dashboard` (`// TODO: reemplazar por checkout real`). El **asistente flotante del run** descuenta 2 cr por consulta y, sin saldo, responde invitando a cargar un plan. Trilingüe (`credits.*`, `sub.*`). **Pendiente:** auth/billing real + tablas de plan/saldo/transacciones + checkout (Stripe).
 
 **Política de etiquetado del análisis (IMPORTANTE):** el análisis se produce con **Grok + Claude + los skills de marketing del repo** (`.claude/skills`), pero la **UI NUNCA lo revela** — no nombra el motor ni dice "IA"; sólo muestra **"Análisis + Insights"**. Mantener esta regla en todo texto user-facing nuevo.
 

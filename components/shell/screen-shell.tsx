@@ -3,7 +3,7 @@
 import { type ReactNode, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, Layers } from "lucide-react";
+import { Menu, X, Layers, Coins } from "lucide-react";
 import { Ic, NavIc } from "@/components/ui/icons";
 import { Btn } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -12,6 +12,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { UserMenu } from "@/components/user-menu";
 import { CommandPalette } from "@/components/command-palette";
 import { RunAssistant } from "@/components/run-assistant";
+import { useCredits } from "@/lib/credits/store";
 
 type NavMode = "run" | "app";
 type NavItem = { href: string; icon: (s?: number) => ReactNode; key: string };
@@ -145,6 +146,7 @@ export function ScreenShell({
             <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-muted)" }}>{t("shell.search")}</span>
             <span style={{ marginLeft: "auto", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)", padding: "1px 5px", border: `1px solid ${colors.border}`, borderRadius: 3 }}>⌘K</span>
           </button>
+          <CreditsPill />
           <span className="bb-hide-sm"><LanguageSelect compact /></span>
           <ThemeToggle />
           <Btn kind="primary" size="sm" icon={<Ic.bolt s={11} />} onClick={() => router.push("/")}>{t("shell.newRun")}</Btn>
@@ -153,5 +155,22 @@ export function ScreenShell({
         <div className="bb-shell-content" style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 24, background: "color-mix(in srgb, var(--bg) 60%, transparent)", backdropFilter: "blur(22px)", WebkitBackdropFilter: "blur(22px)" }}>{children}</div>
       </main>
     </div>
+  );
+}
+
+// Credit balance pill — links to the panel where the user can top up.
+function CreditsPill() {
+  const { t } = useI18n();
+  const { balance } = useCredits();
+  return (
+    <Link
+      href="/dashboard"
+      title={t("credits.label")}
+      className="bb-hide-sm"
+      style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 28, padding: "0 11px", borderRadius: 999, border: "1px solid var(--border-strong)", background: "var(--surface-2)", color: "var(--text)", textDecoration: "none", fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}
+    >
+      <Coins size={13} style={{ color: "var(--accent)" }} />
+      {balance.toLocaleString()}
+    </Link>
   );
 }

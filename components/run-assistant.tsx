@@ -5,6 +5,8 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { Sparkles, X, ArrowUp, Home } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
+import { useCredits } from "@/lib/credits/store";
+import { ASSISTANT_COST } from "@/lib/credits/config";
 
 type Msg = { role: "user" | "bot"; text: string; outOfScope?: boolean };
 
@@ -33,6 +35,7 @@ function answer(q: string): { text: string; outOfScope: boolean } {
 
 export function RunAssistant() {
   const { t } = useI18n();
+  const { spend } = useCredits();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -40,6 +43,13 @@ export function RunAssistant() {
   function send() {
     const text = q.trim();
     if (!text) return;
+    // Each query consumes credits. If the balance is too low, refuse and point
+    // the user to top up — no answer is generated.
+    if (!spend(ASSISTANT_COST)) {
+      setMsgs((m) => [...m, { role: "user", text }, { role: "bot", text: t("ra.noCredits") }]);
+      setQ("");
+      return;
+    }
     const a = answer(text);
     setMsgs((m) => [...m, { role: "user", text }, { role: "bot", text: a.text, outOfScope: a.outOfScope }]);
     setQ("");
@@ -95,7 +105,7 @@ export function RunAssistant() {
                 />
                 <button type="button" onClick={send} aria-label={t("ra.send")} style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 10, border: "none", background: "var(--accent)", color: "var(--accent-ink)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><ArrowUp size={16} /></button>
               </div>
-              <div style={{ marginTop: 7, fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)" }}>{t("ra.cost")}</div>
+              <div style={{ marginTop: 7, fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)" }}>{t("ra.cost", { n: ASSISTANT_COST })}</div>
             </div>
           </motion.div>
         )}

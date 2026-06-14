@@ -260,7 +260,7 @@ const es: Dict = {
   "ra.subtitle": "responde sobre los resultados obtenidos",
   "ra.examples": "Ej: “¿quién invierte más en pauta?”, “¿qué pasa en TikTok?”, “¿cómo está el sentimiento?”",
   "ra.placeholder": "Preguntá algo sobre estos resultados…",
-  "ra.cost": "~US$0,02 por consulta · acotado a este run",
+  "ra.cost": "{n} créditos por consulta · acotado a este run",
   "ra.newSearch": "Nueva investigación",
   "ra.cta": "Preguntar",
   "ra.send": "Enviar",
@@ -377,6 +377,21 @@ const es: Dict = {
   "dash.emptyProjects": "Sin proyectos todavía.",
   "dash.notFound": "No encontrado.",
   "proj.empty": "Sin runs todavía.",
+  // créditos & suscripción
+  "credits.label": "Créditos",
+  "credits.unit": "créditos",
+  "dash.kpiCredits": "Créditos",
+  "sub.title": "Cargá créditos y armá tu reporte",
+  "sub.subtitle": "Tu primer reporte cuesta {n} créditos. Elegí un plan: cuantos más créditos, más barato te sale cada reporte.",
+  "sub.perMonth": "/mes",
+  "sub.creditsMo": "{n} créditos/mes",
+  "sub.reports": "≈ {n} reportes/mes",
+  "sub.perReport": "US${v} por reporte",
+  "sub.recommended": "Recomendado",
+  "sub.choose": "Elegir {name}",
+  "sub.cancelLine": "Cancelá cuando quieras. Te devolvemos los créditos que no usaste.",
+  "sub.close": "Cerrar",
+  "ra.noCredits": "Te quedaste sin créditos para el asistente. Cargá un plan desde tu panel para seguir preguntando.",
 };
 
 const en: Dict = {
@@ -618,7 +633,7 @@ const en: Dict = {
   "ra.subtitle": "answers about the results",
   "ra.examples": "E.g.: “who spends most on ads?”, “what's happening on TikTok?”, “how's sentiment?”",
   "ra.placeholder": "Ask something about these results…",
-  "ra.cost": "~US$0.02 per query · scoped to this run",
+  "ra.cost": "{n} credits per query · scoped to this run",
   "ra.newSearch": "New research",
   "ra.cta": "Ask",
   "ra.send": "Send",
@@ -729,6 +744,21 @@ const en: Dict = {
   "dash.emptyProjects": "No projects yet.",
   "dash.notFound": "Not found.",
   "proj.empty": "No runs yet.",
+  // credits & subscription
+  "credits.label": "Credits",
+  "credits.unit": "credits",
+  "dash.kpiCredits": "Credits",
+  "sub.title": "Load credits and build your report",
+  "sub.subtitle": "Your first report costs {n} credits. Pick a plan — the more credits, the cheaper each report gets.",
+  "sub.perMonth": "/mo",
+  "sub.creditsMo": "{n} credits/mo",
+  "sub.reports": "≈ {n} reports/mo",
+  "sub.perReport": "US${v} per report",
+  "sub.recommended": "Recommended",
+  "sub.choose": "Choose {name}",
+  "sub.cancelLine": "Cancel anytime. We refund the credits you didn't use.",
+  "sub.close": "Close",
+  "ra.noCredits": "You're out of assistant credits. Load a plan from your panel to keep asking.",
 };
 
 const pt: Dict = {
@@ -970,7 +1000,7 @@ const pt: Dict = {
   "ra.subtitle": "responde sobre os resultados",
   "ra.examples": "Ex.: “quem investe mais em mídia?”, “o que acontece no TikTok?”, “como está o sentimento?”",
   "ra.placeholder": "Pergunte algo sobre estes resultados…",
-  "ra.cost": "~US$0,02 por consulta · restrito a este run",
+  "ra.cost": "{n} créditos por consulta · restrito a este run",
   "ra.newSearch": "Nova pesquisa",
   "ra.cta": "Perguntar",
   "ra.send": "Enviar",
@@ -1081,6 +1111,21 @@ const pt: Dict = {
   "dash.emptyProjects": "Sem projetos ainda.",
   "dash.notFound": "Não encontrado.",
   "proj.empty": "Sem runs ainda.",
+  // créditos & assinatura
+  "credits.label": "Créditos",
+  "credits.unit": "créditos",
+  "dash.kpiCredits": "Créditos",
+  "sub.title": "Carregue créditos e monte seu relatório",
+  "sub.subtitle": "Seu primeiro relatório custa {n} créditos. Escolha um plano — quanto mais créditos, mais barato fica cada relatório.",
+  "sub.perMonth": "/mês",
+  "sub.creditsMo": "{n} créditos/mês",
+  "sub.reports": "≈ {n} relatórios/mês",
+  "sub.perReport": "US${v} por relatório",
+  "sub.recommended": "Recomendado",
+  "sub.choose": "Escolher {name}",
+  "sub.cancelLine": "Cancele quando quiser. Devolvemos os créditos que você não usou.",
+  "sub.close": "Fechar",
+  "ra.noCredits": "Você ficou sem créditos para o assistente. Carregue um plano no seu painel para continuar perguntando.",
 };
 
 const MESSAGES: Record<Locale, Dict> = { es, en, pt };

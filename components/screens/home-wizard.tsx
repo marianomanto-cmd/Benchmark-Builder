@@ -8,6 +8,9 @@ import { suggestFor, assistFor, detectCategory } from "@/lib/discovery/suggest";
 import { PlatformBadge } from "@/components/domain";
 import { useI18n } from "@/components/i18n-provider";
 import { useSession } from "@/components/session-provider";
+import { SubscriptionModal } from "@/components/screens/subscription-modal";
+import { useCredits } from "@/lib/credits/store";
+import { REPORT_COST } from "@/lib/credits/config";
 import type { TFn } from "@/lib/i18n";
 import type { PlatformKey } from "@/lib/platforms";
 
@@ -43,8 +46,10 @@ const PERIOD_KEY: Record<string, string> = { "30 días": "wizard.period.30", "60
 export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; onClose: () => void }) {
   const router = useRouter();
   const { t, locale } = useI18n();
-  const { signIn } = useSession();
+  const { signIn, user } = useSession();
+  const { balance, spend } = useCredits();
   const [step, setStep] = useState(0);
+  const [showSub, setShowSub] = useState(false);
 
   // Step 0 — brand
   const [brand, setBrand] = useState("");
@@ -172,6 +177,14 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
       setError(e instanceof Error ? e.message : "Error");
       setRunning(false);
     }
+  }
+
+  // Last step. Logged-in users with enough credits spend the report cost and run;
+  // everyone else (no session, or not enough credits) hits the subscription modal.
+  function onApprove() {
+    if (!user || balance < REPORT_COST) { setShowSub(true); return; }
+    spend(REPORT_COST);
+    execute();
   }
 
   const canNext =
@@ -425,12 +438,14 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
               {checking ? <><Loader2 size={15} className="bb-spin" /> {t("wizard.btn.checking")}</> : <>{t("wizard.btn.next")} <ArrowRight size={15} /></>}
             </button>
           ) : (
-            <button type="button" disabled={running} onClick={execute} style={navBtn(true, running)}>
+            <button type="button" disabled={running} onClick={onApprove} style={navBtn(true, running)}>
               {running ? <><Loader2 size={15} className="bb-spin" /> {t("wizard.btn.running")}</> : <><Sparkles size={15} /> {t("wizard.btn.approve")}</>}
             </button>
           )}
         </div>
       </div>
+
+      {showSub && <SubscriptionModal onClose={() => setShowSub(false)} />}
     </motion.div>
   );
 }

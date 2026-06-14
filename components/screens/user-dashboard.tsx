@@ -9,6 +9,7 @@ import { Btn } from "@/components/ui/primitives";
 import { Ic } from "@/components/ui/icons";
 import { useI18n } from "@/components/i18n-provider";
 import { useSession } from "@/components/session-provider";
+import { useCredits } from "@/lib/credits/store";
 import { useDirectory } from "@/lib/directory-store";
 import { accountStats, type DirAccount } from "@/lib/accounts";
 import type { TFn } from "@/lib/i18n";
@@ -20,6 +21,7 @@ const inp = { height: 36, padding: "0 11px", borderRadius: "var(--r-sm)", border
 export function UserDashboard() {
   const { t, locale } = useI18n();
   const { user } = useSession();
+  const { balance } = useCredits();
   const { accounts, addAccount, removeAccount, addProject, removeProject } = useDirectory();
   const [creating, setCreating] = useState(false);
 
@@ -31,7 +33,6 @@ export function UserDashboard() {
     accounts: accounts.length,
     projects: accounts.reduce((s, a) => s + a.projects.length, 0),
     runs: allRuns.length,
-    spend: Math.round(allRuns.reduce((s, r) => s + r.cost, 0) * 100) / 100,
     mentions: allRuns.reduce((s, r) => s + r.mentions, 0),
   };
   const recent = accounts
@@ -40,10 +41,10 @@ export function UserDashboard() {
     .slice(0, 6);
 
   const kpis = [
+    { label: t("dash.kpiCredits"), value: balance.toLocaleString(intl) },
     { label: t("dash.kpiAccounts"), value: String(stats.accounts) },
     { label: t("dash.kpiProjects"), value: String(stats.projects) },
     { label: t("dash.kpiRuns"), value: String(stats.runs) },
-    { label: t("dash.kpiSpend"), value: `US$${stats.spend.toFixed(2)}` },
     { label: t("dash.kpiMentions"), value: stats.mentions.toLocaleString(intl) },
   ];
 
