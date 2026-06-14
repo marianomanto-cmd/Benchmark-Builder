@@ -20,10 +20,11 @@
 ## Detalle de lo implementado
 
 - **Wizard Assistant** — al tocar "Siguiente" se llama `POST /api/wizard/assist`
-  con `{step, state}`. Devuelve `{ok, msg}`. Si `ok` → avanza; si detecta algo
-  vago → muestra la sugerencia y un segundo click avanza (no bloquea). En mock
-  usa `assistFor` (heurística determinista). Modelo configurable:
-  `ANTHROPIC_WIZARD_MODEL` (default `claude-haiku-4-5-20251001`).
+  con `{step, state}` y **salta un popup** con la revisión (`msg`) + `recommendations[]`
+  y botones **Ajustar** (quedarse) / **Continuar** (avanzar). En mock usa
+  `assistFor` + `recommendationsFor` (heurística determinista, costo cero); en live
+  el modelo (`ANTHROPIC_WIZARD_MODEL`, default `claude-haiku-4-5-20251001`) devuelve
+  `{ok, msg, recommendations[]}`. Además hay una línea de guía inline instantánea.
 - **Planner** — `planQueries(plan, {profile, intent})` → `QuerySpec` (Zod):
   por cada `(plataforma × scope)` arma `keywords/phrases/handles` enfocados a
   partir de marca + competidores + categoría (tailored por plataforma), **no**

@@ -64,17 +64,15 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
 
   const ctx = useMemo(() => `${brand} ${brandDesc} ${problem}`, [brand, brandDesc, problem]);
 
-  // Wizard assistant: heurística instantánea + refinamiento al tocar "Siguiente"
-  // (mock = heurística, costo cero; live = modelo económico vía /api/wizard/assist).
+  // Wizard assistant: guía instantánea inline + popup de revisión al tocar
+  // "Siguiente" (mock = heurística, costo cero; live = Haiku vía /api/wizard/assist).
   const snapshot = useMemo(
     () => ({ brand, brandDesc, igUrl, problem, geo, competitors, discards }),
     [brand, brandDesc, igUrl, problem, geo, competitors, discards],
   );
-  const heuristic = assistFor(step, snapshot);
-  const [refined, setRefined] = useState<{ step: number; ok: boolean; msg: string } | null>(null);
+  const assist = assistFor(step, snapshot);
   const [checking, setChecking] = useState(false);
-  const [validatedStep, setValidatedStep] = useState(-1);
-  const assist = refined && refined.step === step ? { ok: refined.ok, msg: refined.msg } : heuristic;
+  const [review, setReview] = useState<{ step: number; ok: boolean; msg: string; recs: string[] } | null>(null);
 
   function toggleNet(key: string) {
     setNetworks((ns) => (ns.includes(key) ? ns.filter((k) => k !== key) : [...ns, key]));
@@ -172,16 +170,14 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
     true;
 
   function advance() {
-    setRefined(null);
-    setValidatedStep(-1);
+    setReview(null);
     setStep((s) => s + 1);
   }
 
-  // On "Siguiente": ask the assistant to review THIS step. If it's happy, advance;
-  // if it flags something vague, show the tip and let a second click proceed.
+  // On "Siguiente": the assistant reviews THIS step and a popup shows its read
+  // + recommendations. The user chooses "Continuar" (advance) or "Ajustar".
   async function onNext() {
     if (!canNext || checking) return;
-    if (validatedStep === step) return advance();
     setChecking(true);
     try {
       const res = await fetch("/api/wizard/assist", {
@@ -189,14 +185,12 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ step, state: snapshot }),
       });
-      const json = (await res.json()) as { ok: boolean; msg: string };
-      setRefined({ step, ok: json.ok, msg: json.msg });
-      setValidatedStep(step);
-      setChecking(false);
-      if (json.ok) advance();
+      const json = (await res.json()) as { ok: boolean; msg: string; recommendations?: string[] };
+      setReview({ step, ok: json.ok, msg: json.msg, recs: json.recommendations ?? [] });
     } catch {
-      setChecking(false);
       advance();
+    } finally {
+      setChecking(false);
     }
   }
 
@@ -417,6 +411,57 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
           )}
         </div>
       </div>
+
+      {/* Popup de revisión del asistente — salta al tocar "Siguiente" */}
+      <AnimatePresence>
+        {review && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setReview(null)}
+            style={{ position: "fixed", inset: 0, zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "color-mix(in srgb, var(--bg) 58%, transparent)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.97 }}
+              transition={{ duration: 0.24, ease: [0.2, 0.7, 0.2, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: "min(480px, 100%)", background: "var(--surface)", border: `1px solid ${review.ok ? "var(--border)" : "color-mix(in srgb, var(--accent) 45%, var(--border))"}`, borderRadius: 18, padding: 22, boxShadow: "var(--sh-4)" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 14 }}>
+                <span style={{ width: 36, height: 36, borderRadius: 11, background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Sparkles size={18} /></span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{review.ok ? "Buen brief para este paso" : "Afinemos este paso"}</div>
+                  <div style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: ".1em" }}>Asistente · paso {review.step + 1} de {STEPS.length}</div>
+                </div>
+              </div>
+
+              <div style={{ fontSize: 14, lineHeight: "21px", color: "var(--text)", marginBottom: review.recs.length ? 16 : 20 }}>{review.msg}</div>
+
+              {review.recs.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  <div className="t-micro" style={{ marginBottom: 9 }}>Recomendaciones</div>
+                  <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 9 }}>
+                    {review.recs.map((r, i) => (
+                      <li key={i} style={{ display: "flex", gap: 9, fontSize: 13, lineHeight: "19px", color: "var(--text-muted)" }}>
+                        <span style={{ flexShrink: 0, color: "var(--accent)", marginTop: 1 }}><Wand2 size={14} /></span>
+                        <span>{r}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => setReview(null)} style={navBtn(false)}>Ajustar</button>
+                <button type="button" onClick={advance} style={navBtn(true)}>Continuar <ArrowRight size={15} /></button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

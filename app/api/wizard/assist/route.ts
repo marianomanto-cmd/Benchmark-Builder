@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { assistFor } from "@/lib/discovery/suggest";
+import { assistFor, recommendationsFor } from "@/lib/discovery/suggest";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isApiEnabled } from "@/lib/cost/ledger";
 import { pipelineMode, hasProviderKey } from "@/lib/cost/config";
@@ -45,11 +45,12 @@ export async function POST(req: Request) {
 
   // Deterministic heuristic — always the baseline and the fallback.
   const heuristic = assistFor(step, state);
+  const recommendations = recommendationsFor(step, state);
 
   const admin = createAdminClient();
   const flagOn = admin ? await isApiEnabled(admin, "claude") : false;
   const live = pipelineMode() === "live" && flagOn && hasProviderKey("claude");
-  if (!live) return NextResponse.json({ ...heuristic, mode: "mock" });
+  if (!live) return NextResponse.json({ ...heuristic, recommendations, mode: "mock" });
 
   try {
     const client = new Anthropic();
@@ -59,8 +60,9 @@ export async function POST(req: Request) {
       system:
         "Sos un asistente que ayuda a completar un brief de research competitivo, paso a paso. " +
         "Dado el paso y los datos cargados, evaluá si alcanzan para un buen análisis. " +
-        'Devolvé SOLO un JSON {"ok":boolean,"msg":string}. msg en español rioplatense, 1 frase, concreta: ' +
-        "si falta info o es vaga, decí puntualmente qué mejorar o sugerí (ej. industrias a descartar); si está bien, confirmá brevemente. " +
+        'Devolvé SOLO un JSON {"ok":boolean,"msg":string,"recommendations":string[]}. msg en español rioplatense, 1 frase. ' +
+        "recommendations: 2-3 acciones concretas para mejorar el brief (ej. industrias/temas a descartar, competidores faltantes, ventana de tiempo). " +
+        "Si está todo bien, confirmá en msg y dejá recommendations con 1 sugerencia opcional. " +
         "No menciones que sos IA ni ningún modelo/proveedor.",
       messages: [
         {
@@ -71,12 +73,13 @@ export async function POST(req: Request) {
     });
     const text = msg.content.find((b) => b.type === "text");
     const raw = text && "text" in text ? text.text : "";
-    const json = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as { ok?: boolean; msg?: string };
+    const json = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as { ok?: boolean; msg?: string; recommendations?: unknown };
     if (typeof json.msg === "string" && json.msg.trim()) {
-      return NextResponse.json({ ok: Boolean(json.ok), msg: json.msg.trim(), mode: "live" });
+      const recs = Array.isArray(json.recommendations) ? json.recommendations.map(String).slice(0, 3) : recommendations;
+      return NextResponse.json({ ok: Boolean(json.ok), msg: json.msg.trim(), recommendations: recs, mode: "live" });
     }
   } catch {
     // fall through to heuristic
   }
-  return NextResponse.json({ ...heuristic, mode: "mock" });
+  return NextResponse.json({ ...heuristic, recommendations, mode: "mock" });
 }

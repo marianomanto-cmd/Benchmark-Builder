@@ -117,3 +117,35 @@ export function assistFor(
       return { ok: true, msg: "" };
   }
 }
+
+// Concrete, actionable recommendations per step — used by the wizard review
+// popup. Deterministic (mock-safe); in live the model can replace/extend these.
+export function recommendationsFor(
+  step: number,
+  s: { brand: string; brandDesc: string; igUrl: string; problem: string; geo: string[]; competitors: string[]; discards: string[] },
+): string[] {
+  const ctx = `${s.brand} ${s.brandDesc} ${s.problem}`;
+  const recs: string[] = [];
+  if (step === 0) {
+    if (!s.brandDesc.trim()) recs.push("Agregá en una línea qué hace tu marca: ubica la categoría y afina las sugerencias de competidores.");
+    if (!s.igUrl.trim()) recs.push("Sumá tu Instagram o sitio: el análisis pasa de competitivo a comparativo (tu marca vs. la categoría).");
+    if (s.problem.trim().length < 24) recs.push("Hacé la pregunta de negocio más específica: qué decisión querés tomar con el reporte.");
+    if (!recs.length) recs.push("Brief sólido. Con esto puedo armar un marco comparativo claro.");
+  } else if (step === 1) {
+    if (!s.geo.length) recs.push("Definí al menos un mercado (país o ciudad) para no traer ruido de otros.");
+    if (s.competitors.length < 2) {
+      const sug = suggestFor("competitors", ctx).slice(0, 3).join(", ");
+      recs.push(`Sumá 2+ competidores directos para una comparativa sólida${sug ? ` (ej: ${sug})` : ""}.`);
+    }
+    if (!s.discards.length) {
+      const d = suggestFor("discards", ctx).slice(0, 3).join(", ");
+      recs.push(`Conviene descartar temas que ensucian el corpus${d ? `: ${d}` : " (política, deportes, religión)"}.`);
+    }
+    if (!recs.length) recs.push("Competencia y mercados bien definidos: la comparativa va a rendir.");
+  } else if (step === 2) {
+    recs.push("Si te interesa cuánto y cómo invierte la competencia, elegí 'Orgánico + paid'.");
+    recs.push("Dejá activas sólo las redes donde tu categoría realmente conversa: acota costo y ruido.");
+    recs.push("Una ventana de 60–90 días da buena señal sin diluir tendencias.");
+  }
+  return recs.slice(0, 3);
+}
