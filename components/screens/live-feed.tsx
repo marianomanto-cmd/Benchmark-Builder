@@ -44,7 +44,7 @@ function downloadCSV(rows: MentionVM[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "phema-live-feed.csv";
+  a.download = "phatia-live-feed.csv";
   document.body.appendChild(a);
   a.click();
   a.remove();

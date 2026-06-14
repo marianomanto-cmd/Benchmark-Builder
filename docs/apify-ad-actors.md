@@ -38,7 +38,7 @@
 
 ---
 
-### Cómo se cablean en Phema
+### Cómo se cablean en Phatia
 - **Selección automática (no la maneja el usuario).** Para cada reporte el actor se
   elige solo, por caso de estudio, en `lib/sources/select-actor.ts` (`selectActor`):
   - Precedencia: override de ops por env (`APIFY_ACTOR_<PLATFORM>[_<SCOPE>]`) →

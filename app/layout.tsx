@@ -37,18 +37,18 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://benchmark-builder.vercel.app"),
   icons: { icon: "/brand/logo.jpg" },
   title: {
-    default: "Phema — De mil señales, una sola lectura.",
-    template: "%s · Phema",
+    default: "Phatia — Inteligencia competitiva, en una sola lectura.",
+    template: "%s · Phatia",
   },
   description:
     "Toda la conversación de tu categoría —redes, prensa y anuncios— convertida en un reporte que se vende.",
   openGraph: {
-    title: "Phema — De mil señales, una sola lectura.",
+    title: "Phatia — Inteligencia competitiva, en una sola lectura.",
     description:
       "Inteligencia competitiva y social listening. El reporte que se vende, en un clic.",
     type: "website",
     locale: "es_AR",
-    images: [{ url: "/og.svg", width: 1200, height: 630, alt: "Phema" }],
+    images: [{ url: "/og.svg", width: 1200, height: 630, alt: "Phatia" }],
   },
   twitter: { card: "summary_large_image" },
 };

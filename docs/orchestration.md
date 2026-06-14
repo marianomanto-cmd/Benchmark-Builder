@@ -1,4 +1,4 @@
-# Orquestación del pipeline (Phema)
+# Orquestación del pipeline (Phatia)
 
 > Arquitectura de orquestación, punto a punto. **Regla de oro:** todo es
 > **mock-first / costo cero**. Un modelo/proveedor real sólo se llama si

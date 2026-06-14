@@ -69,7 +69,7 @@ export function ScreenShell({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px 12px" }}>
               <Link href="/" onClick={() => setNavOpen(false)} style={{ display: "inline-flex", alignItems: "center", gap: 9, color: "#fff", textDecoration: "none", fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/logo.jpg" alt="" width={22} height={22} className="bb-logo" style={{ borderRadius: "50%", objectFit: "cover", display: "block" }} /> Phema
+                <img src="/brand/logo.jpg" alt="" width={22} height={22} className="bb-logo" style={{ borderRadius: "50%", objectFit: "cover", display: "block" }} /> Phatia
               </Link>
               <button type="button" onClick={() => setNavOpen(false)} aria-label={t("common.closeMenu")} style={{ border: "none", background: "transparent", color: "#847a68", cursor: "pointer", display: "inline-flex" }}><X size={18} /></button>
             </div>
@@ -95,7 +95,7 @@ export function ScreenShell({
         <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 2, background: "var(--accent)" }} />
         <Link href="/" title={t("shell.home")} className="bb-logo" style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", display: "block", marginBottom: 8, flexShrink: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/logo.jpg" alt="Phema" width={32} height={32} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <img src="/brand/logo.jpg" alt="Phatia" width={32} height={32} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         </Link>
         {items.map((item) => {
           const active = isActive(item.href);

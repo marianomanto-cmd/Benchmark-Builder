@@ -226,7 +226,7 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 9, fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--text-muted)" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/logo.jpg" alt="" width={22} height={22} className="bb-logo" style={{ borderRadius: "50%", objectFit: "cover", display: "block" }} /> Phema
+            <img src="/brand/logo.jpg" alt="" width={22} height={22} className="bb-logo" style={{ borderRadius: "50%", objectFit: "cover", display: "block" }} /> Phatia
           </div>
           <div style={{ flex: 1 }} />
           <button type="button" onClick={onClose} aria-label={t("wizard.close")} style={{ width: 34, height: 34, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text-muted)", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>

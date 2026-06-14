@@ -8,7 +8,7 @@ export const SESSION_COOKIE = "phema_session";
 export const FAKE_USER: User = {
   name: "Mariano Manto",
   email: "marianomanto@gmail.com",
-  role: "Marketing Lead · Phema Studio",
+  role: "Marketing Lead · Phatia Studio",
   initials: "MM",
   avatar: "https://i.pravatar.cc/120?img=68",
 };
