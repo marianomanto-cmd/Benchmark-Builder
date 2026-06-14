@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 
 // Immersive "data dive": we fly forward through a 3D field of data particles;
 // brighter nodes wire into a shifting network — the feeling of slipping inside
 // the social graph. Canvas 2D, no deps. dpr clamped ≤2, pauses its rAF loop
 // when offscreen, renders a static frame under prefers-reduced-motion, and adds
 // a light mouse parallax.
-export function HeroCanvas({ className }: { className?: string }) {
+export function HeroCanvas({ className, style }: { className?: string; style?: CSSProperties }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -164,5 +164,5 @@ export function HeroCanvas({ className }: { className?: string }) {
     };
   }, []);
 
-  return <canvas ref={ref} className={className} aria-hidden="true" />;
+  return <canvas ref={ref} className={className} style={style} aria-hidden="true" />;
 }
