@@ -1,6 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { SentimentKind, InsightKind } from "@/lib/platforms";
+import { NO_NOISE_RULE } from "@/lib/ai/style";
 
 // Claude (Anthropic) powers sentiment scoring + insight generation.
 const MODEL = "claude-opus-4-8";
@@ -67,7 +68,8 @@ export async function generateInsights(summary: string): Promise<InsightDraft[]>
       system:
         "Sos un analista de inteligencia competitiva. A partir del resumen, devolvé hasta 4 insights accionables. " +
         'Respondé SOLO un array JSON de objetos: {"kind":"opp|thr|pat|ano","title":string,"body":string,"sources":number,"confidence":number}. ' +
-        "kind: opp=oportunidad, thr=amenaza, pat=patrón, ano=anomalía. confidence entre 0 y 1. Español rioplatense.",
+        "kind: opp=oportunidad, thr=amenaza, pat=patrón, ano=anomalía. confidence entre 0 y 1. Español rioplatense." +
+        NO_NOISE_RULE,
       messages: [{ role: "user", content: summary.slice(0, 8000) }],
     });
     const arr = extractJson<InsightDraft[]>(textOf(msg));

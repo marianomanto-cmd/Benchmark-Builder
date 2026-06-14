@@ -20,14 +20,14 @@ export function MarketingHero() {
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const id = setTimeout(() => setReady(true), reduced ? 0 : 700);
+    const id = setTimeout(() => setReady(true), reduced ? 0 : 150);
     return () => clearTimeout(id);
   }, []);
 
   const rise = (d: number) => ({
     initial: { opacity: 0, y: 16 },
     animate: ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 },
-    transition: { duration: 0.7, delay: d, ease: EASE },
+    transition: { duration: 0.5, delay: d, ease: EASE },
   });
 
   return (

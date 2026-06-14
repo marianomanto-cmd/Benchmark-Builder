@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isApiEnabled } from "@/lib/cost/ledger";
 import { pipelineMode, hasProviderKey } from "@/lib/cost/config";
 import { isLocale, type Locale } from "@/lib/i18n";
+import { NO_NOISE_RULE } from "@/lib/ai/style";
 
 const LANG: Record<Locale, string> = { es: "español rioplatense", en: "English", pt: "português" };
 
@@ -67,7 +68,8 @@ export async function POST(req: Request) {
         `Devolvé SOLO un JSON {"ok":boolean,"msg":string,"recommendations":string[]}. msg y recommendations en ${LANG[locale]}, 1 frase msg. ` +
         "recommendations: 2-3 acciones concretas para mejorar el brief (ej. industrias/temas a descartar, competidores faltantes, ventana de tiempo). " +
         "Si está todo bien, confirmá en msg y dejá recommendations con 1 sugerencia opcional. " +
-        "No menciones que sos IA ni ningún modelo/proveedor.",
+        "No menciones que sos IA ni ningún modelo/proveedor." +
+        NO_NOISE_RULE,
       messages: [
         {
           role: "user",

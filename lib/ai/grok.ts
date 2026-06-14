@@ -1,6 +1,7 @@
 import "server-only";
 import { env } from "@/lib/sources/types";
 import type { SentimentKind, InsightKind } from "@/lib/platforms";
+import { NO_NOISE_RULE } from "@/lib/ai/style";
 
 // xAI Grok — OpenAI-compatible chat completions API.
 const BASE = "https://api.x.ai/v1";
@@ -81,7 +82,8 @@ export async function generateInsights(summary: string): Promise<InsightDraft[]>
     const out = await chat(
       "Sos un analista de inteligencia competitiva. A partir del resumen, devolvé hasta 4 insights accionables. " +
         'Respondé SOLO un array JSON de objetos: {"kind":"opp|thr|pat|ano","title":string,"body":string,"sources":number,"confidence":number}. ' +
-        "kind: opp=oportunidad, thr=amenaza, pat=patrón, ano=anomalía. confidence entre 0 y 1. Español rioplatense.",
+        "kind: opp=oportunidad, thr=amenaza, pat=patrón, ano=anomalía. confidence entre 0 y 1. Español rioplatense." +
+        NO_NOISE_RULE,
       summary.slice(0, 6000),
     );
     const arr = extractJson<InsightDraft[]>(out);

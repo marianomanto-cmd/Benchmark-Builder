@@ -7,7 +7,7 @@ import { VortexCanvas } from "@/components/marketing/vortex-canvas";
 import s from "./marketing.module.css";
 import d from "./what-diagram.module.css";
 
-// "Qué hace" — the category's noise spirals into one defensible reading.
+// "Qué hace" — the category's signals spiral into one defensible reading.
 // The core content (top insight + top-3 SOV) is illustrative here; in a real run
 // it would come from the run's view-model.
 const BARS: { lab: string; w: string; lead?: boolean }[] = [

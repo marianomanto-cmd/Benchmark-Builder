@@ -4,6 +4,15 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Brand voice (MANDATORY)
+
+- **Prohibido usar la palabra «ruido» (o «noise») para referirse a los datos,
+  menciones o señales analizadas.** Usá **«datos», «señales», «conversación»**.
+  La palabra «ruido» SÓLO se permite para nombrar lo que se **descarta** por
+  irrelevante o molesto (p. ej. temas excluidos). Aplica a TODO texto
+  user-facing **y a los prompts de los motores de IA** que generan respuestas
+  (ver `lib/ai/style.ts` → `NO_NOISE_RULE`, incluido en los system prompts).
+
 # Documentation discipline (MANDATORY)
 
 Keep the documentation in sync with the code at all times. Whenever you make a

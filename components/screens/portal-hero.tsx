@@ -28,7 +28,7 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const t = setTimeout(() => setPhase("ready"), reduced ? 0 : 2500);
+    const t = setTimeout(() => setPhase("ready"), reduced ? 0 : 350);
     return () => clearTimeout(t);
   }, []);
 
@@ -48,7 +48,7 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
   const rise = (delay: number) => ({
     initial: { opacity: 0, y: 16 },
     animate: ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 },
-    transition: { duration: 0.7, delay, ease: EASE },
+    transition: { duration: 0.5, delay, ease: EASE },
   });
 
   return (

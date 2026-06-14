@@ -6,7 +6,7 @@
 /* Carded frame (espejo de la maqueta): contiene copy + vórtice, ancho acotado
  * y centrado para que el texto quede cerca del vórtice y sea legible. */
 .card {
-  max-width: 980px;
+  max-width: 880px;
   margin: 0 auto;
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
@@ -38,12 +38,12 @@
 .h3 em { color: var(--viz-accent); font-style: italic; }
 .lp { font-size: 14px; line-height: 21px; color: var(--text-muted); margin: 0; }
 
-/* the vortex */
-.vortex { position: relative; width: 420px; height: 420px; margin: 0 auto; }
+/* the vortex — fluid square so it never overflows the card on mobile */
+.vortex { position: relative; width: min(420px, 100%); aspect-ratio: 1 / 1; margin: 0 auto; }
 .canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: 18px; }
 .core {
   position: absolute;
-  inset: 104px;
+  inset: 24%;
   border-radius: 50%;
   background: radial-gradient(circle at 50% 36%, #1a0d15 0%, #0b0810 72%);
   border: 1.5px solid color-mix(in srgb, var(--accent) 62%, transparent);
@@ -54,7 +54,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 26px;
+  padding: clamp(15px, 5.5%, 26px);
   animation: phPop 0.9s cubic-bezier(0.7, 0.02, 0.2, 1);
 }
 @keyframes phPop { from { transform: scale(0.84); } to { transform: none; } }
@@ -67,7 +67,7 @@
 
 @media (max-width: 820px) {
   .grid { grid-template-columns: 1fr; gap: 28px; }
-  .vortex { width: 340px; height: 340px; }
+  .lede { max-width: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .core { animation: none; }
