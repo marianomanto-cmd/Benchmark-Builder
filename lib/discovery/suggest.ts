@@ -195,23 +195,28 @@ const REC: Record<Locale, {
   },
 };
 
-// Concrete, actionable recommendations per step — used by the wizard review popup.
-export function recommendationsFor(step: number, s: WizState, locale: Locale = "es"): string[] {
+// A recommendation anchored to the field it refers to (for the wizard bubbles).
+export type Rec = { field: string; text: string };
+
+// Concrete, actionable recommendations per step — shown as mention-style bubbles
+// next to the relevant field. Context-aware: uses everything loaded so far
+// (brand + desc + problem + competitors) so suggestions stay on-category.
+export function recommendationsFor(step: number, s: WizState, locale: Locale = "es"): Rec[] {
   const L = REC[locale] ?? REC.es;
-  const ctx = `${s.brand} ${s.brandDesc} ${s.problem}`;
-  const recs: string[] = [];
+  const ctx = `${s.brand} ${s.brandDesc} ${s.problem} ${s.competitors.join(" ")}`;
+  const recs: Rec[] = [];
   if (step === 0) {
-    if (!s.brandDesc.trim()) recs.push(L.r0_desc);
-    if (!s.igUrl.trim()) recs.push(L.r0_ig);
-    if (s.problem.trim().length < 24) recs.push(L.r0_problem);
-    if (!recs.length) recs.push(L.r0_ok);
+    if (!s.brandDesc.trim()) recs.push({ field: "desc", text: L.r0_desc });
+    if (!s.igUrl.trim()) recs.push({ field: "ig", text: L.r0_ig });
+    if (s.problem.trim().length < 24) recs.push({ field: "problem", text: L.r0_problem });
+    if (!recs.length) recs.push({ field: "brand", text: L.r0_ok });
   } else if (step === 1) {
-    if (!s.geo.length) recs.push(L.r1_geo);
-    if (s.competitors.length < 2) recs.push(L.r1_comp(suggestFor("competitors", ctx).slice(0, 3).join(", ")));
-    if (!s.discards.length) recs.push(L.r1_disc(suggestFor("discards", ctx).slice(0, 3).join(", ")));
-    if (!recs.length) recs.push(L.r1_ok);
+    if (!s.geo.length) recs.push({ field: "markets", text: L.r1_geo });
+    if (s.competitors.length < 2) recs.push({ field: "competitors", text: L.r1_comp(suggestFor("competitors", ctx).slice(0, 3).join(", ")) });
+    if (!s.discards.length) recs.push({ field: "discards", text: L.r1_disc(suggestFor("discards", ctx).slice(0, 3).join(", ")) });
+    if (!recs.length) recs.push({ field: "competitors", text: L.r1_ok });
   } else if (step === 2) {
-    recs.push(L.r2_a, L.r2_b, L.r2_c);
+    recs.push({ field: "scope", text: L.r2_a }, { field: "networks", text: L.r2_b }, { field: "window", text: L.r2_c });
   }
   return recs.slice(0, 3);
 }

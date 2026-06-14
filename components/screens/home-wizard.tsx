@@ -76,7 +76,9 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
   );
   const assist = assistFor(step, snapshot, locale);
   const [checking, setChecking] = useState(false);
-  const [review, setReview] = useState<{ step: number; ok: boolean; msg: string; recs: string[] } | null>(null);
+  // Assistant recommendations as mention-style bubbles anchored to fields.
+  const [hints, setHints] = useState<{ step: number; items: { field: string; text: string }[] } | null>(null);
+  const hintFor = (field: string) => (hints && hints.step === step ? hints.items.find((h) => h.field === field)?.text : undefined);
 
   function toggleNet(key: string) {
     setNetworks((ns) => (ns.includes(key) ? ns.filter((k) => k !== key) : [...ns, key]));
@@ -177,14 +179,16 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
     true;
 
   function advance() {
-    setReview(null);
+    setHints(null);
     setStep((s) => s + 1);
   }
 
-  // On "Siguiente": the assistant reviews THIS step and a popup shows its read
-  // + recommendations. The user chooses "Continuar" (advance) or "Ajustar".
+  // First "Siguiente": the assistant pops mention-style bubbles with
+  // recommendations anchored to the relevant fields (built from what's loaded so
+  // far). If the user ignores them and clicks again, advance.
   async function onNext() {
     if (!canNext || checking) return;
+    if (hints && hints.step === step) { advance(); return; }
     setChecking(true);
     try {
       const res = await fetch("/api/wizard/assist", {
@@ -192,8 +196,10 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ step, state: snapshot, locale }),
       });
-      const json = (await res.json()) as { ok: boolean; msg: string; recommendations?: string[] };
-      setReview({ step, ok: json.ok, msg: json.msg, recs: json.recommendations ?? [] });
+      const json = (await res.json()) as { recommendations?: { field: string; text: string }[] };
+      const items = Array.isArray(json.recommendations) ? json.recommendations : [];
+      if (items.length) setHints({ step, items });
+      else advance();
     } catch {
       advance();
     } finally {
@@ -258,19 +264,19 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
             {step === 0 && (
               <div style={cardStack}>
                 <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <Field label={t("wizard.f.brand")}><input style={inp} value={brand} onChange={(e) => setBrand(e.target.value)} placeholder={t("wizard.p.brand")} /></Field>
+                  <Field label={t("wizard.f.brand")} hint={hintFor("brand")}><input style={inp} value={brand} onChange={(e) => setBrand(e.target.value)} placeholder={t("wizard.p.brand")} /></Field>
                   <Field label={t("wizard.f.site")}><input style={inp} value={site} onChange={(e) => setSite(e.target.value)} placeholder={t("wizard.p.site")} /></Field>
                 </div>
-                <Field label={t("wizard.f.desc")}><input style={inp} value={brandDesc} onChange={(e) => setBrandDesc(e.target.value)} placeholder={t("wizard.p.desc")} /></Field>
+                <Field label={t("wizard.f.desc")} hint={hintFor("desc")}><input style={inp} value={brandDesc} onChange={(e) => setBrandDesc(e.target.value)} placeholder={t("wizard.p.desc")} /></Field>
                 <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <Field label={t("wizard.f.ig")}><input style={inp} value={igUrl} onChange={(e) => setIgUrl(e.target.value)} placeholder={t("wizard.p.ig")} /></Field>
+                  <Field label={t("wizard.f.ig")} hint={hintFor("ig")}><input style={inp} value={igUrl} onChange={(e) => setIgUrl(e.target.value)} placeholder={t("wizard.p.ig")} /></Field>
                   <Field label={t("wizard.f.other")}><input style={inp} value={otherSocial} onChange={(e) => setOtherSocial(e.target.value)} placeholder={t("wizard.p.other")} /></Field>
                 </div>
                 <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <Field label={t("wizard.f.investOrg")}><select style={inp} value={investOrg} onChange={(e) => setInvestOrg(e.target.value)}>{INVEST.map((x) => <option key={x} value={x}>{investLabel(x)}</option>)}</select></Field>
                   <Field label={t("wizard.f.investPaid")}><select style={inp} value={investPaid} onChange={(e) => setInvestPaid(e.target.value)}>{INVEST.map((x) => <option key={x} value={x}>{investLabel(x)}</option>)}</select></Field>
                 </div>
-                <Field label={t("wizard.f.problem")}>
+                <Field label={t("wizard.f.problem")} hint={hintFor("problem")}>
                   <textarea style={{ ...inp, height: "auto", minHeight: 74, padding: "10px 14px", resize: "vertical", lineHeight: "20px" }} value={problem} onChange={(e) => setProblem(e.target.value)} placeholder={t("wizard.p.problem")} />
                 </Field>
               </div>
@@ -278,9 +284,9 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
 
             {step === 1 && (
               <div style={cardStack}>
-                <ChipGroup t={t} title={t("wizard.sec.markets")} value={geo} onChange={setGeo} placeholder={t("wizard.chip.market")} onSuggest={() => suggest("geo", setGeo, geo)} suggestions={suggestFor("geo", ctx)} />
-                <ChipGroup t={t} title={t("wizard.sec.competitors")} value={competitors} onChange={setCompetitors} placeholder={t("wizard.chip.competitor")} onSuggest={() => suggest("competitors", setCompetitors, competitors)} suggestions={suggestFor("competitors", ctx)} />
-                <ChipGroup t={t} title={t("wizard.sec.discards")} value={discards} onChange={setDiscards} placeholder={t("wizard.chip.discard")} onSuggest={() => suggest("discards", setDiscards, discards)} suggestions={suggestFor("discards", ctx)} />
+                <ChipGroup t={t} title={t("wizard.sec.markets")} hint={hintFor("markets")} value={geo} onChange={setGeo} placeholder={t("wizard.chip.market")} onSuggest={() => suggest("geo", setGeo, geo)} suggestions={suggestFor("geo", ctx)} />
+                <ChipGroup t={t} title={t("wizard.sec.competitors")} hint={hintFor("competitors")} value={competitors} onChange={setCompetitors} placeholder={t("wizard.chip.competitor")} onSuggest={() => suggest("competitors", setCompetitors, competitors)} suggestions={suggestFor("competitors", ctx)} />
+                <ChipGroup t={t} title={t("wizard.sec.discards")} hint={hintFor("discards")} value={discards} onChange={setDiscards} placeholder={t("wizard.chip.discard")} onSuggest={() => suggest("discards", setDiscards, discards)} suggestions={suggestFor("discards", ctx)} />
               </div>
             )}
 
@@ -301,6 +307,8 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
                     })}
                   </div>
                 </div>
+
+                {hintFor("scope") && <Bubble text={hintFor("scope")!} />}
 
                 {/* networks */}
                 <div>
@@ -328,6 +336,8 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
                   </div>
                 </div>
 
+                {hintFor("networks") && <Bubble text={hintFor("networks")!} />}
+
                 {/* time window */}
                 <div>
                   <SectionLabel>{t("wizard.sec.window")}</SectionLabel>
@@ -344,6 +354,8 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
                     </div>
                   )}
                 </div>
+
+                {hintFor("window") && <Bubble text={hintFor("window")!} />}
               </div>
             )}
 
@@ -402,7 +414,7 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
 
         {/* nav */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 22 }}>
-          <button type="button" onClick={() => (step === 0 ? onClose() : setStep((s) => s - 1))} style={navBtn(false)}>
+          <button type="button" onClick={() => { if (step === 0) { onClose(); } else { setHints(null); setStep((s) => s - 1); } }} style={navBtn(false)}>
             <ArrowLeft size={15} /> {step === 0 ? t("wizard.btn.exit") : t("wizard.btn.back")}
           </button>
           <div style={{ flex: 1 }} />
@@ -417,62 +429,27 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
           )}
         </div>
       </div>
-
-      {/* Review popup — pops on "Siguiente" */}
-      <AnimatePresence>
-        {review && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setReview(null)}
-            style={{ position: "fixed", inset: 0, zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "color-mix(in srgb, var(--bg) 58%, transparent)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.97 }}
-              transition={{ duration: 0.24, ease: [0.2, 0.7, 0.2, 1] }}
-              onClick={(e) => e.stopPropagation()}
-              style={{ width: "min(480px, 100%)", background: "var(--surface)", border: `1px solid ${review.ok ? "var(--border)" : "color-mix(in srgb, var(--accent) 45%, var(--border))"}`, borderRadius: 18, padding: 22, boxShadow: "var(--sh-4)" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 14 }}>
-                <span style={{ width: 36, height: 36, borderRadius: 11, background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Sparkles size={18} /></span>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{review.ok ? t("wizard.review.ok") : t("wizard.review.warn")}</div>
-                  <div style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: ".1em" }}>{t("wizard.review.sub", { n: review.step + 1, m: STEP_KEYS.length })}</div>
-                </div>
-              </div>
-
-              <div style={{ fontSize: 14, lineHeight: "21px", color: "var(--text)", marginBottom: review.recs.length ? 16 : 20 }}>{review.msg}</div>
-
-              {review.recs.length > 0 && (
-                <div style={{ marginBottom: 20 }}>
-                  <div className="t-micro" style={{ marginBottom: 9 }}>{t("wizard.review.recs")}</div>
-                  <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 9 }}>
-                    {review.recs.map((r, i) => (
-                      <li key={i} style={{ display: "flex", gap: 9, fontSize: 13, lineHeight: "19px", color: "var(--text-muted)" }}>
-                        <span style={{ flexShrink: 0, color: "var(--accent)", marginTop: 1 }}><Wand2 size={14} /></span>
-                        <span>{r}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                <button type="button" onClick={() => setReview(null)} style={navBtn(false)}>{t("wizard.review.adjust")}</button>
-                <button type="button" onClick={advance} style={navBtn(true)}>{t("wizard.review.continue")} <ArrowRight size={15} /></button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }
 
-function ChipGroup({ t, title, value, onChange, placeholder, onSuggest, suggestions }: { t: TFn; title: string; value: string[]; onChange: (v: string[]) => void; placeholder: string; onSuggest: () => void; suggestions: string[] }) {
+// Mention-style speech bubble that "pops out" of a field with a recommendation.
+function Bubble({ text }: { text: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.28, ease: [0.2, 0.7, 0.2, 1] }}
+      style={{ position: "relative", marginTop: 9, display: "flex", gap: 8, alignItems: "flex-start", padding: "9px 12px", borderRadius: 12, background: "color-mix(in srgb, var(--accent) 10%, var(--surface))", border: "1px solid color-mix(in srgb, var(--accent) 40%, var(--border))", boxShadow: "var(--sh-2)" }}
+    >
+      <span style={{ position: "absolute", top: -6, left: 18, width: 11, height: 11, background: "color-mix(in srgb, var(--accent) 10%, var(--surface))", borderLeft: "1px solid color-mix(in srgb, var(--accent) 40%, var(--border))", borderTop: "1px solid color-mix(in srgb, var(--accent) 40%, var(--border))", transform: "rotate(45deg)" }} />
+      <span style={{ flexShrink: 0, color: "var(--accent)", marginTop: 1 }}><Sparkles size={13} /></span>
+      <span style={{ fontSize: 12.5, lineHeight: "17px", color: "var(--text)" }}>{text}</span>
+    </motion.div>
+  );
+}
+
+function ChipGroup({ t, title, hint, value, onChange, placeholder, onSuggest, suggestions }: { t: TFn; title: string; hint?: string; value: string[]; onChange: (v: string[]) => void; placeholder: string; onSuggest: () => void; suggestions: string[] }) {
   const [draft, setDraft] = useState("");
   function add(v: string) { const x = v.trim(); if (x && !value.includes(x)) onChange([...value, x]); setDraft(""); }
   const remaining = suggestions.filter((s) => !value.includes(s)).slice(0, 6);
@@ -510,6 +487,7 @@ function ChipGroup({ t, title, value, onChange, placeholder, onSuggest, suggesti
           ))}
         </div>
       )}
+      {hint && <Bubble text={hint} />}
     </div>
   );
 }
@@ -518,12 +496,15 @@ function SectionLabel({ children }: { children: ReactNode }) {
   return <div className="t-micro" style={{ marginBottom: 8 }}>{children}</div>;
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <label style={{ display: "block" }}>
-      <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", letterSpacing: ".08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6 }}>{label}</div>
-      {children}
-    </label>
+    <div>
+      <label style={{ display: "block" }}>
+        <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", letterSpacing: ".08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6 }}>{label}</div>
+        {children}
+      </label>
+      {hint && <Bubble text={hint} />}
+    </div>
   );
 }
 

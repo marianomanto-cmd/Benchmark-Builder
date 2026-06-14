@@ -79,7 +79,10 @@ export async function POST(req: Request) {
     const raw = text && "text" in text ? text.text : "";
     const json = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as { ok?: boolean; msg?: string; recommendations?: unknown };
     if (typeof json.msg === "string" && json.msg.trim()) {
-      const recs = Array.isArray(json.recommendations) ? json.recommendations.map(String).slice(0, 3) : recommendations;
+      // Map model recommendation strings onto the heuristic field anchors (by order).
+      const recs = Array.isArray(json.recommendations)
+        ? json.recommendations.map(String).slice(0, 3).map((tx, i) => ({ field: recommendations[i]?.field ?? recommendations[0]?.field ?? "brand", text: tx }))
+        : recommendations;
       return NextResponse.json({ ok: Boolean(json.ok), msg: json.msg.trim(), recommendations: recs, mode: "live" });
     }
   } catch {
