@@ -15,7 +15,7 @@ function tone(status: string): "success" | "warn" | "neutral" {
 
 export function RunsHistory({ runs }: { runs: Run[] }) {
   return (
-    <ScreenShell breadcrumb={["Proyectos", "Runs"]} runMeta={`${runs.length} runs`}>
+    <ScreenShell breadcrumb={["@nav.dashboard", "Runs"]} runMeta={`${runs.length} runs`} nav="app">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
         <div>
           <div className="t-micro" style={{ color: "var(--accent)" }}>HISTORIAL</div>

@@ -38,7 +38,7 @@ export default async function Page() {
     rows = [];
   }
   return (
-    <ScreenShell breadcrumb={["@shell.nav.settings", "@settings.title"]}>
+    <ScreenShell breadcrumb={["@nav.dashboard", "@settings.title"]} nav="app">
       <SourceSettingsForm initial={rows} />
     </ScreenShell>
   );

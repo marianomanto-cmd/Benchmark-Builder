@@ -11,7 +11,7 @@ type Project = { slug: string; name: string; category: string; runs: number; las
 
 export function Projects({ projects }: { projects: Project[] }) {
   return (
-    <ScreenShell breadcrumb={["Proyectos"]} runMeta={`${projects.length} proyectos`}>
+    <ScreenShell breadcrumb={["@nav.dashboard", "@shell.nav.projects"]} runMeta={`${projects.length}`} nav="app">
       <div className="bb-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16, marginBottom: 18 }}>
         <div>
           <div className="t-micro" style={{ color: "var(--accent)" }}>WORKSPACE</div>

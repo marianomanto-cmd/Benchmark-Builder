@@ -125,7 +125,7 @@ export function Editor() {
   const grid = preview ? "1fr" : "220px 1fr 280px";
 
   return (
-    <ScreenShell breadcrumb={["@shell.nav.projects", "Cartagena · Q2 2026", "@shell.nav.editor"]} badges={<BBBadge tone="info" size="sm">{t("ed.draft")}</BBBadge>} runMeta={loaded ? t("ed.autosaved") : t("ed.loading")}>
+    <ScreenShell breadcrumb={["@nav.dashboard", "Cartagena · Q2 2026", "@shell.nav.editor"]} badges={<BBBadge tone="info" size="sm">{t("ed.draft")}</BBBadge>} runMeta={loaded ? t("ed.autosaved") : t("ed.loading")}>
       <div className="bb-editor" style={{ display: "grid", gridTemplateColumns: grid, gap: 14, height: "100%" }}>
         {/* outline */}
         {!preview && (

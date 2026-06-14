@@ -16,7 +16,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       adTotal={g.adTotal}
       adSpend={g.adSpend}
       organicTotal={g.organicTotal}
-      breadcrumb={["Proyectos", header.crumb, "Galería"]}
+      breadcrumb={["@nav.dashboard", header.crumb, "@shell.nav.gallery"]}
       caseSlug={slug}
     />
   );

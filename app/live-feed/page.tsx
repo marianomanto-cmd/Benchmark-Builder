@@ -8,5 +8,5 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     getSectionAnalysis("live-feed", slug),
     getCaseHeader(slug),
   ]);
-  return <LiveFeed mentions={mentions} analysis={analysis} breadcrumb={["Proyectos", header.crumb, "Live feed"]} caseSlug={slug} />;
+  return <LiveFeed mentions={mentions} analysis={analysis} breadcrumb={["@nav.dashboard", header.crumb, "@shell.nav.livefeed"]} caseSlug={slug} />;
 }

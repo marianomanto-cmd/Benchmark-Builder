@@ -14,7 +14,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       analysis={analysis}
       hero={header.hero}
       kpis={header.kpis}
-      breadcrumb={["Proyectos", header.crumb]}
+      breadcrumb={["@nav.dashboard", header.crumb]}
       runMeta={`run #${String(header.runNumber).padStart(3, "0")}`}
       caseSlug={slug}
     />

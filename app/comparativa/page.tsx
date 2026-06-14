@@ -14,7 +14,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       cols={c.cols}
       rows={c.rows}
       platsByCol={c.platsByCol}
-      breadcrumb={["Proyectos", header.crumb, "Comparativa"]}
+      breadcrumb={["@nav.dashboard", header.crumb, "@shell.nav.comparativa"]}
       caseSlug={slug}
     />
   );

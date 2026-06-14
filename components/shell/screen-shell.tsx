@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, type CSSProperties, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, Layers } from "lucide-react";
@@ -9,23 +9,27 @@ import { Btn } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSelect } from "@/components/language-select";
 import { useI18n } from "@/components/i18n-provider";
+import { useSession } from "@/components/session-provider";
 import { CommandPalette } from "@/components/command-palette";
 import { RunAssistant } from "@/components/run-assistant";
 
-// Nav maps the compact sidebar glyphs to the project screens (title via i18n).
-const NAV: { href: string; icon: (s?: number) => ReactNode; key: string }[] = [
-  { href: "/proyectos", icon: (s = 15) => <Layers size={s} />, key: "shell.nav.projects" },
+type NavMode = "run" | "app";
+type NavItem = { href: string; icon: (s?: number) => ReactNode; key: string };
+
+// "Mi panel" (the user directory) is the home base — always present, replacing
+// the old "Proyectos" sidebar item. The run tabs only show inside a run.
+const TOP: NavItem = { href: "/dashboard", icon: (s = 15) => <Layers size={s} />, key: "nav.dashboard" };
+const RUN_TABS: NavItem[] = [
   { href: "/overview", icon: NavIc.grid, key: "shell.nav.overview" },
   { href: "/live-feed", icon: NavIc.folder, key: "shell.nav.livefeed" },
   { href: "/comparativa", icon: NavIc.users, key: "shell.nav.comparativa" },
   { href: "/galeria", icon: NavIc.doc, key: "shell.nav.gallery" },
   { href: "/swot", icon: NavIc.bulb, key: "shell.nav.swot" },
   { href: "/editor", icon: NavIc.bell, key: "shell.nav.editor" },
-  { href: "/settings", icon: NavIc.cog, key: "shell.nav.settings" },
 ];
+const SETTINGS: NavItem = { href: "/settings", icon: NavIc.cog, key: "shell.nav.settings" };
 
-// Screens that belong to a run carry the active case in the URL, so moving
-// between tabs (overview → live feed → comparativa…) keeps the same case.
+// Run tabs carry the active case in the URL so moving between tabs keeps the case.
 const RUN_SCREENS = new Set(["/overview", "/live-feed", "/comparativa", "/galeria", "/swot"]);
 
 export function ScreenShell({
@@ -34,26 +38,22 @@ export function ScreenShell({
   badges,
   runMeta,
   caseSlug,
+  nav = "run",
 }: {
   children: ReactNode;
   breadcrumb: string[];
   badges?: ReactNode;
   runMeta?: string;
   caseSlug?: string;
+  nav?: NavMode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
   const [navOpen, setNavOpen] = useState(false);
+  const items: NavItem[] = nav === "run" ? [TOP, ...RUN_TABS] : [TOP];
   const withCase = (href: string) => (caseSlug && RUN_SCREENS.has(href) ? `${href}?case=${encodeURIComponent(caseSlug)}` : href);
-  const colors = {
-    bg: "var(--bg)",
-    sb: "#181410",
-    tb: "var(--surface)",
-    border: "var(--border)",
-    text: "var(--text)",
-    muted: "var(--text-muted)",
-  };
+  const colors = { sb: "#181410", border: "var(--border)", text: "var(--text)", muted: "var(--text-muted)" };
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   return (
@@ -61,8 +61,7 @@ export function ScreenShell({
       <CommandPalette />
       <RunAssistant />
 
-      {/* Mobile nav drawer (opened from the header hamburger; the sidebar is
-          hidden on mobile so it doesn't eat horizontal space). */}
+      {/* Mobile nav drawer */}
       {navOpen && (
         <div style={{ position: "fixed", inset: 0, zIndex: 90 }}>
           <div onClick={() => setNavOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)" }} />
@@ -74,7 +73,7 @@ export function ScreenShell({
               </Link>
               <button type="button" onClick={() => setNavOpen(false)} aria-label={t("common.closeMenu")} style={{ border: "none", background: "transparent", color: "#847a68", cursor: "pointer", display: "inline-flex" }}><X size={18} /></button>
             </div>
-            {NAV.map((item) => {
+            {[...items, SETTINGS].map((item) => {
               const active = isActive(item.href);
               return (
                 <Link
@@ -91,14 +90,14 @@ export function ScreenShell({
         </div>
       )}
 
-      {/* compact sidebar — hidden on mobile (replaced by the drawer) */}
+      {/* compact sidebar — hidden on mobile */}
       <aside className="bb-sidebar" style={{ width: 64, background: "color-mix(in srgb, #181410 72%, transparent)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderRight: `1px solid ${colors.border}`, display: "flex", flexDirection: "column", alignItems: "center", padding: "14px 0", gap: 6, position: "relative", flexShrink: 0 }}>
         <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 2, background: "var(--accent)" }} />
         <Link href="/" title={t("shell.home")} className="bb-logo" style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", display: "block", marginBottom: 8, flexShrink: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/logo.jpg" alt="Phema" width={32} height={32} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         </Link>
-        {NAV.filter((i) => i.href !== "/settings").map((item) => {
+        {items.map((item) => {
           const active = isActive(item.href);
           return (
             <Link
@@ -112,10 +111,9 @@ export function ScreenShell({
           );
         })}
         <div style={{ flex: 1 }} />
-        <Link href="/settings" title={t("shell.nav.settings")} style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "var(--r-sm)", color: pathname.startsWith("/settings") ? "#fff" : "#847a68", background: pathname.startsWith("/settings") ? "#2a241c" : "transparent" }}>
+        <Link href={SETTINGS.href} title={t(SETTINGS.key)} style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "var(--r-sm)", color: pathname.startsWith("/settings") ? "#fff" : "#847a68", background: pathname.startsWith("/settings") ? "#2a241c" : "transparent" }}>
           {NavIc.cog(15)}
         </Link>
-        <span style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--border-strong)", marginTop: 6 }} />
       </aside>
 
       {/* main */}
@@ -141,7 +139,7 @@ export function ScreenShell({
             type="button"
             className="bb-hide-sm"
             onClick={() => window.dispatchEvent(new Event("bb:command"))}
-            style={{ display: "flex", alignItems: "center", border: `1px solid ${colors.border}`, borderRadius: "var(--r-sm)", padding: "4px 10px", background: "var(--surface-2)", width: 280, cursor: "pointer" }}
+            style={{ display: "flex", alignItems: "center", border: `1px solid ${colors.border}`, borderRadius: "var(--r-sm)", padding: "4px 10px", background: "var(--surface-2)", width: 240, cursor: "pointer" }}
           >
             <span style={{ color: "var(--text-faint)" }}><Ic.search s={12} /></span>
             <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-muted)" }}>{t("shell.search")}</span>
@@ -149,11 +147,41 @@ export function ScreenShell({
           </button>
           <span className="bb-hide-sm"><LanguageSelect compact /></span>
           <ThemeToggle />
-          <span className="bb-hide-sm"><Btn kind="ghost" size="sm" icon={<Ic.presentation s={12} />} onClick={() => router.push("/reporte")}>{t("shell.presentation")}</Btn></span>
           <Btn kind="primary" size="sm" icon={<Ic.bolt s={11} />} onClick={() => router.push("/")}>{t("shell.newRun")}</Btn>
+          <UserMenu />
         </header>
         <div className="bb-shell-content" style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 24, background: "color-mix(in srgb, var(--bg) 60%, transparent)", backdropFilter: "blur(22px)", WebkitBackdropFilter: "blur(22px)" }}>{children}</div>
       </main>
+    </div>
+  );
+}
+
+function UserMenu() {
+  const { user, logout } = useSession();
+  const { t } = useI18n();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  if (!user) return null;
+  const item: CSSProperties = { display: "block", width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: "var(--r-sm)", border: "none", background: "transparent", color: "var(--text)", fontSize: 13, cursor: "pointer" };
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-label={t("nav.account")} style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", border: "1px solid var(--border-strong)", padding: 0, cursor: "pointer", background: "var(--surface-2)" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={user.avatar} alt={user.name} width={32} height={32} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+          <div style={{ position: "absolute", right: 0, top: 42, zIndex: 50, width: 220, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", boxShadow: "var(--sh-3)", padding: 8 }}>
+            <div style={{ padding: "6px 10px 10px", borderBottom: "1px solid var(--border)", marginBottom: 6 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{user.name}</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</div>
+            </div>
+            <button type="button" style={item} onClick={() => { setOpen(false); router.push("/dashboard"); }}>{t("nav.dashboard")}</button>
+            <button type="button" style={item} onClick={() => { setOpen(false); logout(); }}>{t("nav.signout")}</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

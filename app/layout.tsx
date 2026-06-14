@@ -6,7 +6,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SmoothScroll } from "@/components/motion/smooth-scroll";
 import { SiteBackground } from "@/components/marketing/site-bg";
 import { I18nProvider } from "@/components/i18n-provider";
+import { SessionProvider } from "@/components/session-provider";
 import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n";
+import { SESSION_COOKIE } from "@/lib/session";
 
 /* HANDOFF §2.2 — three families, one mission each.
  * Inter (UI · giga-aligned), JetBrains Mono (numerals/labels), Newsreader
@@ -56,8 +58,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieLocale = (await cookies()).get("phema_locale")?.value;
+  const jar = await cookies();
+  const cookieLocale = jar.get("phema_locale")?.value;
   const locale = isLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
+  const loggedIn = jar.get(SESSION_COOKIE)?.value === "1";
   return (
     <html
       lang={locale}
@@ -67,9 +71,11 @@ export default async function RootLayout({
       <body>
         <SiteBackground />
         <I18nProvider initialLocale={locale}>
-          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
-            <SmoothScroll>{children}</SmoothScroll>
-          </ThemeProvider>
+          <SessionProvider initialLoggedIn={loggedIn}>
+            <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+              <SmoothScroll>{children}</SmoothScroll>
+            </ThemeProvider>
+          </SessionProvider>
         </I18nProvider>
       </body>
     </html>
