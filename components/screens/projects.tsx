@@ -24,7 +24,7 @@ export function Projects({ projects }: { projects: Project[] }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
         {projects.map((p, i) => (
           <motion.div key={p.slug} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: i * 0.05 }}>
-            <Link href="/runs" className="bb-lift" style={{ textDecoration: "none", color: "inherit", display: "block", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 16, boxShadow: "var(--sh-1)" }}>
+            <Link href={`/overview?case=${p.slug}`} className="bb-lift" style={{ textDecoration: "none", color: "inherit", display: "block", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 16, boxShadow: "var(--sh-1)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                 <span style={{ width: 38, height: 38, borderRadius: "var(--r-sm)", background: `color-mix(in srgb, ${p.accent} 22%, transparent)`, color: p.accent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <Folder size={18} />

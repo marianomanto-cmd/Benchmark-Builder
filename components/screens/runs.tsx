@@ -5,7 +5,7 @@ import { ScreenShell } from "@/components/shell/screen-shell";
 import { Btn, BBBadge } from "@/components/ui/primitives";
 import { Ic } from "@/components/ui/icons";
 
-type Run = { number: number; mentions: number; cost: number; when: string; status: string; title?: string };
+type Run = { number: number; mentions: number; cost: number; when: string; status: string; title?: string; slug?: string };
 
 function tone(status: string): "success" | "warn" | "neutral" {
   if (status === "done") return "success";
@@ -15,7 +15,7 @@ function tone(status: string): "success" | "warn" | "neutral" {
 
 export function RunsHistory({ runs }: { runs: Run[] }) {
   return (
-    <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Runs"]} runMeta={`${runs.length} runs`}>
+    <ScreenShell breadcrumb={["Proyectos", "Runs"]} runMeta={`${runs.length} runs`}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
         <div>
           <div className="t-micro" style={{ color: "var(--accent)" }}>HISTORIAL</div>
@@ -28,7 +28,7 @@ export function RunsHistory({ runs }: { runs: Run[] }) {
         {runs.map((r) => (
           <Link
             key={r.number}
-            href="/overview"
+            href={`/overview${r.slug ? `?case=${r.slug}` : ""}`}
             className="bb-lift"
             style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", gap: 10, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 16, boxShadow: "var(--sh-1)" }}
           >

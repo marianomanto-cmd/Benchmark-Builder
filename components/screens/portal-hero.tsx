@@ -7,7 +7,7 @@ import { Sparkles, ArrowRight } from "lucide-react";
 import { HomeWizard } from "@/components/screens/home-wizard";
 import s from "@/components/marketing/marketing.module.css";
 
-export type RunSummary = { number: number; mentions: number; cost: number; when: string; title?: string };
+export type RunSummary = { number: number; mentions: number; cost: number; when: string; title?: string; slug?: string };
 
 const EXAMPLES = [
   "una nueva ruta a Cartagena",
@@ -106,7 +106,7 @@ export function PortalHero({ runs }: { runs: RunSummary[] }) {
             </div>
             <div className={s.runsGrid}>
               {runs.slice(0, 3).map((r) => (
-                <Link key={r.number} href="/overview" className={s.runCard}>
+                <Link key={r.number} href={`/overview${r.slug ? `?case=${r.slug}` : ""}`} className={s.runCard}>
                   <div className={s.runNo}>run #{String(r.number).padStart(3, "0")}</div>
                   <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{r.title ?? "Investigación"}</div>
                   <div className={s.runMeta}>

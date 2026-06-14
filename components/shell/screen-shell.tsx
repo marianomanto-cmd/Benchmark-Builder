@@ -22,20 +22,27 @@ const NAV: { href: string; icon: (s?: number) => ReactNode; title: string }[] = 
   { href: "/settings", icon: NavIc.cog, title: "Settings" },
 ];
 
+// Screens that belong to a run carry the active case in the URL, so moving
+// between tabs (overview → live feed → comparativa…) keeps the same case.
+const RUN_SCREENS = new Set(["/overview", "/live-feed", "/comparativa", "/galeria", "/swot"]);
+
 export function ScreenShell({
   children,
   breadcrumb,
   badges,
   runMeta,
+  caseSlug,
 }: {
   children: ReactNode;
   breadcrumb: string[];
   badges?: ReactNode;
   runMeta?: string;
+  caseSlug?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
+  const withCase = (href: string) => (caseSlug && RUN_SCREENS.has(href) ? `${href}?case=${encodeURIComponent(caseSlug)}` : href);
   const colors = {
     bg: "var(--bg)",
     sb: "#181410",
@@ -69,7 +76,7 @@ export function ScreenShell({
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={withCase(item.href)}
                   onClick={() => setNavOpen(false)}
                   style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 12px", borderRadius: "var(--r-sm)", color: active ? "#fff" : "#a89e8b", background: active ? "#2a241c" : "transparent", borderLeft: active ? "2px solid var(--accent)" : "2px solid transparent", fontSize: 14, textDecoration: "none" }}
                 >
@@ -93,7 +100,7 @@ export function ScreenShell({
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={withCase(item.href)}
               title={item.title}
               style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "var(--r-sm)", color: active ? "#fff" : "#847a68", background: active ? "#2a241c" : "transparent", borderLeft: active ? "2px solid var(--accent)" : "2px solid transparent", marginLeft: active ? -2 : 0 }}
             >

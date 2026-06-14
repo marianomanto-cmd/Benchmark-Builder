@@ -132,28 +132,28 @@ export const DEMO_ANALYSIS_BY_SECTION: Record<string, typeof DEMO_ANALYSIS> = {
 
 export const DEMO_PROJECT_SLUG = "cartagena-q2-2026";
 
+// Cada run apunta a un `slug` de caso (lib/demo-cases.ts), así abrir un run
+// muestra SUS marcas/menciones/comparativa/FODA y no siempre el caso Copa.
 export const DEMO_RUNS = [
-  { number: 42, mentions: 18, cost: 1.84, when: "hace 12 min", title: "Copa · Cartagena Q2" },
-  { number: 41, mentions: 16, cost: 1.62, when: "ayer", title: "Copa · ruta Bogotá–SDQ" },
-  { number: 40, mentions: 24, cost: 2.1, when: "hace 3 d", title: "Moda · Zara vs H&M" },
-  { number: 39, mentions: 21, cost: 1.95, when: "hace 5 d", title: "Fintech · Ualá vs Brubank" },
-  { number: 38, mentions: 14, cost: 1.4, when: "hace 1 sem", title: "Café · especialidad LatAm" },
-  { number: 37, mentions: 26, cost: 2.32, when: "hace 2 sem", title: "Bebidas · campañas de verano" },
-  { number: 36, mentions: 19, cost: 1.78, when: "hace 3 sem", title: "Belleza · Natura vs L'Oréal" },
-  { number: 35, mentions: 23, cost: 2.18, when: "hace 3 sem", title: "Retail · supermercados AMBA" },
-  { number: 34, mentions: 15, cost: 1.5, when: "hace 1 mes", title: "Tech · apps de productividad" },
-  { number: 33, mentions: 28, cost: 2.46, when: "hace 1 mes", title: "Indumentaria deportiva · Nike vs adidas" },
-  { number: 32, mentions: 12, cost: 1.22, when: "hace 5 sem", title: "Turismo · Patagonia temporada" },
+  { number: 42, slug: "cartagena-q2-2026", mentions: 18, cost: 1.84, when: "hace 12 min", title: "Copa · Cartagena Q2" },
+  { number: 41, slug: "cartagena-q2-2026", mentions: 16, cost: 1.62, when: "ayer", title: "Copa · ruta Bogotá–SDQ" },
+  { number: 40, slug: "moda-zara-hm", mentions: 24, cost: 2.1, when: "hace 3 d", title: "Moda · Zara vs H&M" },
+  { number: 39, slug: "fintech-uala", mentions: 21, cost: 1.95, when: "hace 5 d", title: "Fintech · Ualá vs Brubank" },
+  { number: 38, slug: "cafe-latam", mentions: 14, cost: 1.4, when: "hace 1 sem", title: "Café · especialidad LatAm" },
+  { number: 37, slug: "belleza-natura", mentions: 26, cost: 1.66, when: "hace 2 sem", title: "Belleza · lanzamientos de serum" },
+  { number: 36, slug: "belleza-natura", mentions: 19, cost: 1.78, when: "hace 3 sem", title: "Belleza · Natura vs L'Oréal" },
+  { number: 35, slug: "moda-zara-hm", mentions: 23, cost: 2.18, when: "hace 3 sem", title: "Moda · drops de otoño" },
+  { number: 34, slug: "fintech-uala", mentions: 15, cost: 1.5, when: "hace 1 mes", title: "Fintech · cuentas remuneradas" },
+  { number: 33, slug: "deportiva-nike-adidas", mentions: 28, cost: 2.46, when: "hace 1 mes", title: "Deportiva · Nike vs adidas" },
+  { number: 32, slug: "deportiva-nike-adidas", mentions: 12, cost: 1.22, when: "hace 5 sem", title: "Deportiva · lanzamientos Q1" },
 ];
 
 // Proyectos = carpetas que agrupan runs (feature que maneja el usuario).
 export const DEMO_PROJECTS = [
   { slug: "cartagena-q2-2026", name: "Copa · Cartagena Q2", category: "Aerolíneas", runs: 6, lastRun: "hace 12 min", budget: 30, accent: "var(--series-client)" },
-  { slug: "moda-zara-hm", name: "Moda · Zara vs H&M", category: "Retail / Moda", runs: 3, lastRun: "hace 3 d", budget: 25, accent: "var(--series-1)" },
-  { slug: "fintech-uala", name: "Fintech · Ualá vs Brubank", category: "Fintech", runs: 2, lastRun: "hace 5 d", budget: 40, accent: "var(--series-2)" },
-  { slug: "cafe-latam", name: "Café de especialidad LatAm", category: "Food & Bev", runs: 4, lastRun: "hace 1 sem", budget: 20, accent: "var(--series-3)" },
   { slug: "belleza-natura", name: "Belleza · Natura vs L'Oréal", category: "Beauty", runs: 5, lastRun: "hace 3 sem", budget: 35, accent: "var(--series-1)" },
-  { slug: "retail-amba", name: "Retail · supermercados AMBA", category: "Retail", runs: 3, lastRun: "hace 1 mes", budget: 28, accent: "var(--series-4)" },
-  { slug: "tech-productividad", name: "Tech · apps de productividad", category: "SaaS / Tech", runs: 2, lastRun: "hace 1 mes", budget: 50, accent: "var(--series-2)" },
-  { slug: "deportiva-nike-adidas", name: "Deportiva · Nike vs adidas", category: "Indumentaria", runs: 7, lastRun: "hace 5 sem", budget: 45, accent: "var(--series-client)" },
+  { slug: "moda-zara-hm", name: "Moda · Zara vs H&M", category: "Retail / Moda", runs: 3, lastRun: "hace 3 d", budget: 25, accent: "var(--series-2)" },
+  { slug: "fintech-uala", name: "Fintech · Ualá vs Brubank", category: "Fintech", runs: 2, lastRun: "hace 5 d", budget: 40, accent: "var(--series-3)" },
+  { slug: "deportiva-nike-adidas", name: "Deportiva · Nike vs adidas", category: "Indumentaria", runs: 7, lastRun: "hace 1 mes", budget: 45, accent: "var(--series-4)" },
+  { slug: "cafe-latam", name: "Café de especialidad LatAm", category: "Food & Bev", runs: 4, lastRun: "hace 1 sem", budget: 20, accent: "var(--series-1)" },
 ];

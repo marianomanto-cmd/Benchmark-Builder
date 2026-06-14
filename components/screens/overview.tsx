@@ -14,22 +14,9 @@ import { AreaChart } from "@/components/tremor/AreaChart";
 import type { AvailableChartColorsKeys } from "@/components/tremor/utils/chartColors";
 import { formatInt, formatPercent } from "@/lib/format";
 import type { OverviewData, AnalysisVM } from "@/lib/view-models";
+import type { KpiVM } from "@/lib/demo-cases";
 
 const MONTHS = ["Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic", "Ene", "Feb"];
-
-const VOLUME = MONTHS.map((month, i) => ({
-  month,
-  Avianca: 60 + i * 4 + (i % 3) * 8,
-  LATAM: 28 + i * 2 + ((i + 1) % 4) * 4,
-  Wingo: 18 + (i % 5) * 3,
-  Arajet: 10 + (i % 4) * 3,
-  Copa: 34 + (i >= 8 ? i * 3 : 4),
-}));
-
-const TREND = MONTHS.map((month, i) => ({ month, Copa: Math.round(20 + Math.sin(i * 0.6) * 8 + i * 1.6) }));
-
-const VOLUME_CATEGORIES = ["Avianca", "LATAM", "Wingo", "Arajet", "Copa"];
-const VOLUME_COLORS: AvailableChartColorsKeys[] = ["ink", "graphite", "taupe", "sand", "sangria"];
 
 const card: CSSProperties = {
   background: "var(--surface)",
@@ -40,7 +27,26 @@ const card: CSSProperties = {
 
 const ease = [0.2, 0.7, 0.3, 1] as const;
 
-export function Overview({ competitors, insights, run, analysis }: OverviewData & { analysis?: AnalysisVM | null }) {
+const DEFAULT_HERO = { title: "Cartagena, en el aire", titleEm: "de cuatro aerolíneas.", subtitle: "2.418 piezas analizadas entre el 1 de marzo y el 30 de abril de 2026." };
+
+export function Overview({
+  competitors,
+  insights,
+  run,
+  analysis,
+  hero = DEFAULT_HERO,
+  kpis,
+  breadcrumb,
+  runMeta,
+  caseSlug,
+}: OverviewData & {
+  analysis?: AnalysisVM | null;
+  hero?: { title: string; titleEm: string; subtitle: string };
+  kpis?: KpiVM[];
+  breadcrumb?: string[];
+  runMeta?: string;
+  caseSlug?: string;
+}) {
   const donutPalette: AvailableChartColorsKeys[] = ["ink", "graphite", "taupe", "sand"];
   let gi = 0;
   const donutData = competitors.map((c) => ({ name: c.name, sov: Number(c.sov.replace(",", ".")) || 0 }));
@@ -48,20 +54,45 @@ export function Overview({ competitors, insights, run, analysis }: OverviewData 
     c.isClient ? "sangria" : donutPalette[gi++ % donutPalette.length],
   );
 
+  // Charts derived from the case competitors so they always match the brands shown.
+  const mNum = (s: string) => parseInt(s.replace(/\D/g, ""), 10) || 40;
+  let vi = 0;
+  const volumeCategories = competitors.map((c) => c.name);
+  const volumeColors: AvailableChartColorsKeys[] = competitors.map((c) => (c.isClient ? "sangria" : donutPalette[vi++ % donutPalette.length]));
+  const volume = MONTHS.map((month, i) => {
+    const row: Record<string, string | number> = { month };
+    competitors.forEach((c, ci) => {
+      const base = mNum(c.mentions) / 12;
+      row[c.name] = Math.round(base * (0.7 + 0.5 * Math.abs(Math.sin(i * 0.6 + ci))) + ci);
+    });
+    return row;
+  });
+  const client = competitors.find((c) => c.isClient) ?? competitors[competitors.length - 1];
+  const clientName = client?.name ?? "Cliente";
+  const trend = MONTHS.map((month, i) => ({ month, [clientName]: Math.round((mNum(client?.mentions ?? "40") / 12) * (0.6 + 0.5 * Math.abs(Math.sin(i * 0.5))) + i) }));
+
+  const kpiList: KpiVM[] = kpis ?? [
+    { label: "Menciones · 60d", value: "2.418", delta: "+12,4%", up: true, spark: true },
+    { label: "Engagement total", value: "842k", delta: "+8,1%", up: true, spark: true },
+    { label: "Share of voice · cliente", value: "9,9%", tone: "ink", bar: 9.9 },
+    { label: "Inversión paga estimada", value: "USD 28k", delta: "+34%", up: true, spark: true },
+  ];
+
   return (
     <ScreenShell
-      breadcrumb={["Proyectos", "Cartagena · Q2 2026"]}
+      breadcrumb={breadcrumb ?? ["Proyectos", "Cartagena · Q2 2026"]}
       badges={<><BBBadge tone="success" size="sm">activo</BBBadge> <BBBadge tone="accent" size="sm">v2.3</BBBadge></>}
-      runMeta={`run #${String(run.number).padStart(3, "0")} · hace 12 min · USD 1,84`}
+      runMeta={runMeta ?? `run #${String(run.number).padStart(3, "0")}`}
+      caseSlug={caseSlug}
     >
       {/* Hero header */}
       <div className="bb-row" style={{ display: "flex", alignItems: "flex-end", gap: 20, marginBottom: 20 }}>
         <div style={{ flex: 1 }}>
           <div className="t-micro" style={{ color: "var(--accent)" }}>BENCHMARK · 60 DÍAS · {competitors.length} COMPETIDORES</div>
           <h1 className="t-display" style={{ marginTop: 8, marginBottom: 6, fontSize: 44, lineHeight: "48px", letterSpacing: "-0.025em", color: "var(--text)" }}>
-            Cartagena, en el aire <em style={{ fontFamily: "var(--font-serif)", fontWeight: 500, fontStyle: "italic", color: "var(--text-muted)" }}>de cuatro aerolíneas.</em>
+            {hero.title} <em style={{ fontFamily: "var(--font-serif)", fontWeight: 500, fontStyle: "italic", color: "var(--text-muted)" }}>{hero.titleEm}</em>
           </h1>
-          <div className="t-body" style={{ color: "var(--text-muted)", maxWidth: 640 }}>2.418 piezas analizadas entre el 1 de marzo y el 30 de abril de 2026 · IG · TT · YT · X · Reddit · Web · Meta Ads.</div>
+          <div className="t-body" style={{ color: "var(--text-muted)", maxWidth: 640 }}>{hero.subtitle}</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Link href="/reporte"><Btn kind="secondary" icon={<Ic.download s={12} />}>PDF</Btn></Link>
@@ -77,14 +108,9 @@ export function Overview({ competitors, insights, run, analysis }: OverviewData 
 
       {/* KPIs (animated entrance) */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 18 }}>
-        {[
-          <KPI key="m" label="Menciones · 60d" value="2.418" delta="+12,4%" up spark />,
-          <KPI key="e" label="Engagement total" value="842k" delta="+8,1%" up spark />,
-          <KPI key="s" label="Share of voice · cliente" value="9,9%" tone="ink" bar={9.9} />,
-          <KPI key="i" label="Inversión paga estimada" value="USD 28k" delta="+34%" up spark />,
-        ].map((node, i) => (
+        {kpiList.map((k, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: i * 0.06, ease }}>
-            {node}
+            <KPI label={k.label} value={k.value} delta={k.delta} up={k.up} spark={k.spark} bar={k.bar} tone={k.tone} />
           </motion.div>
         ))}
       </div>
@@ -93,12 +119,12 @@ export function Overview({ competitors, insights, run, analysis }: OverviewData 
       <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 14 }}>
         <div style={{ ...card, padding: 18 }}>
           <div className="t-h3" style={{ color: "var(--text)" }}>Volumen por competidor</div>
-          <div className="t-micro" style={{ marginTop: 4 }}>menciones · marzo–abril 2026</div>
+          <div className="t-micro" style={{ marginTop: 4 }}>menciones · últimos 12 períodos</div>
           <BarChart
-            data={VOLUME}
+            data={volume}
             index="month"
-            categories={VOLUME_CATEGORIES}
-            colors={VOLUME_COLORS}
+            categories={volumeCategories}
+            colors={volumeColors}
             type="stacked"
             valueFormatter={(v) => formatInt(v)}
             showLegend
@@ -147,12 +173,12 @@ export function Overview({ competitors, insights, run, analysis }: OverviewData 
         </div>
 
         <div style={{ ...card, padding: 18 }}>
-          <div className="t-h3" style={{ color: "var(--text)" }}>Tendencia · Copa</div>
+          <div className="t-h3" style={{ color: "var(--text)" }}>Tendencia · {clientName}</div>
           <div className="t-micro" style={{ marginTop: 4 }}>menciones del cliente · últimos 12 períodos</div>
           <AreaChart
-            data={TREND}
+            data={trend}
             index="month"
-            categories={["Copa"]}
+            categories={[clientName]}
             colors={["sangria"]}
             valueFormatter={(v) => formatInt(v)}
             showLegend={false}

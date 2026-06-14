@@ -1,9 +1,12 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { confLabel, sparkFor, type OverviewData, type MentionVM, type AnalysisVM } from "@/lib/view-models";
-import { DEMO_OVERVIEW, DEMO_MENTIONS, DEMO_RUNS, DEMO_ANALYSIS_BY_SECTION, DEMO_PROJECT_SLUG, DEMO_PROJECTS } from "@/lib/demo";
+import { DEMO_RUNS, DEMO_PROJECT_SLUG, DEMO_PROJECTS } from "@/lib/demo";
+import { getCase } from "@/lib/demo-cases";
 import { relativeTime } from "@/lib/sources/types";
 import type { PlatformKey, SentimentKind, ThumbKind } from "@/lib/platforms";
+
+type RunRow = { number: number; mentions: number; cost: number; when: string; title?: string; slug?: string };
 
 async function projectId(slug: string): Promise<string | null> {
   const supabase = await createClient();
@@ -12,12 +15,16 @@ async function projectId(slug: string): Promise<string | null> {
 }
 
 // Overview: competitor strip + highlighted insights + current run cost.
-// Falls back to the demo case if Supabase isn't reachable or seeded.
+// Falls back to the matching demo case (by slug) if Supabase isn't reachable/seeded.
 export async function getOverviewData(slug: string = DEMO_PROJECT_SLUG): Promise<OverviewData> {
+  const fallback = (): OverviewData => {
+    const c = getCase(slug);
+    return { competitors: c.competitors, insights: c.insights, run: c.run };
+  };
   try {
     const supabase = await createClient();
     const pid = await projectId(slug);
-    if (!pid) return DEMO_OVERVIEW;
+    if (!pid) return fallback();
 
     const [{ data: competitors }, { data: insights }, { data: run }] = await Promise.all([
       supabase
@@ -29,7 +36,7 @@ export async function getOverviewData(slug: string = DEMO_PROJECT_SLUG): Promise
       supabase.from("runs").select("*").eq("project_id", pid).order("number", { ascending: false }).limit(1).maybeSingle(),
     ]);
 
-    if (!competitors || competitors.length === 0) return DEMO_OVERVIEW;
+    if (!competitors || competitors.length === 0) return fallback();
 
     return {
       competitors: competitors.map((c) => ({
@@ -55,11 +62,32 @@ export async function getOverviewData(slug: string = DEMO_PROJECT_SLUG): Promise
       })),
       run: run
         ? { number: run.number, used: Number(run.cost_used), soft: Number(run.cost_soft), hard: Number(run.cost_hard) }
-        : DEMO_OVERVIEW.run,
+        : fallback().run,
     };
   } catch {
-    return DEMO_OVERVIEW;
+    return fallback();
   }
+}
+
+// Per-case header bits (breadcrumb, hero, KPIs, run number). Demo-only for now.
+export async function getCaseHeader(slug: string = DEMO_PROJECT_SLUG) {
+  const c = getCase(slug);
+  return { crumb: c.crumb, project: c.project, runNumber: c.runNumber, hero: c.hero, kpis: c.kpis, run: c.run };
+}
+
+// Side-by-side comparativa matrix for a case.
+export async function getComparativa(slug: string = DEMO_PROJECT_SLUG) {
+  return getCase(slug).comparativa;
+}
+
+// Gallery (organic vs paid) for a case.
+export async function getGallery(slug: string = DEMO_PROJECT_SLUG) {
+  return getCase(slug).gallery;
+}
+
+// FODA / action matrix / roadmap for a case.
+export async function getSwotData(slug: string = DEMO_PROJECT_SLUG) {
+  return getCase(slug).swot;
 }
 
 // Live feed mentions.
@@ -67,10 +95,10 @@ export async function getMentions(slug: string = DEMO_PROJECT_SLUG): Promise<Men
   try {
     const supabase = await createClient();
     const pid = await projectId(slug);
-    if (!pid) return DEMO_MENTIONS;
+    if (!pid) return getCase(slug).mentions;
 
     const { data } = await supabase.from("mentions").select("*").eq("project_id", pid).order("sort_order");
-    if (!data || data.length === 0) return DEMO_MENTIONS;
+    if (!data || data.length === 0) return getCase(slug).mentions;
 
     return data.map((m) => ({
       platform: m.platform as PlatformKey,
@@ -85,14 +113,12 @@ export async function getMentions(slug: string = DEMO_PROJECT_SLUG): Promise<Men
       metrics: Array.isArray(m.metrics) ? (m.metrics as [string, string][]) : [],
     }));
   } catch {
-    return DEMO_MENTIONS;
+    return getCase(slug).mentions;
   }
 }
 
 // Recent runs for the welcome portal.
-export async function getRecentRuns(
-  slug: string = DEMO_PROJECT_SLUG,
-): Promise<{ number: number; mentions: number; cost: number; when: string; title?: string }[]> {
+export async function getRecentRuns(slug: string = DEMO_PROJECT_SLUG): Promise<RunRow[]> {
   try {
     const supabase = await createClient();
     const pid = await projectId(slug);
@@ -109,6 +135,7 @@ export async function getRecentRuns(
       mentions: r.mentions_count,
       cost: Number(r.cost_used),
       when: relativeTime(r.created_at),
+      slug,
     }));
   } catch {
     return DEMO_RUNS;
@@ -116,10 +143,7 @@ export async function getRecentRuns(
 }
 
 // Full run history for the /runs page.
-export async function getRuns(
-  slug: string = DEMO_PROJECT_SLUG,
-  limit = 24,
-): Promise<{ number: number; mentions: number; cost: number; when: string; status: string; title?: string }[]> {
+export async function getRuns(slug: string = DEMO_PROJECT_SLUG, limit = 24): Promise<(RunRow & { status: string })[]> {
   const fallback = DEMO_RUNS.map((r) => ({ ...r, status: "done" }));
   try {
     const supabase = await createClient();
@@ -138,6 +162,7 @@ export async function getRuns(
       cost: Number(r.cost_used),
       when: relativeTime(r.created_at),
       status: r.status,
+      slug,
     }));
   } catch {
     return fallback;
@@ -165,10 +190,10 @@ export async function getProjects(): Promise<
   }
 }
 
-// Per-section AI analysis (hero block). Seeded demo content until a real run
-// generates it with Claude + Grok.
+// Per-section analysis (hero block). Seeded demo content per case until a real
+// run generates it.
 export async function getSectionAnalysis(section: string, slug: string = DEMO_PROJECT_SLUG): Promise<AnalysisVM | null> {
-  const fallback = DEMO_ANALYSIS_BY_SECTION[section] ?? null;
+  const fallback = getCase(slug).sections[section] ?? getCase(slug).analysis;
   try {
     const supabase = await createClient();
     const pid = await projectId(slug);

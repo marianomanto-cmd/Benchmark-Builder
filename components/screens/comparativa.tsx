@@ -9,8 +9,9 @@ import { PlatformBadge } from "@/components/domain";
 import type { PlatformKey, SentimentKind } from "@/lib/platforms";
 import { AnalysisBlock } from "@/components/analysis-block";
 import type { AnalysisVM } from "@/lib/view-models";
+import type { CompCol, CompRow } from "@/lib/demo-cases";
 
-const cols = [
+const DEFAULT_COLS: CompCol[] = [
   { name: "Avianca", brand: "A", accent: "var(--series-1)", isClient: false },
   { name: "LATAM", brand: "L", accent: "var(--series-2)", isClient: false },
   { name: "Wingo", brand: "W", accent: "var(--series-3)", isClient: false },
@@ -19,7 +20,7 @@ const cols = [
 ];
 
 type RowFmt = "mono" | "bar" | "plats" | "sent" | "text";
-const rows: { label: string; vals: (string | number)[]; fmt: RowFmt }[] = [
+const DEFAULT_ROWS: CompRow[] = [
   { label: "Menciones · 60d", vals: ["998", "581", "312", "287", "240"], fmt: "mono" },
   { label: "Engagement total", vals: ["412k", "264k", "198k", "142k", "188k"], fmt: "mono" },
   { label: "Reach estimado", vals: ["1,8M", "1,1M", "680k", "420k", "520k"], fmt: "mono" },
@@ -31,7 +32,7 @@ const rows: { label: string; vals: (string | number)[]; fmt: RowFmt }[] = [
   { label: "Frecuencia · post/sem", vals: ["12,4", "7,8", "4,2", "3,8", "3,1"], fmt: "mono" },
 ];
 
-const platsByCol: PlatformKey[][] = [
+const DEFAULT_PLATS: PlatformKey[][] = [
   ["instagram", "tiktok", "youtube", "x", "meta_ads"],
   ["instagram", "facebook", "x", "meta_ads"],
   ["instagram", "tiktok", "facebook"],
@@ -39,7 +40,23 @@ const platsByCol: PlatformKey[][] = [
   ["instagram", "youtube", "x", "meta_ads"],
 ];
 
-export function Comparativa({ analysis }: { analysis?: AnalysisVM | null }) {
+export function Comparativa({
+  analysis,
+  cols = DEFAULT_COLS,
+  rows = DEFAULT_ROWS,
+  platsByCol = DEFAULT_PLATS,
+  breadcrumb,
+  runMeta,
+  caseSlug,
+}: {
+  analysis?: AnalysisVM | null;
+  cols?: CompCol[];
+  rows?: CompRow[];
+  platsByCol?: PlatformKey[][];
+  breadcrumb?: string[];
+  runMeta?: string;
+  caseSlug?: string;
+}) {
   function downloadCSV() {
     const esc = (s: unknown) => `"${String(s).replace(/"/g, '""')}"`;
     const head = ["Métrica", ...cols.map((c) => c.name)];
@@ -55,7 +72,7 @@ export function Comparativa({ analysis }: { analysis?: AnalysisVM | null }) {
     URL.revokeObjectURL(url);
   }
   return (
-    <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Comparativa"]} runMeta="5 competidores · vista lado a lado">
+    <ScreenShell breadcrumb={breadcrumb ?? ["Proyectos", "Cartagena · Q2 2026", "Comparativa"]} runMeta={runMeta ?? `${cols.length} competidores · vista lado a lado`} caseSlug={caseSlug}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
         <div>
           <div className="t-micro" style={{ color: "var(--accent)" }}>COMPARATIVA · LADO A LADO</div>

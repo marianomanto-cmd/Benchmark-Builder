@@ -13,7 +13,7 @@ import type { AnalysisVM } from "@/lib/view-models";
 // Demo content for the Copa case; a real run fills this from Claude later.
 
 type Quad = { key: string; title: string; tone: string; items: string[] };
-const SWOT: Quad[] = [
+const DEFAULT_SWOT: Quad[] = [
   { key: "S", title: "Fortalezas", tone: "var(--success)", items: [
     "Mayor engagement orgánico por pieza de la categoría.",
     "Sentimiento positivo sólido y estable (afinidad de marca).",
@@ -41,7 +41,7 @@ const SWOT: Quad[] = [
 ];
 
 type Move = { key: string; title: string; sub: string; color: string; items: string[] };
-const MATRIX: Move[] = [
+const DEFAULT_MATRIX: Move[] = [
   { key: "ACT", title: "Act · actuar ya", sub: "alto impacto / control propio", color: "var(--accent)", items: [
     "Lanzar TikTok orgánico (POV/vlog) donde LATAM no está.",
     "Sumar 1–2 creativos pagos/semana en Meta para la ruta.",
@@ -61,7 +61,7 @@ const MATRIX: Move[] = [
 ];
 
 type Horizon = { title: string; window: string; items: string[] };
-const PLAN: Horizon[] = [
+const DEFAULT_PLAN: Horizon[] = [
   { title: "Corto plazo", window: "0–30 días", items: [
     "Activar TikTok orgánico con 3–4 piezas POV/vlog.",
     "Responder el hilo negativo de Reddit.",
@@ -79,9 +79,25 @@ const PLAN: Horizon[] = [
   ] },
 ];
 
-export function Swot({ analysis }: { analysis?: AnalysisVM | null }) {
+export function Swot({
+  analysis,
+  swot = DEFAULT_SWOT,
+  matrix = DEFAULT_MATRIX,
+  plan = DEFAULT_PLAN,
+  breadcrumb,
+  runMeta,
+  caseSlug,
+}: {
+  analysis?: AnalysisVM | null;
+  swot?: Quad[];
+  matrix?: Move[];
+  plan?: Horizon[];
+  breadcrumb?: string[];
+  runMeta?: string;
+  caseSlug?: string;
+}) {
   return (
-    <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "FODA & Estrategia"]} badges={<BBBadge tone="accent" size="sm">estrategia</BBBadge>} runMeta="generado del run #042">
+    <ScreenShell breadcrumb={breadcrumb ?? ["Proyectos", "Cartagena · Q2 2026", "FODA & Estrategia"]} badges={<BBBadge tone="accent" size="sm">estrategia</BBBadge>} runMeta={runMeta ?? "generado del run actual"} caseSlug={caseSlug}>
       <div className="bb-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16, marginBottom: 16 }}>
         <div>
           <div className="t-micro" style={{ color: "var(--accent)" }}>FODA · MATRIZ DE ACCIÓN · ROADMAP</div>
@@ -95,7 +111,7 @@ export function Swot({ analysis }: { analysis?: AnalysisVM | null }) {
       {/* SWOT 2x2 */}
       <div className="t-h3" style={{ color: "var(--text)", marginBottom: 10 }}>FODA</div>
       <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 22 }}>
-        {SWOT.map((q, i) => (
+        {swot.map((q, i) => (
           <motion.div key={q.key} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: i * 0.05 }} style={{ ...box, borderTop: `3px solid ${q.tone}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ width: 26, height: 26, borderRadius: 8, background: `color-mix(in srgb, ${q.tone} 18%, transparent)`, color: q.tone, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700 }}>{q.key}</span>
@@ -109,7 +125,7 @@ export function Swot({ analysis }: { analysis?: AnalysisVM | null }) {
       {/* Action matrix */}
       <div className="t-h3" style={{ color: "var(--text)", marginBottom: 10 }}>Matriz de acción</div>
       <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14, marginBottom: 22 }}>
-        {MATRIX.map((m, i) => (
+        {matrix.map((m, i) => (
           <motion.div key={m.key} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: i * 0.05 }} style={box}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8, justifyContent: "space-between" }}>
               <div className="t-h3" style={{ color: m.color }}>{m.title}</div>
@@ -123,7 +139,7 @@ export function Swot({ analysis }: { analysis?: AnalysisVM | null }) {
       {/* Roadmap short/mid/long */}
       <div className="t-h3" style={{ color: "var(--text)", marginBottom: 10 }}>Recomendaciones por horizonte</div>
       <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
-        {PLAN.map((h, i) => (
+        {plan.map((h, i) => (
           <motion.div key={h.title} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: i * 0.05 }} style={{ ...box, background: i === 0 ? "color-mix(in srgb, var(--accent) 7%, var(--surface))" : "var(--surface)" }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
               <div className="t-h3" style={{ color: "var(--text)" }}>{h.title}</div>

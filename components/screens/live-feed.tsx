@@ -85,7 +85,7 @@ function FilterGroup({
   );
 }
 
-export function LiveFeed({ mentions, analysis }: { mentions: MentionVM[]; analysis?: AnalysisVM | null }) {
+export function LiveFeed({ mentions, analysis, breadcrumb, caseSlug }: { mentions: MentionVM[]; analysis?: AnalysisVM | null; breadcrumb?: string[]; caseSlug?: string }) {
   const brands = useMemo(() => uniq(mentions.map((m) => m.brand)).filter((b) => b && b !== "—"), [mentions]);
   const platforms = useMemo(() => uniq(mentions.map((m) => m.platform)), [mentions]);
   const sentiments = useMemo(() => uniq(mentions.map((m) => m.sentiment)), [mentions]);
@@ -126,7 +126,7 @@ export function LiveFeed({ mentions, analysis }: { mentions: MentionVM[]; analys
   const clearAll = () => { setOffBrands(new Set()); setOffPlat(new Set()); setOffSent(new Set()); setOffType(new Set()); };
 
   return (
-    <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Live feed"]} badges={<BBBadge tone="success" size="sm">activo</BBBadge>} runMeta={`${visible.length} de ${mentions.length} menciones`}>
+    <ScreenShell breadcrumb={breadcrumb ?? ["Proyectos", "Cartagena · Q2 2026", "Live feed"]} badges={<BBBadge tone="success" size="sm">activo</BBBadge>} runMeta={`${visible.length} de ${mentions.length} menciones`} caseSlug={caseSlug}>
       {analysis && <div style={{ marginBottom: 16 }}><AnalysisBlock analysis={analysis} /></div>}
       <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 16 }}>
         {/* Filters */}

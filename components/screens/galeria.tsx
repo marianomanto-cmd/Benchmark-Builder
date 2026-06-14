@@ -25,21 +25,20 @@ const V = {
   escapes: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
 };
 
-const adGroups: Group[] = [
+const DEFAULT_AD_GROUPS: Group[] = [
   { name: "Avianca", count: 38, items: [["ad", "meta_ads", "creativo · 12d", ["USD 8–12k", "1,4M 👁"], true, img("av1")], ["ad", "meta_ads", "video · 14d", ["USD 12–18k", "1,8M 👁"], true, img("av2"), V.blazes], ["ad", "meta_ads", "carousel · 6d", ["USD 3–5k", "410k 👁"], true, img("av3")]] },
   { name: "LATAM", count: 24, items: [["ad", "meta_ads", "creativo · 4d", ["USD 4–6k", "620k 👁"], true, img("la1")], ["ad", "meta_ads", "video · 8d", ["USD 6–9k", "940k 👁"], true, img("la2"), V.joy], ["ad", "meta_ads", "static · 2d", ["USD 1–2k", "180k 👁"], true, img("la3")]] },
   { name: "Copa", count: 14, items: [["ad", "meta_ads", "static · 9d", ["USD 5–8k", "680k 👁"], true, img("co1")], ["ad", "meta_ads", "creativo · 3d", ["USD 2–4k", "280k 👁"], true, img("co2")], ["ad", "meta_ads", "video · 5d", ["USD 3–5k", "340k 👁"], true, img("co3"), V.fun]] },
 ];
 
-const organicGroups: Group[] = [
+const DEFAULT_ORG_GROUPS: Group[] = [
   { name: "Avianca · 84", count: 84, items: [["photo", "instagram", "sunset reel", ["12,4k ♡", "4 h"], false, img("ao1")], ["photo", "instagram", "crew", ["8,2k ♡", "12 h"], false, img("ao2")], ["video", "tiktok", "recorrido", ["480k ▷", "1 d"], false, img("ao3"), V.bunny]] },
   { name: "LATAM · 56", count: 56, items: [["video", "tiktok", "POV viaje", ["1,2M ▷", "9 h"], false, img("lo1"), V.escapes], ["photo", "instagram", "mapa", ["3,2k ♡", "2 d"], false, img("lo2")], ["photo", "facebook", "noticia", ["820 ↗", "3 d"], false, img("lo3")]] },
   { name: "Wingo · 42", count: 42, items: [["video", "youtube", "vlog 48h", ["42k ▷", "1 d"], false, img("wo1"), V.blazes], ["photo", "instagram", "tarifa", ["1,4k ♡", "2 d"], false, img("wo2")], ["video", "tiktok", "duet", ["98k ▷", "3 d"], false, img("wo3"), V.joy]] },
 ];
 
-function GalleryColumn({ kind }: { kind: "organic" | "ad" }) {
+function GalleryColumn({ kind, groups, total, spend }: { kind: "organic" | "ad"; groups: Group[]; total: number; spend?: string }) {
   const isAd = kind === "ad";
-  const groups = isAd ? adGroups : organicGroups;
   return (
     <div style={{ background: isAd ? "var(--accent-soft)" : "var(--surface)", border: `1px solid ${isAd ? "var(--accent)" : "var(--border)"}`, borderRadius: "var(--r-md)", padding: 18, boxShadow: "var(--sh-1)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
@@ -49,7 +48,7 @@ function GalleryColumn({ kind }: { kind: "organic" | "ad" }) {
             <div className="t-h2" style={{ color: isAd ? "var(--accent)" : "var(--text)" }}>{isAd ? "Anuncios pagos · Meta Ad Library" : "Contenido orgánico"}</div>
           </div>
           <div className="t-small" style={{ color: isAd ? "var(--accent)" : "var(--text-muted)", marginTop: 4 }}>
-            {isAd ? "84 creativos activos · USD 18–28k spend estimado" : "218 piezas en últimos 60 días"}
+            {isAd ? `${total} creativos activos · ${spend ?? "—"} spend estimado` : `${total} piezas en últimos 60 días`}
           </div>
         </div>
         <div style={{ display: "flex", border: `1px solid ${isAd ? "var(--accent)" : "var(--border-strong)"}`, borderRadius: "var(--r-sm)", overflow: "hidden", background: "var(--surface)" }}>
@@ -85,10 +84,30 @@ function GalleryColumn({ kind }: { kind: "organic" | "ad" }) {
   );
 }
 
-export function Galeria({ analysis }: { analysis?: AnalysisVM | null }) {
+export function Galeria({
+  analysis,
+  adGroups = DEFAULT_AD_GROUPS,
+  organicGroups = DEFAULT_ORG_GROUPS,
+  adTotal = 84,
+  adSpend = "USD 18–28k",
+  organicTotal = 218,
+  breadcrumb,
+  runMeta,
+  caseSlug,
+}: {
+  analysis?: AnalysisVM | null;
+  adGroups?: Group[];
+  organicGroups?: Group[];
+  adTotal?: number;
+  adSpend?: string;
+  organicTotal?: number;
+  breadcrumb?: string[];
+  runMeta?: string;
+  caseSlug?: string;
+}) {
   const [view, setView] = useState<"ambos" | "organico" | "pago">("ambos");
   return (
-    <ScreenShell breadcrumb={["Proyectos", "Cartagena · Q2 2026", "Galería"]} runMeta="218 piezas orgánicas · 84 anuncios pagos">
+    <ScreenShell breadcrumb={breadcrumb ?? ["Proyectos", "Cartagena · Q2 2026", "Galería"]} runMeta={runMeta ?? `${organicTotal} piezas orgánicas · ${adTotal} anuncios pagos`} caseSlug={caseSlug}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
         <div>
           <div className="t-micro" style={{ color: "var(--accent)" }}>GALERÍA · ORGÁNICO VS PAGO</div>
@@ -103,8 +122,8 @@ export function Galeria({ analysis }: { analysis?: AnalysisVM | null }) {
       </div>
       {analysis && <div style={{ marginBottom: 16 }}><AnalysisBlock analysis={analysis} /></div>}
       <div className="bb-collapse" style={{ display: "grid", gridTemplateColumns: view === "ambos" ? "1fr 1fr" : "1fr", gap: 18 }}>
-        {view !== "pago" && <GalleryColumn kind="organic" />}
-        {view !== "organico" && <GalleryColumn kind="ad" />}
+        {view !== "pago" && <GalleryColumn kind="organic" groups={organicGroups} total={organicTotal} />}
+        {view !== "organico" && <GalleryColumn kind="ad" groups={adGroups} total={adTotal} spend={adSpend} />}
       </div>
     </ScreenShell>
   );
