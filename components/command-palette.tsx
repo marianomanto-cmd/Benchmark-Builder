@@ -5,20 +5,21 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "motion/react";
 import { DEMO_COMPETITORS, DEMO_INSIGHTS } from "@/lib/demo";
+import { useI18n } from "@/components/i18n-provider";
 
 type Item = { label: string; hint: string; href?: string; action?: () => void };
 
-const NAV: Item[] = [
-  { label: "Overview", hint: "Resumen del run", href: "/overview" },
-  { label: "Live feed", hint: "Stream de menciones", href: "/live-feed" },
-  { label: "Comparativa", hint: "Matriz competidor × métrica", href: "/comparativa" },
-  { label: "Galería", hint: "Orgánico vs ads", href: "/galeria" },
-  { label: "FODA & Estrategia", hint: "SWOT + matriz + roadmap", href: "/swot" },
-  { label: "Editor de reporte", hint: "Componer el deliverable", href: "/editor" },
-  { label: "Reporte PDF", hint: "Deliverable final", href: "/reporte" },
-  { label: "Runs", hint: "Historial de runs", href: "/runs" },
-  { label: "Proyectos", hint: "Carpetas de runs", href: "/proyectos" },
-  { label: "Settings", hint: "Fuentes", href: "/settings" },
+const NAV: { labelKey: string; hintKey: string; href: string }[] = [
+  { labelKey: "shell.nav.overview", hintKey: "cmd.hOverview", href: "/overview" },
+  { labelKey: "shell.nav.livefeed", hintKey: "cmd.hLive", href: "/live-feed" },
+  { labelKey: "shell.nav.comparativa", hintKey: "cmd.hComp", href: "/comparativa" },
+  { labelKey: "shell.nav.gallery", hintKey: "cmd.hGallery", href: "/galeria" },
+  { labelKey: "shell.nav.swot", hintKey: "cmd.hSwot", href: "/swot" },
+  { labelKey: "shell.nav.editor", hintKey: "cmd.hEditor", href: "/editor" },
+  { labelKey: "cmd.lReport", hintKey: "cmd.hReport", href: "/reporte" },
+  { labelKey: "cmd.lRuns", hintKey: "cmd.hRuns", href: "/runs" },
+  { labelKey: "shell.nav.projects", hintKey: "cmd.hProjects", href: "/proyectos" },
+  { labelKey: "shell.nav.settings", hintKey: "cmd.hSettings", href: "/settings" },
 ];
 
 // Run-scoped search index: the run's own entities (competitors, insights) and
@@ -33,6 +34,7 @@ const RUN_ITEMS: Item[] = [
 
 export function CommandPalette() {
   const router = useRouter();
+  const { t } = useI18n();
   const { resolvedTheme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -67,13 +69,14 @@ export function CommandPalette() {
   }, [open]);
 
   const items = useMemo<Item[]>(() => {
+    const nav: Item[] = NAV.map((n) => ({ label: t(n.labelKey), hint: t(n.hintKey), href: n.href }));
     const themeItem: Item = {
-      label: resolvedTheme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro",
-      hint: "Tema",
+      label: resolvedTheme === "dark" ? t("cmd.toLight") : t("cmd.toDark"),
+      hint: t("cmd.theme"),
       action: () => setTheme(resolvedTheme === "dark" ? "light" : "dark"),
     };
-    return [...RUN_ITEMS, ...NAV, themeItem];
-  }, [resolvedTheme, setTheme]);
+    return [...RUN_ITEMS, ...nav, themeItem];
+  }, [resolvedTheme, setTheme, t]);
 
   const results = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -117,14 +120,14 @@ export function CommandPalette() {
                   else if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(i - 1, 0)); }
                   else if (e.key === "Enter") { e.preventDefault(); run(results[idx]); }
                 }}
-                placeholder="Buscar en el run (competidores, insights…) o ir a una pantalla…"
+                placeholder={t("cmd.placeholder")}
                 style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "var(--text)", fontFamily: "var(--font-sans)" }}
               />
               <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text-faint)", border: "1px solid var(--border)", borderRadius: 3, padding: "1px 5px" }}>ESC</span>
             </div>
             <div style={{ maxHeight: 320, overflow: "auto", padding: 6 }}>
               {results.length === 0 && (
-                <div style={{ padding: "18px 12px", fontSize: 13, color: "var(--text-muted)", textAlign: "center" }}>Sin resultados</div>
+                <div style={{ padding: "18px 12px", fontSize: 13, color: "var(--text-muted)", textAlign: "center" }}>{t("cmd.empty")}</div>
               )}
               {results.map((it, i) => (
                 <button

@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useI18n } from "@/components/i18n-provider";
 
 export default function NotFound() {
+  const { t } = useI18n();
   return (
     <main
       style={{
@@ -17,13 +21,13 @@ export default function NotFound() {
       }}
     >
       <div className="t-eyebrow" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-        <span className="eyebrow-dot" /> Error 404
+        <span className="eyebrow-dot" /> {t("nf.eyebrow")}
       </div>
       <h1 className="t-hero" style={{ maxWidth: "16ch" }}>
-        Esa señal no existe.
+        {t("nf.title")}
       </h1>
       <p className="t-lead" style={{ maxWidth: "44ch" }}>
-        La página que buscás se filtró con el ruido. Volvé al inicio y empezá una nueva investigación.
+        {t("nf.lead")}
       </p>
       <Link
         href="/"
@@ -41,7 +45,7 @@ export default function NotFound() {
           textDecoration: "none",
         }}
       >
-        Volver al inicio
+        {t("nf.back")}
       </Link>
     </main>
   );

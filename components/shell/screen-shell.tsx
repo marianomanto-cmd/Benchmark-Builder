@@ -127,7 +127,7 @@ export function ScreenShell({
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, minWidth: 0, overflow: "hidden", whiteSpace: "nowrap" }}>
             {breadcrumb.map((b, i) => (
               <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                <span style={{ color: i === breadcrumb.length - 1 ? colors.text : colors.muted, fontWeight: i === breadcrumb.length - 1 ? 500 : 400, overflow: "hidden", textOverflow: "ellipsis" }}>{b}</span>
+                <span style={{ color: i === breadcrumb.length - 1 ? colors.text : colors.muted, fontWeight: i === breadcrumb.length - 1 ? 500 : 400, overflow: "hidden", textOverflow: "ellipsis" }}>{b.startsWith("@") ? t(b.slice(1)) : b}</span>
                 {i < breadcrumb.length - 1 && <span style={{ color: "var(--text-faint)" }}>/</span>}
               </span>
             ))}

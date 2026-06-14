@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Btn } from "@/components/ui/primitives";
 import { Ic } from "@/components/ui/icons";
 import { PlatformBadge } from "@/components/domain";
+import { useI18n } from "@/components/i18n-provider";
 import type { PlatformKey } from "@/lib/platforms";
 
 export type SourceSettingVM = {
@@ -18,6 +19,7 @@ export type SourceSettingVM = {
 
 export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [rows, setRows] = useState<SourceSettingVM[]>(initial);
   const [state, setState] = useState<"idle" | "saving" | "done" | "error">("idle");
   const [msg, setMsg] = useState("");
@@ -50,15 +52,15 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
       const json = (await res.json()) as { ok: boolean; error?: string };
       if (json.ok) {
         setState("done");
-        setMsg("Guardado");
+        setMsg(t("settings.saved"));
         router.refresh();
       } else {
         setState("error");
-        setMsg(json.error ?? "Error al guardar");
+        setMsg(json.error ?? t("settings.errSave"));
       }
     } catch (e) {
       setState("error");
-      setMsg(e instanceof Error ? e.message : "Error de red");
+      setMsg(e instanceof Error ? e.message : t("settings.errNet"));
     }
   }
 
@@ -77,15 +79,15 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
     <div style={{ maxWidth: 760 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
         <div>
-          <div className="t-micro" style={{ color: "var(--accent)" }}>SETTINGS · FUENTES</div>
-          <div className="t-h1" style={{ marginTop: 6 }}>Fuentes</div>
+          <div className="t-micro" style={{ color: "var(--accent)" }}>{t("settings.eyebrow")}</div>
+          <div className="t-h1" style={{ marginTop: 6 }}>{t("settings.title")}</div>
           <div className="t-body" style={{ color: "var(--text-muted)", marginTop: 6, maxWidth: 560 }}>
-            Elegí qué plataformas participan y el tope de resultados por fuente. El método de captura óptimo de cada una se selecciona de forma automática según el caso de estudio.
+            {t("settings.desc")}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {msg && <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: state === "error" ? "var(--danger)" : "var(--success)" }}>{msg}</span>}
-          <Btn kind="primary" loading={state === "saving"} onClick={save} icon={state !== "saving" ? <Ic.check s={12} /> : undefined}>Guardar cambios</Btn>
+          <Btn kind="primary" loading={state === "saving"} onClick={save} icon={state !== "saving" ? <Ic.check s={12} /> : undefined}>{t("settings.save")}</Btn>
         </div>
       </div>
 
@@ -103,16 +105,16 @@ export function SourceSettingsForm({ initial }: { initial: SourceSettingVM[] }) 
       >
         <span style={{ color: "var(--accent)", flexShrink: 0, marginTop: 1 }}><Ic.bolt s={16} /></span>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>Selección automática</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{t("settings.autoTitle")}</div>
           <div className="t-body" style={{ color: "var(--text-muted)", fontSize: 12.5 }}>
-            Para cada reporte se elige automáticamente el mejor método de captura por fuente en función del caso de estudio (mercado, idioma, competidores y si la búsqueda es orgánica o de anuncios). No hay nada que configurar acá.
+            {t("settings.autoBody")}
           </div>
         </div>
       </div>
 
       <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 84px 64px", gap: 12, padding: "10px 16px", background: "var(--surface-2)", borderBottom: "1px solid var(--border)" }}>
-          {["Fuente", "Límite", "Activa"].map((h) => (
+          {[t("settings.colSource"), t("settings.colLimit"), t("settings.colActive")].map((h) => (
             <div key={h} className="t-micro">{h}</div>
           ))}
         </div>
