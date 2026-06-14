@@ -69,7 +69,7 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
 
   const ctx = useMemo(() => `${brand} ${brandDesc} ${problem}`, [brand, brandDesc, problem]);
 
-  // Wizard assistant: instant inline guidance + review popup on "Siguiente".
+  // Wizard assistant: instant inline guidance + mention-style bubbles on "Siguiente".
   const snapshot = useMemo(
     () => ({ brand, brandDesc, igUrl, problem, geo, competitors, discards }),
     [brand, brandDesc, igUrl, problem, geo, competitors, discards],
