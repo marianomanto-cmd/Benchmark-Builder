@@ -1,6 +1,6 @@
 # Phema — Estado de desarrollo (repo: Benchmark-Builder)
 
-> Documento de contexto para consultar en otra conversación. Última actualización: 2026‑06‑14 (wizard 3 pasos + confirmación, redes y rango de fechas; seed multi-caso real; actores automáticos). Producto: **Phema** (repo: Benchmark-Builder).
+> Documento de contexto para consultar en otra conversación. Última actualización: 2026‑06‑14 (orquestación: Wizard Assistant/Haiku + Planner/QuerySpec + Grok web; wizard 3 pasos; seed multi-caso; actores automáticos). Producto: **Phema** (repo: Benchmark-Builder).
 > App de **research competitivo y social listening asistido por IA**. Caso demo: **Copa Airlines vs Avianca / LATAM / Wingo / Arajet · ruta Cartagena**.
 >
 > ⚠️ **Mantené este documento actualizado en cada cambio** (regla en `AGENTS.md` → "Documentation discipline"). Un cambio no está terminado hasta que la doc lo refleja.
@@ -55,6 +55,7 @@ app/
   api/cron/cost/route.ts   **GET → libera reservas vencidas + checkCostAlerts (Vercel Cron diario en Hobby; */5 en Pro)**
   api/discovery/route.ts   **POST → infiere ResearchPlan del prompt**
   api/settings/sources/route.ts  POST → guarda config de fuentes (enabled + results_limit; actor_id=null, selección automática)
+  api/wizard/assist/route.ts  **POST → asistente del wizard al "Siguiente" (mock=heurística, live=Haiku)**
   globals.css              Tokens light/dark (dark = default), escala editorial, lenis, marquee
   layout.tsx               ThemeProvider (defaultTheme=dark) + SmoothScroll + OG metadata
 components/
@@ -68,7 +69,7 @@ components/
 lib/
   platforms.ts             PLATFORM_KEYS (tuple) + PlatformKey (incluye **google_ads, linkedin_ads**)
   cost/                    **rates, estimate, config, ledger, guarded, alerts, index** (motor de costos)
-  discovery/               **schema (Zod ResearchPlan + heurística + campos de marca), classify (Claude/mock), jobs (planToJobs), suggest (sugerencias+asistencia mock-safe del wizard)**
+  discovery/               **schema (Zod ResearchPlan + heurística + campos de marca), classify (Claude/mock), planner (QuerySpec acotado por fuente; heurística/Claude), jobs (planToJobs), suggest (heurística del wizard)**
   media/                   **types/config/download(TTL 12h)/frames(ffmpeg)/audio/analyze(Claude vision)/transcribe(Whisper)/consolidate/index/fixtures** (Task 2, mock-first, bajo guard)
   sources/                 types (+scope, +AdMeta), reddit, mastodon, bluesky, apify, **apify-ads**, meta-ads,
                            grok-x, index (**sourceFor(platform, scope)** + metaAdsOfficial), **select-actor (elección automática por caso)**
@@ -171,6 +172,8 @@ Las keys reales viven solo en `.env.local` (gitignored), **nunca** commiteadas.
 
 **UX overhaul (sesión 14/jun):** **wizard compactado a 3 pasos + confirmación** (1·Tu marca, 2·Competencia [mercados+competidores+descartes], 3·Alcance [scope+**redes**+ventana], 4·Confirmar); **selección de redes/fuentes** con toggles (todas activas por defecto, ícono+nombre, incluye **"Portales"** de noticias y **"Web"**); **ventana de tiempo con rango exacto** (fechas desde/hasta) además de presets; el costo reacciona a redes y ventana · **home sin** botones "Análisis guiado/general" · **seed multi-caso REAL** (`lib/demo-cases.ts`): cada run/proyecto mapea a un `slug` de caso (Copa/Cartagena, Belleza Natura vs L'Oréal, Moda Zara vs H&M, Fintech Ualá vs Brubank, Deportiva Nike vs adidas, Café especialidad) con SUS marcas, menciones, comparativa, galería y FODA — ya **no todo es Copa**. El caso se transporta por `?case=<slug>` y el `ScreenShell` lo propaga entre tabs del run (overview→live-feed→comparativa→galería→FODA); overview deriva charts/KPIs del caso; comparativa/galería/FODA pasaron a **prop-driven** desde el registro · etiqueta `X / Grok` → `X` (no revelar motor).
 
+**Orquestación (sesión 14/jun) — ver `docs/orchestration.md`:** pipeline modularizado punto a punto, **mock-first / costo cero** (cada modelo gateado por `pipelineMode` + flag + key). (1) **Wizard Assistant** al tocar "Siguiente" (`/api/wizard/assist`): mock = heurística, live = **Haiku**; detecta respuestas vagas y guía sin bloquear. (2) **Planner** (`lib/discovery/planner.ts`): interpreta el caso (+ perfil) → **`QuerySpec` tipado (Zod) acotado por fuente** (no el prompt crudo); heurística por defecto, **Claude** refina en live; el runner usa esas keywords por job. (3) **Data Collection**: **Grok Live Search** para X **y web/portales** (`grok-live.ts`, mapea los toggles Web/Portales), Apify para IG/TT/YT/FB + ad-libraries (actor automático por caso). (4) **Multimodal**: hoy frames+Claude vision+Whisper; **Gemini (video nativo) + AssemblyAI (voiceover) = MUST futuro** (costuras listas para swap). (5) **Synthesis**: Claude (Grok opcional). **Perfiles de cliente** = futuro; el Planner ya acepta `ClientProfile`.
+
 **Política de etiquetado del análisis (IMPORTANTE):** el análisis se produce con **Grok + Claude + los skills de marketing del repo** (`.claude/skills`), pero la **UI NUNCA lo revela** — no nombra el motor ni dice "IA"; sólo muestra **"Análisis + Insights"**. Mantener esta regla en todo texto user-facing nuevo.
 
 **Pendiente (próximo):**
@@ -178,7 +181,7 @@ Las keys reales viven solo en `.env.local` (gitignored), **nunca** commiteadas.
 2. **Actores ya NO los maneja el usuario** — se eligen solos por caso de estudio (`select-actor.ts`). Pendiente de ops: validar/pinear los slugs reales del catálogo (Google/LinkedIn/TikTok) y, si se quiere, fijar overrides por env (`APIFY_ACTOR_<PLATFORM>[_<SCOPE>]`).
 3. ✅ **Task 2 — pipeline de medios (mock-first hecho):** tablas `media_files`/`media_analysis` (migradas) + `lib/media/` (download TTL 12h, extractFrames ffmpeg, extractAudio, analyzeImage/Frame Claude vision + Zod, transcribe Whisper, consolidate, index idempotente **bajo guard**, fixtures); galería muestra "qué muestra / qué dice". **Pendiente (solo keys):** `OPENAI_API_KEY` (Whisper) y/o `GOOGLE_AI_API_KEY` (Gemini video) + ffmpeg en Vercel (`ffmpeg-static`+`FFMPEG_PATH`) para encender el modo live; e integrar `queueRunMedia`/`processRunMedia` en el runner cuando haya scraping real.
 
-**Otros pendientes:** export PDF/PPT real · imágenes reales (Gemini) · auth/multi-tenancy + billing · conectar Comparativa/Galería a DB real · análisis por sección en modo live.
+**Otros pendientes:** **Multimodal producción: Gemini (video nativo) + AssemblyAI (voiceover) — MUST** (ver `docs/orchestration.md`) · **perfiles de cliente** (`client_profiles`: que un marketer guarde marcas y no recargue todo en cada run) · export PDF/PPT real · auth/multi-tenancy + billing · conectar Comparativa/Galería a DB real · análisis por sección en modo live.
 
 **Caveats:** mappers de Apify best-effort (ajustar por actor; ads community pueden cambiar schema → ya hay degrade/fallback) · runs largos corren síncronos en serverless (evaluar cola/Edge).
 

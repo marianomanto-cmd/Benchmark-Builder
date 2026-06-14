@@ -13,6 +13,7 @@ import { releaseExpiredCharges } from "@/lib/cost/ledger";
 import { LIMITS } from "@/lib/cost/config";
 import { inferPlanHeuristic, type ResearchPlan } from "@/lib/discovery/schema";
 import { planToJobs, type ExtractionJob, type SettingRow } from "@/lib/discovery/jobs";
+import { planQueries, keywordsForJob, type ClientProfile } from "@/lib/discovery/planner";
 
 export type RunResult = {
   ok: boolean;
@@ -130,6 +131,22 @@ export async function executeRun(
   const jobs = planToJobs(plan, settings, LIMITS.maxItemsPerSource);
   if (jobs.length === 0) return { ok: false, error: "El plan no produjo jobs (revisá fuentes habilitadas y scope)." };
 
+  // Planner: interpret the case study into FOCUSED per-source queries (not the
+  // raw prompt). Deterministic by default (zero cost); Claude refines in live.
+  const profile: ClientProfile | undefined =
+    plan.client_brand || plan.brand_desc
+      ? {
+          brand: plan.client_brand,
+          brand_desc: plan.brand_desc,
+          brand_site: plan.brand_site,
+          brand_handles: plan.brand_handles,
+          invest_organic: plan.invest_organic,
+          invest_paid: plan.invest_paid,
+          default_discards: plan.discards,
+        }
+      : undefined;
+  const { spec: querySpec } = await planQueries(plan, { profile, intent: keywords.join(" ") });
+
   // Estimate from the exact jobs we will run.
   const runPlan: RunPlan = {
     sources: jobs.map((j) => ({ platform: `${j.platform}:${j.scope}`, items: j.items, provider: estProvider(j) })),
@@ -198,6 +215,7 @@ export async function executeRun(
     providerOverride?: string,
   ): Promise<boolean> => {
     const est = jobCost(job);
+    const jobKeywords = keywordsForJob(querySpec, job.platform, job.scope, keywords);
     const out = await guardedCall<SourceResult>({
       admin,
       runId,
@@ -211,7 +229,7 @@ export async function executeRun(
           platform: job.platform,
           scope: job.scope,
           handles: handlesForJob(job),
-          keywords,
+          keywords: jobKeywords,
           languages: project.languages,
           geo: project.geo,
           sinceDays: project.period_days,

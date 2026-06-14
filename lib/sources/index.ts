@@ -4,12 +4,13 @@ import { redditSource } from "@/lib/sources/reddit";
 import { mastodonSource } from "@/lib/sources/mastodon";
 import { blueskySource } from "@/lib/sources/bluesky";
 import { metaAdsSource } from "@/lib/sources/meta-ads";
-import { grokXSource } from "@/lib/sources/grok-x";
+import { grokLiveSource } from "@/lib/sources/grok-live";
 import { apifySource } from "@/lib/sources/apify";
 import { paidAdsSource } from "@/lib/sources/apify-ads";
 
-// Organic feed adapters. Apify backs the scraped platforms; Reddit/Mastodon/
-// Bluesky use public APIs; X uses Grok live search.
+// Organic feed adapters. Apify backs the scraped social platforms; Reddit/
+// Mastodon/Bluesky use public APIs; X and Web/Portales use Grok live search
+// (Grok lee X y hace búsqueda web+prensa independiente).
 const ORGANIC: Record<PlatformKey, Source | undefined> = {
   reddit: redditSource,
   mastodon: mastodonSource,
@@ -21,8 +22,8 @@ const ORGANIC: Record<PlatformKey, Source | undefined> = {
   tiktok: apifySource("tiktok"),
   youtube: apifySource("youtube"),
   facebook: apifySource("facebook"),
-  x: grokXSource,
-  web: apifySource("web"),
+  x: grokLiveSource("x"),
+  web: grokLiveSource("web"),
 };
 
 // Paid (ad library) adapters. Meta commercial uses the Apify scraper; the
@@ -32,7 +33,7 @@ const PAID: Partial<Record<PlatformKey, Source>> = {
   meta_ads: paidAdsSource("meta_ads"),
   google_ads: paidAdsSource("google_ads"),
   linkedin_ads: paidAdsSource("linkedin_ads"),
-  x: grokXSource,
+  x: grokLiveSource("x"),
 };
 
 // Resolve the adapter for a (platform, scope). For paid Meta with political

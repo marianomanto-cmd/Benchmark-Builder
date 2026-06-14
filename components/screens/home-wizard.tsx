@@ -63,7 +63,18 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
   const [error, setError] = useState("");
 
   const ctx = useMemo(() => `${brand} ${brandDesc} ${problem}`, [brand, brandDesc, problem]);
-  const assist = assistFor(step, { brand, brandDesc, igUrl, problem, geo, competitors, discards });
+
+  // Wizard assistant: heurística instantánea + refinamiento al tocar "Siguiente"
+  // (mock = heurística, costo cero; live = modelo económico vía /api/wizard/assist).
+  const snapshot = useMemo(
+    () => ({ brand, brandDesc, igUrl, problem, geo, competitors, discards }),
+    [brand, brandDesc, igUrl, problem, geo, competitors, discards],
+  );
+  const heuristic = assistFor(step, snapshot);
+  const [refined, setRefined] = useState<{ step: number; ok: boolean; msg: string } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [validatedStep, setValidatedStep] = useState(-1);
+  const assist = refined && refined.step === step ? { ok: refined.ok, msg: refined.msg } : heuristic;
 
   function toggleNet(key: string) {
     setNetworks((ns) => (ns.includes(key) ? ns.filter((k) => k !== key) : [...ns, key]));
@@ -159,6 +170,35 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
     step === 1 ? geo.length > 0 && competitors.length > 0 :
     step === 2 ? networks.length > 0 :
     true;
+
+  function advance() {
+    setRefined(null);
+    setValidatedStep(-1);
+    setStep((s) => s + 1);
+  }
+
+  // On "Siguiente": ask the assistant to review THIS step. If it's happy, advance;
+  // if it flags something vague, show the tip and let a second click proceed.
+  async function onNext() {
+    if (!canNext || checking) return;
+    if (validatedStep === step) return advance();
+    setChecking(true);
+    try {
+      const res = await fetch("/api/wizard/assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step, state: snapshot }),
+      });
+      const json = (await res.json()) as { ok: boolean; msg: string };
+      setRefined({ step, ok: json.ok, msg: json.msg });
+      setValidatedStep(step);
+      setChecking(false);
+      if (json.ok) advance();
+    } catch {
+      setChecking(false);
+      advance();
+    }
+  }
 
   return (
     <motion.div
@@ -367,8 +407,8 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
           </button>
           <div style={{ flex: 1 }} />
           {step < STEPS.length - 1 ? (
-            <button type="button" disabled={!canNext} onClick={() => setStep((s) => s + 1)} style={navBtn(true, !canNext)}>
-              Siguiente <ArrowRight size={15} />
+            <button type="button" disabled={!canNext || checking} onClick={onNext} style={navBtn(true, !canNext || checking)}>
+              {checking ? <><Loader2 size={15} className="bb-spin" /> Revisando…</> : <>Siguiente <ArrowRight size={15} /></>}
             </button>
           ) : (
             <button type="button" disabled={running} onClick={execute} style={navBtn(true, running)}>

@@ -26,6 +26,11 @@ export type SettingRow = {
   results_limit: number;
 };
 
+// Platforms served by Grok live search (X + Web/Portales). Their provider is
+// forced to "grok" so the cost guard/estimate use Grok rates + the XAI key,
+// matching the connector resolved in sources/index.ts.
+const GROK_PLATFORMS = new Set<PlatformKey>(["x", "web"]);
+
 // Turns a ResearchPlan + the source_settings registry into the list of jobs to
 // run. Honors the chosen scope (organic/paid/both) and per-source enable flags.
 export function planToJobs(plan: ResearchPlan, settings: SettingRow[], maxItems = 100): ExtractionJob[] {
@@ -43,7 +48,7 @@ export function planToJobs(plan: ResearchPlan, settings: SettingRow[], maxItems 
     jobs.push({
       platform: row.platform,
       scope: row.scope as Scope,
-      provider: row.provider ?? "apify",
+      provider: GROK_PLATFORMS.has(row.platform) ? "grok" : (row.provider ?? "apify"),
       actorId: row.actor_id ?? selectActor(row.platform, row.scope as Scope, plan),
       fallbackActorId: row.fallback_actor_id ?? undefined,
       items: Math.min(row.results_limit ?? 25, maxItems),
