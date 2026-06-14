@@ -408,20 +408,29 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
                   </div>
                 </div>
 
-                {/* cost */}
-                <div style={{ ...cardBox, display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center", background: "color-mix(in srgb, var(--accent) 8%, var(--surface))", borderColor: "color-mix(in srgb, var(--accent) 30%, var(--border))" }}>
-                  <div>
-                    <div className="t-micro" style={{ color: "var(--accent)" }}>{t("wizard.cost.title")}</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 30, fontWeight: 600, marginTop: 4 }}>US${estimate.total.toFixed(2)}</div>
-                    <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", marginTop: 2 }}>{t("wizard.cost.range", { low: estimate.low.toFixed(2), high: estimate.high.toFixed(2), min: estimate.minutes, comps: estimate.comps })}</div>
-                  </div>
-                  <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", textAlign: "right", lineHeight: "18px" }}>
-                    {t("wizard.cost.scraping")} US${estimate.scraping.toFixed(2)}<br />{t("wizard.cost.analysis")} US${estimate.ai.toFixed(2)}
-                  </div>
-                </div>
-
-                <div style={{ fontSize: 11, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{t("wizard.cost.note")}</div>
-                {error && <div style={{ fontSize: 12, color: "var(--danger)" }}>{error}</div>}
+                {/* cost — only when logged in, and in CREDITS to be spent from the
+                    account. Without a session the paywall (subscription modal)
+                    handles monetization, so no estimate is shown here. */}
+                {user ? (
+                  <>
+                    <div style={{ ...cardBox, display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center", background: "color-mix(in srgb, var(--accent) 8%, var(--surface))", borderColor: "color-mix(in srgb, var(--accent) 30%, var(--border))" }}>
+                      <div>
+                        <div className="t-micro" style={{ color: "var(--accent)" }}>{t("wizard.credits.title")}</div>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: 30, fontWeight: 600, marginTop: 4 }}>{REPORT_COST} <span style={{ fontSize: 14, color: "var(--text-muted)" }}>{t("credits.unit")}</span></div>
+                        <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", marginTop: 2 }}>{t("wizard.credits.report", { min: estimate.minutes })}</div>
+                      </div>
+                      <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", textAlign: "right", lineHeight: "18px", color: "var(--text-muted)" }}>
+                        {t("wizard.credits.balance")}: {balance.toLocaleString()}<br />
+                        {balance >= REPORT_COST
+                          ? t("wizard.credits.after", { n: (balance - REPORT_COST).toLocaleString() })
+                          : <span style={{ color: "var(--accent)", fontWeight: 600 }}>{t("wizard.credits.insufficient")}</span>}
+                      </div>
+                    </div>
+                    {error && <div style={{ fontSize: 12, color: "var(--danger)" }}>{error}</div>}
+                  </>
+                ) : (
+                  <div style={{ fontSize: 11.5, color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: "17px" }}>{t("wizard.cost.choosePlan")}</div>
+                )}
               </div>
             )}
           </motion.div>
