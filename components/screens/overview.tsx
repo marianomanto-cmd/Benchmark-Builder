@@ -51,14 +51,14 @@ export function Overview({
   let gi = 0;
   const donutData = competitors.map((c) => ({ name: c.name, sov: Number(c.sov.replace(",", ".")) || 0 }));
   const donutColors: AvailableChartColorsKeys[] = competitors.map((c) =>
-    c.isClient ? "sangria" : donutPalette[gi++ % donutPalette.length],
+    c.isClient ? "gold" : donutPalette[gi++ % donutPalette.length],
   );
 
   // Charts derived from the case competitors so they always match the brands shown.
   const mNum = (s: string) => parseInt(s.replace(/\D/g, ""), 10) || 40;
   let vi = 0;
   const volumeCategories = competitors.map((c) => c.name);
-  const volumeColors: AvailableChartColorsKeys[] = competitors.map((c) => (c.isClient ? "sangria" : donutPalette[vi++ % donutPalette.length]));
+  const volumeColors: AvailableChartColorsKeys[] = competitors.map((c) => (c.isClient ? "gold" : donutPalette[vi++ % donutPalette.length]));
   const volume = MONTHS.map((month, i) => {
     const row: Record<string, string | number> = { month };
     competitors.forEach((c, ci) => {
@@ -179,7 +179,7 @@ export function Overview({
             data={trend}
             index="month"
             categories={[clientName]}
-            colors={["sangria"]}
+            colors={["gold"]}
             valueFormatter={(v) => formatInt(v)}
             showLegend={false}
             fill="gradient"

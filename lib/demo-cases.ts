@@ -107,7 +107,8 @@ export type ResolvedCase = {
 
 function accentsOf(brands: Brand[]): string[] {
   let r = 0;
-  return brands.map((b) => (b.isClient ? "var(--series-client)" : RIVAL_ACCENTS[r++ % RIVAL_ACCENTS.length]));
+  // Client highlighted with the data-viz accent (gold) — coherent with charts, no coral.
+  return brands.map((b) => (b.isClient ? "var(--viz-accent)" : RIVAL_ACCENTS[r++ % RIVAL_ACCENTS.length]));
 }
 
 function buildCompetitors(brands: Brand[]): CompetitorVM[] {

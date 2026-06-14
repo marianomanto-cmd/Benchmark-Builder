@@ -63,6 +63,8 @@ export const chartColors = {
   taupe: { bg: "bg-[#847a68] dark:bg-[#a89e8b]", stroke: "stroke-[#847a68] dark:stroke-[#a89e8b]", fill: "fill-[#847a68] dark:fill-[#a89e8b]", text: "text-[#847a68] dark:text-[#a89e8b]" },
   sand: { bg: "bg-[#c7bdab] dark:bg-[#635a4b]", stroke: "stroke-[#c7bdab] dark:stroke-[#635a4b]", fill: "fill-[#c7bdab] dark:fill-[#635a4b]", text: "text-[#c7bdab] dark:text-[#635a4b]" },
   sangria: { bg: "bg-[#6b1a36] dark:bg-[#f23a5e]", stroke: "stroke-[#6b1a36] dark:stroke-[#f23a5e]", fill: "fill-[#6b1a36] dark:fill-[#f23a5e]", text: "text-[#6b1a36] dark:text-[#f23a5e]" },
+  // data-viz accent — warm gold (coherent with the warm-neutral series, no coral)
+  gold: { bg: "bg-[#a6741a] dark:bg-[#e0a458]", stroke: "stroke-[#a6741a] dark:stroke-[#e0a458]", fill: "fill-[#a6741a] dark:fill-[#e0a458]", text: "text-[#a6741a] dark:text-[#e0a458]" },
 } as const satisfies {
   [color: string]: {
     [key in ColorUtility]: string
