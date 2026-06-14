@@ -74,6 +74,7 @@ type CaseDef = {
   analysis: AnalysisVM;
   sections?: Record<string, AnalysisVM>;
   strategy: Strategy;
+  radar?: RadarVM; // optional override; otherwise derived from brands
 };
 
 // ---- presentation types consumed by the screens ----
@@ -86,6 +87,7 @@ export type Quad = { key: string; title: string; tone: string; items: string[] }
 export type Move = { key: string; title: string; sub: string; color: string; items: string[] };
 export type Horizon = { title: string; window: string; items: string[] };
 export type KpiVM = { label: string; value: string; delta?: string; up?: boolean; spark?: boolean; bar?: number; tone?: "ink" };
+export type RadarVM = { axes: string[]; series: { name: string; color: string; vals: number[] }[] };
 
 export type ResolvedCase = {
   slug: string;
@@ -100,7 +102,7 @@ export type ResolvedCase = {
   kpis: KpiVM[];
   comparativa: { cols: CompCol[]; rows: CompRow[]; platsByCol: PlatformKey[][] };
   gallery: { adGroups: GalleryGroup[]; organicGroups: GalleryGroup[]; adTotal: number; adSpend: string; organicTotal: number };
-  swot: { swot: Quad[]; matrix: Move[]; plan: Horizon[] };
+  swot: { swot: Quad[]; matrix: Move[]; plan: Horizon[]; radar: RadarVM };
   sections: Record<string, AnalysisVM>;
   analysis: AnalysisVM;
 };
@@ -188,6 +190,37 @@ function buildGallery(brands: Brand[]) {
   return { adGroups, organicGroups, adTotal, adSpend: spLow ? `USD ${spLow}–${spHigh}k` : "—", organicTotal };
 }
 
+// Radar (client vs leader) over 6 dimensions. Values normalized 0–100; the
+// "Engagement" axis is per-piece (eng/mentions) so it reflects efficiency, not
+// raw volume — which is exactly the competitive read the radar is meant to show.
+function deriveRadar(brands: Brand[]): RadarVM {
+  const client = brands.find((b) => b.isClient) ?? brands[0];
+  const leader = brands.filter((b) => b !== client).sort((a, b) => b.sov - a.sov)[0] ?? brands[0];
+  const epp = (b: Brand) => b.eng / Math.max(1, b.mentions);
+  const maxSov = Math.max(...brands.map((b) => b.sov), 1);
+  const maxEpp = Math.max(...brands.map(epp), 1);
+  const maxSpend = Math.max(...brands.map((b) => (b.spend ? b.spend[1] : 0)), 1);
+  const maxFreq = Math.max(...brands.map((b) => b.freq), 1);
+  const maxOrg = Math.max(...brands.map((b) => b.organic), 1);
+  const sent = (s: SentimentKind) => (s === "pos" ? 88 : s === "mix" ? 62 : s === "neg" ? 32 : 50);
+  const tk = (b: Brand) => (b.platforms.includes("tiktok") ? Math.round((b.organic / maxOrg) * 90) : 10);
+  const vals = (b: Brand) => [
+    Math.round((b.sov / maxSov) * 95),
+    Math.round((epp(b) / maxEpp) * 95),
+    sent(b.sentiment),
+    Math.round(((b.spend ? b.spend[1] : 0) / maxSpend) * 95),
+    Math.round((b.freq / maxFreq) * 92),
+    tk(b),
+  ];
+  return {
+    axes: ["SOV", "Engagement", "Sentimiento", "Pauta paga", "Cadencia", "TikTok org."],
+    series: [
+      { name: client.name, color: "var(--accent)", vals: vals(client) },
+      { name: `${leader.name} · líder`, color: "var(--series-2)", vals: vals(leader) },
+    ],
+  };
+}
+
 function buildSwot(s: Strategy) {
   return {
     swot: [
@@ -232,7 +265,7 @@ function resolve(def: CaseDef): ResolvedCase {
     kpis: buildKpis(def.brands),
     comparativa: buildComparativa(def.brands),
     gallery: buildGallery(def.brands),
-    swot: buildSwot(def.strategy),
+    swot: { ...buildSwot(def.strategy), radar: def.radar ?? deriveRadar(def.brands) },
     sections: baseSections,
     analysis: def.analysis,
   };
@@ -280,6 +313,13 @@ const DEFS: CaseDef[] = [
       short: ["Activar TikTok orgánico con 3–4 piezas POV/vlog.", "Responder el hilo negativo de Reddit.", "2 creativos pagos para la ruta a Cartagena."],
       mid: ["Cadencia fija martes–jueves AM.", "Testear video vs. foto y medir alcance.", "Tablero de SOV semanal."],
       long: ["Construir SOV sostenido sin diluir el sentimiento.", "Programa de afinidad / UGC.", "Inversión orgánico+paid atada a retorno por ruta."],
+    },
+    radar: {
+      axes: ["SOV", "Engagement", "Sentimiento", "Pauta paga", "Cadencia", "TikTok org."],
+      series: [
+        { name: "Copa Airlines", color: "var(--accent)", vals: [25, 90, 86, 20, 46, 10] },
+        { name: "Avianca · líder", color: "var(--series-2)", vals: [95, 55, 50, 95, 82, 58] },
+      ],
     },
   },
 

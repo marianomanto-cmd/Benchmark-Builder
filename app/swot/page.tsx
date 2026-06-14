@@ -14,6 +14,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       swot={sw.swot}
       matrix={sw.matrix}
       plan={sw.plan}
+      radar={sw.radar}
       breadcrumb={["@nav.dashboard", header.crumb, "@shell.nav.swot"]}
       runMeta={`generado del run #${String(header.runNumber).padStart(3, "0")}`}
       caseSlug={slug}
