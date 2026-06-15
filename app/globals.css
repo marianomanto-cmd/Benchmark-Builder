@@ -248,12 +248,14 @@ body { background: transparent; }
   background: var(--accent);
 }
 
-/* Marquee ticker (sources). */
+/* Marquee ticker (sources). Duration scales with track width: each half is now
+   REPEAT (5) copies of the list, so the -50% loop travels 5× the old distance —
+   160s keeps the original ~32s-per-copy pace (slower, smooth). */
 @keyframes bb-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .bb-marquee-track {
   display: inline-flex;
   white-space: nowrap;
-  animation: bb-marquee 32s linear infinite;
+  animation: bb-marquee 160s linear infinite;
   will-change: transform;
 }
 .bb-marquee:hover .bb-marquee-track { animation-play-state: paused; }
