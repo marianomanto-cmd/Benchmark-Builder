@@ -1,0 +1,64 @@
+/* "El entregable" — anatomía del documento (2 cols: copy + tarjeta con las 4
+ * secciones del reporte). Fondo = el global del sitio (no trae el suyo).
+ * Reveals: SÓLO transform (base visible), por el patrón del handoff. */
+
+.grid {
+  display: grid;
+  grid-template-columns: 0.86fr 1.14fr;
+  gap: clamp(28px, 5vw, 52px);
+  align-items: center;
+}
+
+.eyebrow { margin-bottom: 18px; }
+.h2 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(30px, 4.6vw, 46px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  margin: 0 0 20px;
+  color: var(--text);
+  text-wrap: balance;
+}
+.h2 em { font-style: italic; color: var(--accent); }
+.lp { font-size: clamp(14px, 1.6vw, 15px); line-height: 1.55; color: var(--text-muted); max-width: 46ch; margin: 0 0 24px; text-wrap: pretty; }
+.lp b { color: var(--text); font-weight: 500; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.ec { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
+.ecDot { width: 6px; height: 6px; border-radius: 2px; background: var(--accent); }
+
+/* anatomy card */
+.anat { border: 1px solid var(--border); border-radius: var(--r-lg); background: color-mix(in srgb, var(--surface) 62%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); overflow: hidden; box-shadow: var(--sh-3); }
+.ah { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; border-bottom: 1px solid var(--border); }
+.ahT { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.ahDim { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); }
+.arow { display: grid; grid-template-columns: 30px 1fr 150px 56px; gap: 16px; align-items: center; padding: 16px 18px; border-top: 1px solid var(--border); }
+.arow:first-of-type { border-top: 0; }
+.n { font-family: var(--font-mono); font-size: 13px; color: var(--text-faint); }
+.nm { font-size: 15px; font-weight: 600; color: var(--text); }
+.sub { display: block; font-size: 11.5px; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+.pgr { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); text-align: right; }
+
+.prev { height: 48px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); padding: 7px 9px; overflow: hidden; }
+.pl { height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text) 12%, transparent); margin-bottom: 4px; }
+.bars { display: flex; align-items: flex-end; gap: 4px; }
+.barI { flex: 1; border-radius: 2px 2px 0 0; background: var(--viz-accent); transform-origin: bottom; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; }
+.gridI { border-radius: 2px; background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--text) 10%, transparent) 4px 5px); border: 1px solid var(--border); }
+.check { display: flex; flex-direction: column; gap: 5px; justify-content: center; }
+.checkI { height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--accent) 35%, transparent); }
+
+.af { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--border); background: color-mix(in srgb, var(--surface-2) 50%, transparent); }
+.cta { display: inline-flex; align-items: center; gap: 9px; height: 40px; padding: 0 18px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 13px; font-weight: 600; font-family: var(--font-mono); letter-spacing: .04em; text-transform: uppercase; cursor: pointer; border: 0; box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 34%, transparent); transition: filter .15s, transform .1s; text-decoration: none; }
+.cta:hover { filter: brightness(1.08); }
+.cta:active { transform: translateY(1px); }
+
+@media (max-width: 860px) {
+  .grid { grid-template-columns: 1fr; }
+  .arow { grid-template-columns: 26px 1fr 64px; gap: 12px; padding: 15px 15px; }
+  .prev { display: none; }
+}
+@media (max-width: 380px) {
+  .arow { grid-template-columns: 24px 1fr; }
+  .pgr { display: none; }
+}
