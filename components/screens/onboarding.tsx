@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { motion } from "motion/react";
 import { useI18n } from "@/components/i18n-provider";
 import s from "./onboarding.module.css";
@@ -24,16 +24,6 @@ export function Onboarding({ onFinish }: { onFinish: () => void }) {
   const vizRef = useRef<HTMLDivElement>(null);
   const modeRef = useRef(1);
   const reducedRef = useRef(false);
-
-  const stars = useMemo(
-    () => Array.from({ length: 48 }, () => ({
-      left: `${(Math.random() * 100).toFixed(1)}%`,
-      top: `${(Math.random() * 100).toFixed(1)}%`,
-      delay: `${(Math.random() * 3.6).toFixed(2)}s`,
-      big: Math.random() < 0.2,
-    })),
-    [],
-  );
 
   // measure the viz so labels can be placed on a ring (px from center)
   useEffect(() => {
@@ -128,11 +118,6 @@ export function Onboarding({ onFinish }: { onFinish: () => void }) {
 
   return (
     <motion.div className={s.overlay} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-      <div className={s.stars} aria-hidden>
-        {stars.map((st, i) => (
-          <span key={i} className={s.star} style={{ left: st.left, top: st.top, animationDelay: st.delay, ...(st.big ? { width: 3, height: 3 } : {}) }} />
-        ))}
-      </div>
       <div className={s.wrap}>
         <div className={s.top}>
           <div className={s.dots}>

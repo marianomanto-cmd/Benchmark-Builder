@@ -2,21 +2,21 @@
  * user clicks "Comencemos". Ends in "¡Entendido!" → wizard. Coral→magenta
  * onboarding palette (close to the brand sangría); app tokens for surfaces. */
 
+/* Translucent overlay so the GLOBAL site background (video) shows through,
+ * blurred — same environment as the wizard. A soft coral wash on top keeps the
+ * onboarding's warmth without hiding the moving bg. */
 .overlay {
   position: fixed;
   inset: 0;
   z-index: 80;
   background:
-    radial-gradient(78% 42% at 50% -2%, color-mix(in srgb, #f72b6b 22%, transparent), transparent 68%),
-    radial-gradient(64% 36% at 88% 102%, color-mix(in srgb, #ff4d6d 14%, transparent), transparent 70%),
-    var(--bg);
+    radial-gradient(70% 40% at 50% -4%, color-mix(in srgb, #f72b6b 14%, transparent), transparent 70%),
+    color-mix(in srgb, var(--bg) 70%, transparent);
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
   color: var(--text);
-  overflow: hidden;
+  overflow-y: auto;
 }
-
-.stars { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-.star { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff; opacity: .4; animation: onbTwk 3.6s ease-in-out infinite; }
-@keyframes onbTwk { 0%, 100% { opacity: .15; } 50% { opacity: .7; } }
 
 .wrap {
   position: relative; z-index: 1; min-height: 100dvh; max-width: 560px; margin: 0 auto;
