@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import { HomeWizard } from "@/components/screens/home-wizard";
+import { Onboarding } from "@/components/screens/onboarding";
 import { SignInModal } from "@/components/sign-in-modal";
 import { useI18n } from "@/components/i18n-provider";
 import s from "@/components/marketing/marketing.module.css";
@@ -15,6 +16,7 @@ const EASE = [0.2, 0.7, 0.2, 1] as const;
 export function MarketingHero() {
   const { t } = useI18n();
   const [wizard, setWizard] = useState(false);
+  const [onboarding, setOnboarding] = useState(false);
   const [signin, setSignin] = useState(false);
   const [ready, setReady] = useState(false);
 
@@ -42,7 +44,7 @@ export function MarketingHero() {
           <motion.div {...rise(0.3)} style={{ marginTop: 30, display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
             <button
               type="button"
-              onClick={() => setWizard(true)}
+              onClick={() => setOnboarding(true)}
               style={{ display: "inline-flex", alignItems: "center", gap: 10, height: 54, padding: "0 26px", borderRadius: 999, border: "none", background: "var(--accent)", color: "var(--accent-ink)", fontSize: 16, fontWeight: 600, cursor: "pointer", boxShadow: "0 14px 34px color-mix(in srgb, var(--accent) 40%, transparent)" }}
             >
               {t("home.cta")} <ArrowRight size={18} />
@@ -55,6 +57,7 @@ export function MarketingHero() {
         </div>
       </section>
       <AnimatePresence>
+        {onboarding && <Onboarding key="onb" onFinish={() => { setOnboarding(false); setWizard(true); }} />}
         {wizard && <HomeWizard initialQuery="" onClose={() => setWizard(false)} />}
         {signin && <SignInModal onClose={() => setSignin(false)} />}
       </AnimatePresence>

@@ -64,7 +64,7 @@ function GalleryColumn({ kind, groups, total, spend }: { kind: "organic" | "ad";
             <div style={{ fontSize: 12, fontWeight: 500, color: isAd ? "var(--accent)" : "var(--text)" }}>{g.name}</div>
             <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: isAd ? "var(--accent)" : "var(--text-muted)" }}>{g.count} piezas</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))", gap: 8 }}>
             {g.items.map((it, i) => {
               const a = mockConsolidated({ url: it[5] ?? it[2], kind: it[0] === "video" ? "video" : "image" });
               return (

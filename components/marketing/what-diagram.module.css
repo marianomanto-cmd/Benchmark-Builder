@@ -6,7 +6,7 @@
 /* Carded frame (espejo de la maqueta): contiene copy + vórtice, ancho acotado
  * y centrado para que el texto quede cerca del vórtice y sea legible. */
 .card {
-  max-width: 880px;
+  max-width: 980px;
   margin: 0 auto;
   border: 1px solid var(--border);
   border-radius: var(--r-lg);

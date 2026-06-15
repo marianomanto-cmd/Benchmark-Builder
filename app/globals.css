@@ -280,6 +280,8 @@ img, video, canvas { max-width: 100%; }
 
 @media (max-width: 860px) {
   .bb-collapse { grid-template-columns: 1fr !important; }
+  .bb-bento { grid-template-columns: 1fr !important; }
+  .bb-bento > * { grid-column: auto !important; grid-row: auto !important; }
   .bb-row { flex-direction: column !important; align-items: stretch !important; }
   .bb-scroll-x { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
   .bb-hide-sm { display: none !important; }

@@ -303,7 +303,8 @@ function RoadmapView({ plan }: { plan: Horizon[] }) {
   plan.slice(0, 3).forEach((h, col) => h.items.forEach((it) => tasks[laneOf(it)][col].push(it)));
 
   return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", boxShadow: "var(--sh-1)" }}>
+    <div className="bb-scroll-x">
+    <div style={{ minWidth: 640, border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", boxShadow: "var(--sh-1)" }}>
       <div style={{ display: "grid", gridTemplateColumns: "160px repeat(3, 1fr)", background: "var(--surface-2)", borderBottom: "1px solid var(--border)" }}>
         <div style={headCell(true)}>Carril</div>
         {plan.slice(0, 3).map((h) => (
@@ -337,6 +338,7 @@ function RoadmapView({ plan }: { plan: Horizon[] }) {
           </div>
         </div>
       ))}
+    </div>
     </div>
   );
 }

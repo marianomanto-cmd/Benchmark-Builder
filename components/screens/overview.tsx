@@ -216,7 +216,7 @@ function CockpitView({ vm }: { vm: VM }) {
         <div className="t-micro" style={{ marginBottom: 10 }}>Insights destacados</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
           {vm.insights.map((it, i) => (
-            <MiniInsight key={i} kind={it.kind} t={it.title} s={`${it.sources} fuentes · conf ${it.confidence}`} />
+            <MiniInsight key={it.title} kind={it.kind} t={it.title} s={`${it.sources} fuentes · conf ${it.confidence}`} />
           ))}
         </div>
       </div>
@@ -292,7 +292,7 @@ function PosicionesView({ vm }: { vm: VM }) {
               <div className="t-micro" style={{ marginBottom: 10 }}>Movés primero</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
                 {recs.slice(0, 2).map((r, i) => (
-                  <MiniInsight key={i} kind={i === 0 ? "opp" : "pat"} t={r} s={i === 0 ? "nicho abierto" : "cerrar brecha"} />
+                  <MiniInsight key={r} kind={i === 0 ? "opp" : "pat"} t={r} s={i === 0 ? "nicho abierto" : "cerrar brecha"} />
                 ))}
               </div>
             </div>
@@ -334,7 +334,7 @@ function SpreadView({ vm }: { vm: VM }) {
         <div style={{ position: "relative" }}>
           <BarChart data={vm.volume} index="month" categories={vm.volumeCategories} colors={vm.volumeColors} type="stacked" valueFormatter={(v) => formatInt(v)} showLegend className="mt-1 h-72" />
           {ann.map((text, i) => (
-            <div key={i} style={{ position: "absolute", ...annPos[i], maxWidth: 180, fontFamily: "var(--font-mono)", fontSize: 10, lineHeight: 1.3, color: "var(--text)", background: "color-mix(in srgb, var(--surface) 88%, transparent)", border: "1px solid var(--border-strong)", borderRadius: 6, padding: "6px 9px", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", boxShadow: "var(--sh-1)" }}>
+            <div key={text} style={{ position: "absolute", ...annPos[i], maxWidth: 180, fontFamily: "var(--font-mono)", fontSize: 10, lineHeight: 1.3, color: "var(--text)", background: "color-mix(in srgb, var(--surface) 88%, transparent)", border: "1px solid var(--border-strong)", borderRadius: 6, padding: "6px 9px", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", boxShadow: "var(--sh-1)" }}>
               <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--viz-accent)", boxShadow: "0 0 8px var(--viz-accent)", marginRight: 6 }} />
               {text}
             </div>
@@ -375,7 +375,7 @@ function StatStrip({ kpis, dir }: { kpis: KpiVM[]; dir: "row" | "col" }) {
   return (
     <div style={{ display: "flex", flexDirection: row ? "row" : "column", flexWrap: row ? "wrap" : "nowrap", border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", background: "var(--surface)" }}>
       {kpis.map((k, i) => (
-        <div key={i} style={{ flex: row ? "1 1 150px" : "none", minWidth: row ? 150 : undefined, padding: "14px 16px", borderRight: row && i < kpis.length - 1 ? "1px solid var(--border)" : "none", borderBottom: !row && i < kpis.length - 1 ? "1px solid var(--border)" : "none" }}>
+        <div key={k.label} style={{ flex: row ? "1 1 150px" : "none", minWidth: row ? 150 : undefined, padding: "14px 16px", borderRight: row && i < kpis.length - 1 ? "1px solid var(--border)" : "none", borderBottom: !row && i < kpis.length - 1 ? "1px solid var(--border)" : "none" }}>
           <div style={{ fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{k.label}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, fontWeight: 500, marginTop: 6, letterSpacing: "-0.01em", color: k.tone === "ink" ? "var(--accent)" : "var(--text)" }}>{k.value}</div>
           {k.delta && <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, marginTop: 3, color: k.up ? "var(--success)" : "var(--text-muted)" }}>{k.up ? "▲ " : ""}{k.delta}</div>}
@@ -388,8 +388,8 @@ function StatStrip({ kpis, dir }: { kpis: KpiVM[]; dir: "row" | "col" }) {
 function StatLine({ kpis }: { kpis: KpiVM[] }) {
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 28, margin: "0 0 4px", padding: "16px 0", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
-      {kpis.map((k, i) => (
-        <div key={i}>
+      {kpis.map((k) => (
+        <div key={k.label}>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 24, fontWeight: 500, color: k.tone === "ink" ? "var(--accent)" : "var(--text)" }}>{k.value}</div>
           <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: 3 }}>{k.label}</div>
         </div>
