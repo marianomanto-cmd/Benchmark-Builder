@@ -126,8 +126,7 @@ export function Onboarding({ onFinish }: { onFinish: () => void }) {
           <button type="button" className={s.skip} onClick={onFinish}>{t("onb.skip")}</button>
         </div>
 
-        <main className={s.main}>
-          <div className={s.eyebrow}>{t(`onb.eb${step}`)}</div>
+        <div className={s.eyebrow}>{t(`onb.eb${step}`)}</div>
           <div className={s.viz} ref={vizRef}>
             <canvas ref={cvRef} className={s.canvas} aria-hidden />
             <div className={s.ov}>
@@ -164,11 +163,8 @@ export function Onboarding({ onFinish }: { onFinish: () => void }) {
           <p className={s.phrase} key={step}>
             {step === 0 ? copy("onb.c0a", "onb.c0em", "onb.c0b") : step === 1 ? copy("onb.c1a", "onb.c1em", "onb.c1b") : copy("onb.c2a", "onb.c2em", "onb.c2b")}
           </p>
-        </main>
 
-        <footer className={s.footer}>
-          <button type="button" className={s.next} onClick={advance}>{step === 2 ? t("onb.done") : t("onb.next")}</button>
-        </footer>
+        <button type="button" className={s.next} onClick={advance}>{step === 2 ? t("onb.done") : t("onb.next")}</button>
       </div>
     </motion.div>
   );
