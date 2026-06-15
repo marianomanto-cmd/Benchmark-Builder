@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useI18n } from "@/components/i18n-provider";
+import { AccountAvatar } from "@/components/account-avatar";
 import { DEMO_ACCOUNTS, accountStats } from "@/lib/accounts";
 import s from "@/components/marketing/marketing.module.css";
 
@@ -22,7 +23,7 @@ export function CompactDashboard() {
             return (
               <Link key={a.slug} href={`/cuenta/${a.slug}`} className="bb-lift" style={{ textDecoration: "none", color: "inherit", display: "block", background: "color-mix(in srgb, var(--surface) 70%, transparent)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 16, boxShadow: "var(--sh-1)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 12 }}>
-                  <span style={{ width: 38, height: 38, borderRadius: 11, background: `color-mix(in srgb, ${a.accent} 22%, transparent)`, color: a.accent, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 15, flexShrink: 0 }}>{a.letter}</span>
+                  <AccountAvatar slug={a.slug} name={a.name} letter={a.letter} accent={a.accent} size={38} radius={11} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</div>
                     <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{t(a.industryKey)}</div>

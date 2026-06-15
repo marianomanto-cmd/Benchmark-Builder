@@ -11,6 +11,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { useSession } from "@/components/session-provider";
 import { useCredits } from "@/lib/credits/store";
 import { useDirectory } from "@/lib/directory-store";
+import { AccountAvatar } from "@/components/account-avatar";
 import { accountStats, type DirAccount } from "@/lib/accounts";
 import type { TFn } from "@/lib/i18n";
 
@@ -145,7 +146,7 @@ function AccountCard({ account: a, index, t, onDeleteAccount, onAddProject, onDe
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: index * 0.04, ease }} className="bb-lift" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: 16, boxShadow: "var(--sh-1)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 12 }}>
-        <span style={{ width: 40, height: 40, borderRadius: 12, background: `color-mix(in srgb, ${a.accent} 22%, transparent)`, color: a.accent, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16, flexShrink: 0 }}>{a.letter}</span>
+        <AccountAvatar slug={a.slug} name={a.name} letter={a.letter} accent={a.accent} size={40} radius={12} />
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</div>
           <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{t(a.industryKey)}</div>

@@ -48,6 +48,18 @@ export const DEMO_ACCOUNTS: DirAccount[] = [
   },
 ];
 
+// Brand domains for the seed accounts → used to fetch their logo (by slug, so it
+// works even if a cached directory lacks the field). User-created accounts fall
+// back to the letter avatar.
+export const BRAND_DOMAINS: Record<string, string> = {
+  copa: "copaair.com",
+  natura: "natura.com",
+  zara: "zara.com",
+  uala: "uala.com.ar",
+  nike: "nike.com",
+  juanvaldez: "juanvaldezcafe.com",
+};
+
 export function allRuns(): DirRun[] {
   return DEMO_ACCOUNTS.flatMap((a) => a.projects.flatMap((p) => p.runs));
 }

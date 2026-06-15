@@ -7,6 +7,7 @@ import { motion } from "motion/react";
 import { Folder, Plus, Trash2, X } from "lucide-react";
 import { ScreenShell } from "@/components/shell/screen-shell";
 import { Btn } from "@/components/ui/primitives";
+import { AccountAvatar } from "@/components/account-avatar";
 import { useI18n } from "@/components/i18n-provider";
 import { useDirectory, findAccount } from "@/lib/directory-store";
 import { accountStats, projectStats } from "@/lib/accounts";
@@ -37,7 +38,7 @@ export function AccountView({ slug }: { slug: string }) {
     <ScreenShell breadcrumb={["@nav.dashboard", account.name]} nav="app">
       <div className="bb-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-          <span style={{ width: 52, height: 52, borderRadius: 14, background: `color-mix(in srgb, ${account.accent} 22%, transparent)`, color: account.accent, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 22, flexShrink: 0 }}>{account.letter}</span>
+          <AccountAvatar slug={account.slug} name={account.name} letter={account.letter} accent={account.accent} size={52} radius={14} />
           <div style={{ minWidth: 0 }}>
             <div className="t-micro" style={{ color: "var(--accent)" }}>{t("acct.eyebrow")}</div>
             <h1 className="t-h1" style={{ color: "var(--text)", marginTop: 2 }}>{account.name}</h1>

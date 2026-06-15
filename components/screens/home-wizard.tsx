@@ -280,6 +280,21 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
               {step === 3 && (
                 <Step title={<>{t("wizard.qt3a")}<em style={em}>{t("wizard.qt3em")}</em></>}>
                   <p style={{ fontSize: 13, lineHeight: "19px", color: "var(--text-muted)", marginTop: 2 }}>{t("wizard.confirmHelp")}</p>
+                  <div style={{ marginTop: 14, border: "1px solid var(--border)", borderRadius: 12, background: "color-mix(in srgb, var(--surface) 50%, transparent)", padding: 16 }}>
+                    <div style={{ ...lbl, color: "var(--accent)", marginBottom: 7 }}>{t("wizard.confirmDoLabel")}</div>
+                    <p style={{ fontSize: 13.5, lineHeight: "20px", color: "var(--text)", margin: 0 }}>
+                      {t("wizard.confirmRecap", { brand, competitors: competitors.join(", "), markets: geo.join(", "), sources: networks.length, window: periodLabel })}
+                    </p>
+                    <div style={{ ...lbl, color: "var(--accent)", margin: "16px 0 8px" }}>{t("wizard.confirmGetLabel")}</div>
+                    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "7px 14px" }}>
+                      {["deliv.r0n", "deliv.r1n", "deliv.r2n", "deliv.r3n"].map((k) => (
+                        <li key={k} style={{ display: "flex", gap: 8, fontSize: 12.5, color: "var(--text)", alignItems: "baseline" }}>
+                          <span style={{ color: "var(--accent)", flexShrink: 0 }}>›</span> {t(k)}
+                        </li>
+                      ))}
+                    </ul>
+                    <p style={{ fontSize: 12.5, lineHeight: "18px", color: "var(--text-muted)", margin: "14px 0 0", paddingTop: 12, borderTop: "1px solid var(--border)" }}>{t("wizard.confirmValue")}</p>
+                  </div>
                   {error && <div style={{ fontSize: 12, color: "var(--danger)", marginTop: 12 }}>{error}</div>}
                 </Step>
               )}
