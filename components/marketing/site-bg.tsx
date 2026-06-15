@@ -76,19 +76,14 @@ export function SiteBackground() {
   );
 
   return (
-    <div
-      aria-hidden
-      style={{
-        position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none", overflow: "hidden", background: "var(--bg)",
-        // "Camera push-in" toward the core during the onboarding scene / wizard —
-        // the var is set on <html> by MarketingHero; defaults to 1 (no scale).
-        transform: "scale(var(--site-cam-scale, 1))",
-        transformOrigin: "center",
-        transition: "transform 1.2s cubic-bezier(.7,.02,.2,1)",
-      }}
-    >
-      {vid(aRef, true)}
-      {vid(bRef, false)}
+    <div aria-hidden style={{ position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none", overflow: "hidden", background: "var(--bg)" }}>
+      {/* Only the video imagery does the gentle "camera" push-in (var set on <html>
+          by MarketingHero) — the scrim is NOT scaled, so there's no brightness
+          shift/"cut". Very subtle (1.05) + slow ease so it reads as smooth. */}
+      <div style={{ position: "absolute", inset: 0, transform: "scale(var(--site-cam-scale, 1))", transformOrigin: "center", transition: "transform 2.2s cubic-bezier(.22, .61, .36, 1)", willChange: "transform" }}>
+        {vid(aRef, true)}
+        {vid(bRef, false)}
+      </div>
       {/* legibility scrim — lighter at the top (hero), darker lower (sections) */}
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(10,8,16,0.28) 0%, rgba(10,8,16,0.5) 55%, rgba(10,8,16,0.8) 100%)" }} />
     </div>

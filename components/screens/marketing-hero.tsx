@@ -34,7 +34,7 @@ export function MarketingHero() {
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const el = document.documentElement;
-    el.style.setProperty("--site-cam-scale", scene && !reduced ? "1.16" : "1");
+    el.style.setProperty("--site-cam-scale", scene && !reduced ? "1.05" : "1");
     return () => { el.style.setProperty("--site-cam-scale", "1"); };
   }, [scene]);
 
