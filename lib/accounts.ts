@@ -60,6 +60,18 @@ export const BRAND_DOMAINS: Record<string, string> = {
   juanvaldez: "juanvaldezcafe.com",
 };
 
+// Vivid per-brand colors for tiles/dots/tints in the panel (the series accents
+// are monochrome). User-created accounts fall back to their chosen/accent color.
+export const BRAND_COLORS: Record<string, string> = {
+  copa: "#d23b2e",
+  natura: "#e8893b",
+  zara: "#3a3540",
+  uala: "#ff5a3c",
+  nike: "#4a4450",
+  juanvaldez: "#9a6b3b",
+};
+export const accountColor = (slug: string, fallback: string): string => BRAND_COLORS[slug] ?? fallback;
+
 export function allRuns(): DirRun[] {
   return DEMO_ACCOUNTS.flatMap((a) => a.projects.flatMap((p) => p.runs));
 }
@@ -89,6 +101,7 @@ export function accountStats(a: DirAccount) {
     projects: a.projects.length,
     runs: runs.length,
     spend: Math.round(runs.reduce((s, r) => s + r.cost, 0) * 100) / 100,
+    mentions: runs.reduce((s, r) => s + r.mentions, 0),
     lastRun: runs[0]?.when ?? "—",
   };
 }

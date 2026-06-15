@@ -68,14 +68,14 @@ export function useDirectory() {
 
   const commit = (next: DirAccount[]) => { setAccounts(next); persist(next); };
 
-  function addAccount(name: string, industry: string): string {
+  function addAccount(name: string, industry: string, color?: string): string {
     const taken = new Set(accounts.map((a) => a.slug));
     const slug = uniqueSlug(slugify(name), taken);
     const acc: DirAccount = {
       slug,
       name: name.trim(),
       letter: (name.trim()[0] || "?").toUpperCase(),
-      accent: ACCENTS[accounts.length % ACCENTS.length],
+      accent: color || ACCENTS[accounts.length % ACCENTS.length],
       // Free-text industry stored as-is; t() returns it verbatim when not a key.
       industryKey: industry.trim() || "—",
       projects: [],

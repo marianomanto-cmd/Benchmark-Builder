@@ -304,6 +304,11 @@ img, video, canvas { max-width: 100%; }
 @keyframes bb-spin { to { transform: rotate(360deg); } }
 .bb-spin { animation: bb-spin 0.8s linear infinite; }
 
+/* Panel rows (timeline / quick-access / account runs) — hover affordance. */
+.bb-tl, .bb-qa, .bb-runrow { transition: background 0.14s ease, border-color 0.14s ease, transform 0.12s ease; }
+.bb-tl:hover, .bb-qa:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.bb-runrow:hover { border-color: var(--accent) !important; transform: translateX(2px); }
+
 /* Ambient aurora for the home — immersive light field (CSS only, GPU-friendly).
  * A drifting field of accent/plum radial glows behind the (transparent) sections. */
 @keyframes bb-aurora {
