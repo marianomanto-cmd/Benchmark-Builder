@@ -3,9 +3,18 @@
 import { useState } from "react";
 import { BRAND_DOMAINS } from "@/lib/accounts";
 
-// Account avatar: shows the brand's logo (by slug → domain, via Clearbit) on a
-// light tile; falls back to the accent-tinted initial for user-created accounts
-// or if the logo fails to load.
+// Account avatar: shows the brand's logo (by slug → domain) on a light tile, with
+// a robust source chain — Clearbit logo, then Google's favicon service — falling
+// back to the accent-tinted initial (user-created accounts, or if all fail).
+function sourcesFor(slug: string): string[] {
+  const domain = BRAND_DOMAINS[slug];
+  if (!domain) return [];
+  return [
+    `https://logo.clearbit.com/${domain}`,
+    `https://www.google.com/s2/favicons?sz=128&domain=${domain}`,
+  ];
+}
+
 export function AccountAvatar({
   slug,
   name,
@@ -21,9 +30,10 @@ export function AccountAvatar({
   size?: number;
   radius?: number;
 }) {
-  const domain = BRAND_DOMAINS[slug];
-  const [failed, setFailed] = useState(false);
-  const showLogo = Boolean(domain) && !failed;
+  const sources = sourcesFor(slug);
+  const [idx, setIdx] = useState(0);
+  const src = sources[idx];
+  const showLogo = Boolean(src);
   return (
     <span
       style={{
@@ -44,12 +54,13 @@ export function AccountAvatar({
       {showLogo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={`https://logo.clearbit.com/${domain}`}
+          key={src}
+          src={src}
           alt={name}
           width={size}
           height={size}
           loading="lazy"
-          onError={() => setFailed(true)}
+          onError={() => setIdx((i) => i + 1)}
           style={{ width: "100%", height: "100%", objectFit: "contain", padding: Math.round(size * 0.16) }}
         />
       ) : (
