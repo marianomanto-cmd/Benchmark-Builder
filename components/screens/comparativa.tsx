@@ -19,7 +19,6 @@ const DEFAULT_COLS: CompCol[] = [
   { name: "Copa", brand: "C", accent: "var(--series-client)", isClient: true },
 ];
 
-type RowFmt = "mono" | "bar" | "plats" | "sent" | "text";
 const DEFAULT_ROWS: CompRow[] = [
   { label: "Menciones · 60d", vals: ["998", "581", "312", "287", "240"], fmt: "mono" },
   { label: "Engagement total", vals: ["412k", "264k", "198k", "142k", "188k"], fmt: "mono" },
@@ -73,12 +72,12 @@ export function Comparativa({
   }
   return (
     <ScreenShell breadcrumb={breadcrumb ?? ["Proyectos", "Cartagena · Q2 2026", "Comparativa"]} runMeta={runMeta ?? `${cols.length} competidores · vista lado a lado`} caseSlug={caseSlug}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
-        <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <div style={{ minWidth: 0 }}>
           <div className="t-micro" style={{ color: "var(--accent)" }}>COMPARATIVA · LADO A LADO</div>
           <div className="t-h1" style={{ marginTop: 6, color: "var(--text)" }}>Una matriz para entender la competencia</div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Btn kind="secondary" size="sm" icon={<Ic.download s={11} />} onClick={downloadCSV}>CSV</Btn>
           <Link href="/editor"><Btn kind="secondary" size="sm" icon={<Ic.copy s={11} />}>Insertar en reporte</Btn></Link>
         </div>
@@ -114,7 +113,7 @@ export function Comparativa({
                   if (r.fmt === "mono") cell = <span style={{ fontFamily: "var(--font-mono)", fontSize: 15, fontWeight: 500, color: "var(--text)" }}>{v}</span>;
                   else if (r.fmt === "sent") cell = <SentimentChip kind={v as SentimentKind} big />;
                   else if (r.fmt === "bar") {
-                    const num = parseFloat(String(v));
+                    const num = parseFloat(String(v).replace(",", ".")) || 0;
                     cell = (
                       <div>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: 15, fontWeight: 500, color: "var(--text)" }}>{v}</div>

@@ -37,38 +37,90 @@ const DEFAULT_ORG_GROUPS: Group[] = [
   { name: "Wingo · 42", count: 42, items: [["video", "youtube", "vlog 48h", ["42k ▷", "1 d"], false, img("wo1"), V.blazes], ["photo", "instagram", "tarifa", ["1,4k ♡", "2 d"], false, img("wo2")], ["video", "tiktok", "duet", ["98k ▷", "3 d"], false, img("wo3"), V.joy]] },
 ];
 
+const SORTS = [
+  { id: "engagement", label: "Engagement" },
+  { id: "reciente", label: "Reciente" },
+  { id: "plataforma", label: "Plataforma" },
+] as const;
+type SortId = (typeof SORTS)[number]["id"];
+
+// Parse a Spanish-formatted metric ("12,4k", "1,8M", "820") to a number.
+function parseNum(s: string): number {
+  const m = s.match(/([\d.,]+)\s*([kKmM])?/);
+  if (!m) return 0;
+  const n = parseFloat(m[1].replace(/\./g, "").replace(",", "."));
+  if (!Number.isFinite(n)) return 0;
+  const u = (m[2] || "").toLowerCase();
+  return u === "m" ? n * 1e6 : u === "k" ? n * 1e3 : n;
+}
+// Engagement/views value of an item — the metric carrying ♡ ▷ ↗ 👁.
+function engOf(it: Item): number {
+  const m = it[3].find((x) => /[♡▷↗👁]/u.test(x));
+  return m ? parseNum(m) : 0;
+}
+// Age in hours, lower = more recent. Organic carries "4 h"/"1 d" in its metrics;
+// ads carry the age in the label ("creativo · 12d").
+function ageHours(it: Item): number {
+  const text = `${it[3].join(" ")} ${it[2]}`;
+  const d = text.match(/(\d+)\s*d/);
+  const h = text.match(/(\d+)\s*h/);
+  if (d) return parseInt(d[1], 10) * 24;
+  if (h) return parseInt(h[1], 10);
+  return 1e6;
+}
+function sortItems(items: Item[], sort: SortId): Item[] {
+  const arr = [...items];
+  if (sort === "engagement") arr.sort((a, b) => engOf(b) - engOf(a));
+  else if (sort === "reciente") arr.sort((a, b) => ageHours(a) - ageHours(b));
+  else arr.sort((a, b) => a[1].localeCompare(b[1]));
+  return arr;
+}
+
 function GalleryColumn({ kind, groups, total, spend }: { kind: "organic" | "ad"; groups: Group[]; total: number; spend?: string }) {
   const isAd = kind === "ad";
+  const [sort, setSort] = useState<SortId>("engagement");
   return (
     <div style={{ background: isAd ? "var(--accent-soft)" : "var(--surface)", border: `1px solid ${isAd ? "var(--accent)" : "var(--border)"}`, borderRadius: "var(--r-md)", padding: 18, boxShadow: "var(--sh-1)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-        <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ width: 10, height: 10, background: isAd ? "var(--ad)" : "var(--organic)", borderRadius: 2 }} />
+            <span style={{ width: 10, height: 10, background: isAd ? "var(--ad)" : "var(--organic)", borderRadius: 2, flexShrink: 0 }} />
             <div className="t-h2" style={{ color: isAd ? "var(--accent)" : "var(--text)" }}>{isAd ? "Anuncios pagos · Meta Ad Library" : "Contenido orgánico"}</div>
           </div>
           <div className="t-small" style={{ color: isAd ? "var(--accent)" : "var(--text-muted)", marginTop: 4 }}>
             {isAd ? `${total} creativos activos · ${spend ?? "—"} spend estimado` : `${total} piezas en últimos 60 días`}
           </div>
         </div>
-        <div style={{ display: "flex", border: `1px solid ${isAd ? "var(--accent)" : "var(--border-strong)"}`, borderRadius: "var(--r-sm)", overflow: "hidden", background: "var(--surface)" }}>
-          {["Engagement", "Reciente", "Plataforma"].map((t, i) => (
-            <span key={t} style={{ padding: "4px 10px", fontSize: 11, fontFamily: "var(--font-mono)", background: i === 0 ? (isAd ? "var(--accent)" : "var(--n900)") : "var(--surface)", color: i === 0 ? "#fff" : "var(--text-muted)", borderLeft: i ? "1px solid var(--border)" : "none" }}>{t}</span>
-          ))}
+        <div role="tablist" aria-label="Ordenar" style={{ display: "flex", border: `1px solid ${isAd ? "var(--accent)" : "var(--border-strong)"}`, borderRadius: "var(--r-sm)", overflow: "hidden", background: "var(--surface)", flexShrink: 0 }}>
+          {SORTS.map((so, i) => {
+            const on = sort === so.id;
+            return (
+              <button
+                key={so.id}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => setSort(so.id)}
+                style={{ padding: "4px 10px", fontSize: 11, fontFamily: "var(--font-mono)", cursor: "pointer", border: "none", borderLeft: i ? "1px solid var(--border)" : "none", background: on ? (isAd ? "var(--accent)" : "var(--n900)") : "var(--surface)", color: on ? "#fff" : "var(--text-muted)" }}
+              >
+                {so.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {groups.map((g, gi) => (
-        <div key={gi} style={{ marginBottom: 18 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: isAd ? "var(--accent)" : "var(--text)" }}>{g.name}</div>
-            <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: isAd ? "var(--accent)" : "var(--text-muted)" }}>{g.count} piezas</span>
+      {groups.map((g) => (
+        <div key={g.name} style={{ marginBottom: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: isAd ? "var(--accent)" : "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.name}</div>
+            <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: isAd ? "var(--accent)" : "var(--text-muted)", flexShrink: 0 }}>{g.count} piezas</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))", gap: 8 }}>
-            {g.items.map((it, i) => {
+            {sortItems(g.items, sort).map((it) => {
               const a = mockConsolidated({ url: it[5] ?? it[2], kind: it[0] === "video" ? "video" : "image" });
               return (
-                <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div key={`${it[1]}-${it[2]}-${it[5] ?? it[6] ?? ""}`} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <MediaThumb kind={it[0]} platform={it[1]} label={it[2]} metrics={it[3]} isAd={it[4]} src={it[5]} video={it[6]} />
                   <div style={{ fontSize: 10, lineHeight: "13px", color: "var(--text-muted)" }}>
                     <div style={{ color: "var(--text)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>👁 {a.summary}</div>
@@ -108,12 +160,12 @@ export function Galeria({
   const [view, setView] = useState<"ambos" | "organico" | "pago">("ambos");
   return (
     <ScreenShell breadcrumb={breadcrumb ?? ["Proyectos", "Cartagena · Q2 2026", "Galería"]} runMeta={runMeta ?? `${organicTotal} piezas orgánicas · ${adTotal} anuncios pagos`} caseSlug={caseSlug}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
-        <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <div style={{ minWidth: 0 }}>
           <div className="t-micro" style={{ color: "var(--accent)" }}>GALERÍA · ORGÁNICO VS PAGO</div>
           <div className="t-h1" style={{ marginTop: 6, color: "var(--text)" }}>Lo que la competencia muestra y lo que paga por mostrar</div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Btn kind="ghost" size="sm" icon={<Ic.filter s={11} />} onClick={() => setView((v) => (v === "ambos" ? "organico" : v === "organico" ? "pago" : "ambos"))}>
             {view === "ambos" ? "Orgánico + pago" : view === "organico" ? "Sólo orgánico" : "Sólo pago"}
           </Btn>

@@ -182,8 +182,8 @@ export function LiveFeed({ mentions, analysis, breadcrumb, caseSlug }: { mention
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, overflow: "auto", paddingBottom: 14 }}>
-              {visible.map((m, i) => (
-                <MentionCard key={i} platform={m.platform} author={m.author} handle={m.handle} ts={m.ts} brand={m.brand} body={m.body} thumbType={m.thumbType} sentiment={m.sentiment} isAd={m.isAd} metrics={m.metrics} media={m.media} video={m.video} />
+              {visible.map((m) => (
+                <MentionCard key={`${m.platform}-${m.handle}-${m.ts}-${m.body}`} platform={m.platform} author={m.author} handle={m.handle} ts={m.ts} brand={m.brand} body={m.body} thumbType={m.thumbType} sentiment={m.sentiment} isAd={m.isAd} metrics={m.metrics} media={m.media} video={m.video} />
               ))}
             </div>
           )}
