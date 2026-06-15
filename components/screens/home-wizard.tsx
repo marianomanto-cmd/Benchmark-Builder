@@ -203,10 +203,10 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
       style={{ position: "fixed", inset: 0, zIndex: 70, background: "color-mix(in srgb, var(--bg) 78%, transparent)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", overflowY: "auto", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "clamp(16px, 5vh, 56px) 16px" }}
     >
       <motion.div
-        initial={{ opacity: 0, y: 18, scale: 0.99 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.3, ease: easeOut }}
-        style={{ position: "relative", width: "min(920px, 100%)", borderRadius: 18, border: "1px solid var(--border-strong)", background: "linear-gradient(155deg, #1b0f1b 0%, #110b15 55%, #0c0810 100%)", boxShadow: "0 40px 100px rgba(0,0,0,0.6)", overflow: "hidden" }}
+        initial={{ opacity: 0, scale: 0.86 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.55, ease: easeOut }}
+        style={{ position: "relative", transformOrigin: "center", width: "min(920px, 100%)", borderRadius: 18, border: "1px solid var(--border-strong)", background: "linear-gradient(155deg, #1b0f1b 0%, #110b15 55%, #0c0810 100%)", boxShadow: "0 40px 100px rgba(0,0,0,0.6)", overflow: "hidden" }}
       >
         {/* accent glow */}
         <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(120% 75% at 0% 0%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 58%)" }} />
