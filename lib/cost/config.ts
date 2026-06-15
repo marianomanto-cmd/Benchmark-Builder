@@ -23,6 +23,8 @@ const PROVIDER_KEY_ENV: Record<string, string> = {
   openai: "OPENAI_API_KEY",
   whisper: "OPENAI_API_KEY",
   transcription: "OPENAI_API_KEY",
+  gemini: "GOOGLE_AI_API_KEY",
+  google: "GOOGLE_AI_API_KEY",
   brave: "BRAVE_API_KEY",
   meta_api: "META_AD_LIBRARY_TOKEN",
   grok: "XAI_API_KEY",

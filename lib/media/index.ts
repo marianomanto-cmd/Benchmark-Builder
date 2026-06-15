@@ -1,11 +1,13 @@
 import "server-only";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { guardedCall } from "@/lib/cost/guarded";
-import { LIMITS } from "./config";
+import { geminiVideoCostUSD } from "@/lib/cost/rates";
+import { LIMITS, hasProviderKey } from "./config";
 import { downloadMedia } from "./download";
 import { extractFrames } from "./frames";
 import { extractAudio } from "./audio";
 import { analyzeImage } from "./analyze";
+import { analyzeVideoGemini } from "./gemini-video";
 import { transcribe } from "./transcribe";
 import { consolidate } from "./consolidate";
 import { mockImageAnalysis, mockTranscript, mockConsolidated } from "./fixtures";
@@ -36,26 +38,40 @@ export async function processMediaFile(admin: Admin, runId: string, fileRow: Fil
     cost += out.cost;
     consolidated = consolidate(f, [out.result], null, out.mode === "live" ? "claude-vision" : "mock");
   } else {
-    const frames = await extractFrames(dl.path);
-    const analyses: ImageAnalysis[] = [];
-    for (const fr of frames.slice(0, LIMITS.maxFramesPerVideo)) {
-      const out = await guardedCall<ImageAnalysis>({
-        admin, runId, provider: "claude_vision", operation: "analyze_frame", label: "Visión · frame",
-        estimatedCost: 0.01, call: () => analyzeImage(f, fr), fixture: () => mockImageAnalysis({ ...f, url: fr }),
+    // Prefer Gemini for native video understanding (vision + audio in one call)
+    // when a Gemini key is configured. On any failure — or with no key — fall
+    // back to the frames + Claude vision + Whisper path below.
+    const gem = hasProviderKey("gemini")
+      ? await guardedCall<ConsolidatedMedia>({
+          admin, runId, provider: "gemini", operation: "analyze_video", label: "Gemini · video",
+          estimatedCost: geminiVideoCostUSD(), call: () => analyzeVideoGemini(f, dl.path), fixture: () => mockConsolidated(f),
+        })
+      : null;
+    if (gem?.ok) {
+      consolidated = gem.result;
+      cost += gem.cost;
+    } else {
+      const frames = await extractFrames(dl.path);
+      const analyses: ImageAnalysis[] = [];
+      for (const fr of frames.slice(0, LIMITS.maxFramesPerVideo)) {
+        const out = await guardedCall<ImageAnalysis>({
+          admin, runId, provider: "claude_vision", operation: "analyze_frame", label: "Visión · frame",
+          estimatedCost: 0.01, call: () => analyzeImage(f, fr), fixture: () => mockImageAnalysis({ ...f, url: fr }),
+        });
+        if (out.ok) { analyses.push(out.result); cost += out.cost; }
+      }
+      const audioPath = await extractAudio(dl.path);
+      const trOut = await guardedCall<Transcript>({
+        admin, runId, provider: "whisper", operation: "transcribe", label: "Transcripción · voiceover",
+        estimatedCost: 0.02, call: () => transcribe(f, audioPath), fixture: () => mockTranscript(f),
       });
-      if (out.ok) { analyses.push(out.result); cost += out.cost; }
+      const transcript = trOut.ok ? trOut.result : null;
+      if (trOut.ok) cost += trOut.cost;
+      const model = analyses[0]?.summary && transcript?.text ? "claude-vision+whisper" : "mock";
+      consolidated = analyses.length || transcript
+        ? consolidate(f, analyses.length ? analyses : [mockImageAnalysis(f)], transcript, model)
+        : mockConsolidated(f);
     }
-    const audioPath = await extractAudio(dl.path);
-    const trOut = await guardedCall<Transcript>({
-      admin, runId, provider: "whisper", operation: "transcribe", label: "Transcripción · voiceover",
-      estimatedCost: 0.02, call: () => transcribe(f, audioPath), fixture: () => mockTranscript(f),
-    });
-    const transcript = trOut.ok ? trOut.result : null;
-    if (trOut.ok) cost += trOut.cost;
-    const model = analyses[0]?.summary && transcript?.text ? "claude-vision+whisper" : "mock";
-    consolidated = analyses.length || transcript
-      ? consolidate(f, analyses.length ? analyses : [mockImageAnalysis(f)], transcript, model)
-      : mockConsolidated(f);
   }
 
   await admin.from("media_analysis").upsert(

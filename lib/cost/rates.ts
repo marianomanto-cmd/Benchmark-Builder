@@ -36,6 +36,10 @@ export type Rates = {
   grok: {
     perSearch: number;
   };
+  gemini: {
+    // One native video-understanding call over a short clip (inline base64).
+    videoPerClip: number;
+  };
   brave: {
     perThousandQueries: number;
   };
@@ -58,6 +62,9 @@ export function getRates(): Rates {
     },
     grok: {
       perSearch: num("RATE_GROK_PER_SEARCH", 0.02),
+    },
+    gemini: {
+      videoPerClip: num("RATE_GEMINI_VIDEO_PER_CLIP", 0.01),
     },
     brave: {
       perThousandQueries: num("RATE_BRAVE_PER_1K", 3.0),
@@ -95,6 +102,11 @@ export function apifyCostUSD(items: number, r: Rates = getRates()): number {
 
 export function grokSearchCostUSD(searches: number, r: Rates = getRates()): number {
   return searches * r.grok.perSearch;
+}
+
+// One Gemini native video-understanding call over a short clip.
+export function geminiVideoCostUSD(r: Rates = getRates()): number {
+  return r.gemini.videoPerClip;
 }
 
 export function braveCostUSD(queries: number, r: Rates = getRates()): number {
