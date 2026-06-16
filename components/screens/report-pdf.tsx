@@ -7,6 +7,7 @@ import type { ResolvedCase } from "@/lib/demo-cases";
 import type { ReportDoc, Block } from "@/lib/report-doc";
 import { ComparisonCards } from "@/components/comparison-cards";
 import { EvidenceDrawer, byCompetitor, type EvidenceQuery } from "@/components/evidence-drawer";
+import { DEFAULT_BRANDING, type Branding } from "@/lib/branding";
 
 // The delivered report (/reporte) — a polished, client-facing document. Standalone
 // (no app shell), case-aware (data comes from the run you opened) and responsive:
@@ -23,8 +24,11 @@ const SENT: Record<string, { label: string; c: string }> = {
 const KEY_ROWS = new Set(["Menciones · 60d", "Engagement total", "Reach estimado", "Share of voice", "Sentimiento dominante"]);
 const sovNum = (s: string) => Number(String(s).replace(",", ".")) || 0;
 
-export function ReportPDF({ data }: { data: ResolvedCase }) {
+export function ReportPDF({ data, branding }: { data: ResolvedCase; branding?: Branding }) {
   const c = data;
+  const b = branding ?? DEFAULT_BRANDING;
+  const brandName = b.brandName;
+  const showPhatia = !b.hidePhatiaFooter;
   const client = c.competitors.find((x) => x.isClient) ?? c.competitors[c.competitors.length - 1];
   const clientName = client?.name ?? c.project;
   const ranked = [...c.competitors].sort((a, b) => sovNum(b.sov) - sovNum(a.sov));
@@ -59,7 +63,7 @@ export function ReportPDF({ data }: { data: ResolvedCase }) {
         ],
       };
       const { exportPptx } = await import("@/lib/export/pptx");
-      await exportPptx(exportDoc, `phatia-${c.slug}.pptx`, { clientName });
+      await exportPptx(exportDoc, `${brandName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${c.slug}.pptx`, { clientName, brandName, accentHex: b.accentHex.replace("#", ""), showPhatia });
     } finally {
       setPptxBusy(false);
     }
@@ -76,12 +80,14 @@ export function ReportPDF({ data }: { data: ResolvedCase }) {
         </div>
       </div>
 
-      {/* the sheet */}
-      <article className="bb-print" style={{ width: "min(900px, 100%)", background: "#fff", boxShadow: "var(--sh-4)", borderRadius: 6, padding: "clamp(26px, 6vw, 76px)", fontFamily: "var(--font-serif)", color: "var(--n900)", position: "relative" }}>
+      {/* the sheet — accent recolored to the brand via CSS var override */}
+      <article className="bb-print" style={{ width: "min(900px, 100%)", background: "#fff", boxShadow: "var(--sh-4)", borderRadius: 6, padding: "clamp(26px, 6vw, 76px)", fontFamily: "var(--font-serif)", color: "var(--n900)", position: "relative", "--sa-base": b.accentHex, "--accent": b.accentHex } as CSSProperties}>
         {/* running head */}
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", paddingBottom: 14, borderBottom: "1px solid var(--n200)" }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "var(--font-mono)", fontSize: 10.5, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--n500)" }}>
-            <span style={{ width: 5, height: 18, background: "var(--sa-base)", display: "inline-block", borderRadius: 1 }} /> Phatia · {c.crumb}
+            <span style={{ width: 5, height: 18, background: "var(--sa-base)", display: "inline-block", borderRadius: 1 }} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={b.logoUrl} alt="" width={18} height={18} style={{ borderRadius: "50%", objectFit: "cover", display: "block" }} /> {brandName} · {c.crumb}
           </span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--n400)", letterSpacing: ".06em" }}>{runId} · {today}</span>
         </header>
@@ -215,7 +221,7 @@ export function ReportPDF({ data }: { data: ResolvedCase }) {
         {/* footer */}
         <footer style={{ marginTop: "clamp(28px, 5vw, 44px)", paddingTop: 14, borderTop: "1px solid var(--n200)", display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", fontFamily: "var(--font-mono)", fontSize: 9.5, color: "var(--n400)", letterSpacing: ".06em", textTransform: "uppercase" }}>
           <span>Preparado para {clientName} · uso interno</span>
-          <span>Generado con Phatia</span>
+          {showPhatia && <span>Generado con Phatia</span>}
         </footer>
       </article>
       <EvidenceDrawer query={ev} caseSlug={c.slug} onClose={() => setEv(null)} />

@@ -12,6 +12,39 @@ export type Database = {
   };
   public: {
     Tables: {
+      workspace_branding: {
+        Row: {
+          id: string;
+          account_id: string | null;
+          brand_name: string | null;
+          logo_url: string | null;
+          accent_hex: string | null;
+          hide_phatia_footer: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          account_id?: string | null;
+          brand_name?: string | null;
+          logo_url?: string | null;
+          accent_hex?: string | null;
+          hide_phatia_footer?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          account_id?: string | null;
+          brand_name?: string | null;
+          logo_url?: string | null;
+          accent_hex?: string | null;
+          hide_phatia_footer?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       reports: {
         Row: {
           id: string;

@@ -67,8 +67,14 @@ export function Editor() {
   async function exportPptxNow() {
     setPptxBusy(true);
     try {
+      let opts: { brandName?: string; accentHex?: string; showPhatia?: boolean } = {};
+      try {
+        const r = await fetch("/api/branding");
+        const j = (await r.json()) as { ok: boolean; branding?: { brandName: string; accentHex: string; hidePhatiaFooter: boolean } };
+        if (j.ok && j.branding) opts = { brandName: j.branding.brandName, accentHex: String(j.branding.accentHex || "").replace("#", ""), showPhatia: !j.branding.hidePhatiaFooter };
+      } catch { /* default Phatia */ }
       const { exportPptx } = await import("@/lib/export/pptx");
-      await exportPptx(doc, "phatia-reporte.pptx");
+      await exportPptx(doc, "phatia-reporte.pptx", opts);
     } finally {
       setPptxBusy(false);
     }

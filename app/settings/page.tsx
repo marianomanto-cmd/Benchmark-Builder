@@ -1,6 +1,8 @@
 import { ScreenShell } from "@/components/shell/screen-shell";
 import { createClient } from "@/lib/supabase/server";
 import { SourceSettingsForm, type SourceSettingVM } from "@/components/source-settings-form";
+import { BrandingForm } from "@/components/branding-form";
+import { getBranding } from "@/lib/branding-server";
 import { PLATFORMS, type PlatformKey } from "@/lib/platforms";
 
 type DbRow = {
@@ -37,8 +39,10 @@ export default async function Page() {
   } catch {
     rows = [];
   }
+  const branding = await getBranding();
   return (
     <ScreenShell breadcrumb={["@nav.dashboard", "@settings.title"]} nav="app">
+      <BrandingForm initial={branding} />
       <SourceSettingsForm initial={rows} />
     </ScreenShell>
   );
