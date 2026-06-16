@@ -12,6 +12,85 @@ export type Database = {
   };
   public: {
     Tables: {
+      reports: {
+        Row: {
+          id: string;
+          project_id: string | null;
+          run_number: number | null;
+          title: string;
+          subtitle: string;
+          doc: Json;
+          share_token: string | null;
+          is_public: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id?: string | null;
+          run_number?: number | null;
+          title?: string;
+          subtitle?: string;
+          doc?: Json;
+          share_token?: string | null;
+          is_public?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string | null;
+          run_number?: number | null;
+          title?: string;
+          subtitle?: string;
+          doc?: Json;
+          share_token?: string | null;
+          is_public?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reports_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      report_versions: {
+        Row: {
+          id: string;
+          report_id: string;
+          doc: Json;
+          label: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          report_id: string;
+          doc: Json;
+          label?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          report_id?: string;
+          doc?: Json;
+          label?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "report_versions_report_id_fkey";
+            columns: ["report_id"];
+            isOneToOne: false;
+            referencedRelation: "reports";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       competitor_platforms: {
         Row: {
           competitor_id: string;
