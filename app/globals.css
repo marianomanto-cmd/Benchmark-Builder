@@ -295,6 +295,19 @@ img, video, canvas { max-width: 100%; }
   .bb-editor > * { overflow: visible !important; height: auto !important; }
 }
 
+/* Report comparison: side-by-side table on desktop screen AND always in print
+   (the PDF must keep the table); stacked cards only on the mobile SCREEN. The
+   `screen` query keeps print unaffected; the print query forces the table. */
+.bb-rep-cards { display: none; }
+@media screen and (max-width: 860px) {
+  .bb-rep-table { display: none; }
+  .bb-rep-cards { display: block; }
+}
+@media print {
+  .bb-rep-table { display: block !important; }
+  .bb-rep-cards { display: none !important; }
+}
+
 /* Accessible focus ring. */
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
   outline: 2px solid var(--accent);

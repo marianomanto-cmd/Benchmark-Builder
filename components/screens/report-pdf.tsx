@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, Printer } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { ResolvedCase } from "@/lib/demo-cases";
+import { ComparisonCards } from "@/components/comparison-cards";
 
 // The delivered report (/reporte) — a polished, client-facing document. Standalone
 // (no app shell), case-aware (data comes from the run you opened) and responsive:
@@ -125,7 +126,11 @@ export function ReportPDF({ data }: { data: ResolvedCase }) {
         {/* 03 · Comparativa */}
         <section style={section}>
           <SectionLabel n="03" title="Tabla comparativa" />
-          <div className="bb-scroll-x" style={{ overflowX: "auto", marginTop: 4 }}>
+          {/* Mobile screen → stacked cards; desktop screen + print → the table. */}
+          <div className="bb-rep-cards" style={{ marginTop: 4 }}>
+            <ComparisonCards cols={cols} rows={tableRows} tone="paper" />
+          </div>
+          <div className="bb-scroll-x bb-rep-table" style={{ overflowX: "auto", marginTop: 4 }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: Math.max(420, 150 + cols.length * 88), fontFamily: "var(--font-sans)" }}>
               <thead>
                 <tr>

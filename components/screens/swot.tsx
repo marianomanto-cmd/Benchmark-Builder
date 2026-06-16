@@ -303,7 +303,9 @@ function RoadmapView({ plan }: { plan: Horizon[] }) {
   plan.slice(0, 3).forEach((h, col) => h.items.forEach((it) => tasks[laneOf(it)][col].push(it)));
 
   return (
-    <div className="bb-scroll-x">
+    <>
+    {/* desktop: Gantt grid (lanes × horizons); mobile: stacked by horizon */}
+    <div className="bb-scroll-x bb-hide-sm">
     <div style={{ minWidth: 640, border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", boxShadow: "var(--sh-1)" }}>
       <div style={{ display: "grid", gridTemplateColumns: "160px repeat(3, 1fr)", background: "var(--surface-2)", borderBottom: "1px solid var(--border)" }}>
         <div style={headCell(true)}>Carril</div>
@@ -340,6 +342,31 @@ function RoadmapView({ plan }: { plan: Horizon[] }) {
       ))}
     </div>
     </div>
+    <div className="bb-only-sm" style={{ width: "100%", flexDirection: "column", gap: 12 }}>
+      {plan.slice(0, 3).map((h, col) => (
+        <div key={h.title} style={{ border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", background: "var(--surface)" }}>
+          <div style={{ padding: "11px 14px", borderBottom: "1px solid var(--border)", background: "var(--surface-2)" }}>
+            <b style={{ display: "block", fontSize: 14, color: "var(--text)" }}>{h.title}</b>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)" }}>{h.window}</span>
+          </div>
+          <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+            {LANES.map((lane) => tasks[lane.id][col].length > 0 ? (
+              <div key={lane.id}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontSize: 12, fontWeight: 500, color: "var(--text)" }}>
+                  <i style={{ width: 9, height: 9, borderRadius: 3, background: lane.color, flexShrink: 0 }} /> {lane.label}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {tasks[lane.id][col].map((tk) => (
+                    <div key={tk} style={{ borderRadius: 7, padding: "7px 12px", fontSize: 12.5, lineHeight: 1.4, color: "var(--text)", background: `color-mix(in srgb, ${lane.color} 14%, transparent)`, border: `1px solid color-mix(in srgb, ${lane.color} 45%, transparent)` }}>{tk}</div>
+                  ))}
+                </div>
+              </div>
+            ) : null)}
+          </div>
+        </div>
+      ))}
+    </div>
+    </>
   );
 }
 

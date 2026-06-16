@@ -1049,6 +1049,7 @@ Antes de hacer merge, cada PR debe pasar:
 - [ ] Animaciones siguen los timings y curvas de §6.
 - [ ] La pantalla se ve idéntica al mock correspondiente en `Design files/desktop/` y `Design files/mobile/`.
 - [ ] Mobile y desktop ambos funcionan; no se rompe en breakpoints intermedios.
+- [x] **No hay tablas de datos en mobile**: comparativa, tabla §03 del reporte y roadmap FODA muestran **tarjetas apiladas** en mobile (`components/comparison-cards.tsx`, `bb-hide-sm`/`bb-only-sm`); el reporte impreso y desktop conservan la tabla (`.bb-rep-table`/`.bb-rep-cards` con `@media screen`/`print`). La galería ya usaba columnas de cards.
 
 ---
 

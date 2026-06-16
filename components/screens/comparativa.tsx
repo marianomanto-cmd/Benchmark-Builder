@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Ic } from "@/components/ui/icons";
 import { Btn, SentimentChip } from "@/components/ui/primitives";
 import { PlatformBadge } from "@/components/domain";
+import { ComparisonCards } from "@/components/comparison-cards";
 import type { PlatformKey, SentimentKind } from "@/lib/platforms";
 import { AnalysisBlock } from "@/components/analysis-block";
 import type { AnalysisVM } from "@/lib/view-models";
@@ -85,7 +86,11 @@ export function Comparativa({
 
       {analysis && <div style={{ marginBottom: 16 }}><AnalysisBlock analysis={analysis} /></div>}
 
-      <div className="bb-scroll-x" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", boxShadow: "var(--sh-1)" }}>
+      {/* desktop: side-by-side table; mobile: stacked cards (no tables on mobile) */}
+      <div className="bb-only-sm" style={{ width: "100%" }}>
+        <ComparisonCards cols={cols} rows={rows} platsByCol={platsByCol} />
+      </div>
+      <div className="bb-scroll-x bb-hide-sm" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", boxShadow: "var(--sh-1)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 640 }}>
           <thead>
             <tr>
