@@ -1,5 +1,9 @@
 -- Benchmark Builder — demo seed (Copa · Cartagena Q2 2026 case).
 -- Idempotent enough to re-run; competitors use (project_id, handle) conflict guard.
+-- Provenance (migration 20260616130000): the in-app "click al dato" runs on the
+-- in-memory case mentions (lib/demo-cases). For the live DB path, set
+-- mentions.competitor_id and insert insight_sources rows here when seeding —
+-- TODO once mention↔competitor↔insight IDs are pinned in this file.
 
 insert into workspaces (name, slug, brand_color)
 values ('Copa Airlines', 'copa', '#6b1a36')

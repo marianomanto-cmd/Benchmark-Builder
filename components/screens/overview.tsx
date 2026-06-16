@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { ScreenShell } from "@/components/shell/screen-shell";
@@ -9,6 +9,7 @@ import { Btn, BBBadge, SentimentChip } from "@/components/ui/primitives";
 import { Sparkline } from "@/components/ui/charts";
 import { MiniInsight } from "@/components/domain";
 import { Segmented, useToggleView } from "@/components/ui/segmented";
+import { EvidenceDrawer, byCompetitor, byInsight, type EvidenceQuery } from "@/components/evidence-drawer";
 import { BarChart } from "@/components/tremor/BarChart";
 import { DonutChart } from "@/components/tremor/DonutChart";
 import { AreaChart } from "@/components/tremor/AreaChart";
@@ -86,6 +87,7 @@ export function Overview({
   caseSlug?: string;
 }) {
   const [view, setView] = useToggleView("view", "bb:overview-view", ["informe", "cockpit", "posiciones", "spread"], "cockpit");
+  const [ev, setEv] = useState<EvidenceQuery>(null);
 
   const palette: AvailableChartColorsKeys[] = ["ink", "graphite", "taupe", "sand"];
   let gi = 0;
@@ -130,18 +132,19 @@ export function Overview({
 
       <AnimatePresence mode="wait">
         <motion.div key={view} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2, ease }}>
-          {view === "informe" && <InformeView vm={vm} />}
-          {view === "cockpit" && <CockpitView vm={vm} />}
-          {view === "posiciones" && <PosicionesView vm={vm} />}
+          {view === "informe" && <InformeView vm={vm} onEvidence={setEv} />}
+          {view === "cockpit" && <CockpitView vm={vm} onEvidence={setEv} />}
+          {view === "posiciones" && <PosicionesView vm={vm} onEvidence={setEv} />}
           {view === "spread" && <SpreadView vm={vm} />}
         </motion.div>
       </AnimatePresence>
+      <EvidenceDrawer query={ev} caseSlug={caseSlug} onClose={() => setEv(null)} />
     </ScreenShell>
   );
 }
 
 // ============================================================ A · Informe
-function InformeView({ vm }: { vm: VM }) {
+function InformeView({ vm, onEvidence }: { vm: VM; onEvidence: (q: EvidenceQuery) => void }) {
   const a = vm.analysis;
   const [head, em] = a ? emSplit(a.headline) : ["Avianca domina el volumen, pero ", "Copa lidera en eficiencia de engagement."];
   const body = a?.body ?? "";
@@ -170,7 +173,7 @@ function InformeView({ vm }: { vm: VM }) {
             <div className="t-micro">60 días</div>
           </div>
           {vm.competitors.map((c) => (
-            <HBar key={c.handle} name={c.name} color={c.accent} pct={sovNum(c)} max={vm.maxSov} client={c.isClient} />
+            <HBar key={c.handle} name={c.name} color={c.accent} pct={sovNum(c)} max={vm.maxSov} client={c.isClient} onClick={() => onEvidence(byCompetitor(c.name))} />
           ))}
         </div>
       </div>
@@ -179,7 +182,7 @@ function InformeView({ vm }: { vm: VM }) {
 }
 
 // ============================================================ B · Cockpit (bento)
-function CockpitView({ vm }: { vm: VM }) {
+function CockpitView({ vm, onEvidence }: { vm: VM; onEvidence: (q: EvidenceQuery) => void }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(118px, auto)", gap: 14 }} className="bb-bento">
       <div style={{ ...panel, gridColumn: "span 2", gridRow: "span 2", display: "flex", flexDirection: "column" }}>
@@ -194,11 +197,11 @@ function CockpitView({ vm }: { vm: VM }) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 7, flex: 1, minWidth: 0 }}>
             {vm.competitors.map((c) => (
-              <div key={c.handle} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+              <button key={c.handle} type="button" onClick={() => onEvidence(byCompetitor(c.name))} title="Ver evidencia" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, border: "none", background: "transparent", padding: "3px 0", cursor: "pointer", textAlign: "left", color: "inherit", font: "inherit" }}>
                 <span style={{ width: 9, height: 9, borderRadius: 2, background: c.accent, flexShrink: 0 }} />
                 <span style={{ flex: 1, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
                 <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{c.sov}%</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -216,7 +219,7 @@ function CockpitView({ vm }: { vm: VM }) {
         <div className="t-micro" style={{ marginBottom: 10 }}>Insights destacados</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
           {vm.insights.map((it) => (
-            <MiniInsight key={it.title} kind={it.kind} t={it.title} s={`${it.sources} fuentes · conf ${it.confidence}`} />
+            <MiniInsight key={it.title} kind={it.kind} t={it.title} s={`${it.sources} fuentes · conf ${it.confidence}`} onClick={() => onEvidence(byInsight(it.title))} />
           ))}
         </div>
       </div>
@@ -233,7 +236,7 @@ function CockpitView({ vm }: { vm: VM }) {
 }
 
 // ============================================================ C · Posiciones (leaderboard)
-function PosicionesView({ vm }: { vm: VM }) {
+function PosicionesView({ vm, onEvidence }: { vm: VM; onEvidence: (q: EvidenceQuery) => void }) {
   const ranked = [...vm.competitors].sort((a, b) => sovNum(b) - sovNum(a));
   const a = vm.analysis;
   const recs = a?.recommendations ?? [];
@@ -252,7 +255,7 @@ function PosicionesView({ vm }: { vm: VM }) {
             </thead>
             <tbody>
               {ranked.map((c, i) => (
-                <tr key={c.handle} style={{ background: c.isClient ? "color-mix(in srgb, var(--accent) 7%, transparent)" : "transparent" }}>
+                <tr key={c.handle} onClick={() => onEvidence(byCompetitor(c.name))} title="Ver evidencia" style={{ background: c.isClient ? "color-mix(in srgb, var(--accent) 7%, transparent)" : "transparent", cursor: "pointer" }}>
                   <td style={{ ...td, fontFamily: "var(--font-mono)", fontSize: 16, color: c.isClient ? "var(--accent)" : "var(--text-faint)", width: 34 }}>{i + 1}</td>
                   <td style={td}>
                     <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
@@ -292,7 +295,7 @@ function PosicionesView({ vm }: { vm: VM }) {
               <div className="t-micro" style={{ marginBottom: 10 }}>Movés primero</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
                 {recs.slice(0, 2).map((r, i) => (
-                  <MiniInsight key={r} kind={i === 0 ? "opp" : "pat"} t={r} s={i === 0 ? "nicho abierto" : "cerrar brecha"} />
+                  <MiniInsight key={r} kind={i === 0 ? "opp" : "pat"} t={r} s={i === 0 ? "nicho abierto" : "cerrar brecha"} onClick={() => onEvidence(byInsight(r))} />
                 ))}
               </div>
             </div>
@@ -365,9 +368,9 @@ function PanelHead({ title, meta }: { title: string; meta?: string }) {
   );
 }
 
-function HBar({ name, color, pct, max, client }: { name: string; color: string; pct: number; max: number; client?: boolean }) {
+function HBar({ name, color, pct, max, client, onClick }: { name: string; color: string; pct: number; max: number; client?: boolean; onClick?: () => void }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 48px", alignItems: "center", gap: 12, marginTop: 11 }}>
+    <div onClick={onClick} title={onClick ? "Ver evidencia" : undefined} style={{ display: "grid", gridTemplateColumns: "120px 1fr 48px", alignItems: "center", gap: 12, marginTop: 11, cursor: onClick ? "pointer" : "default" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text)", minWidth: 0 }}>
         <span style={{ width: 9, height: 9, borderRadius: 2, background: color, flexShrink: 0 }} />
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>

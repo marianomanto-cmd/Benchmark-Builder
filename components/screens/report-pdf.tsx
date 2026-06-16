@@ -6,6 +6,7 @@ import { ArrowLeft, Printer, Presentation } from "lucide-react";
 import type { ResolvedCase } from "@/lib/demo-cases";
 import type { ReportDoc, Block } from "@/lib/report-doc";
 import { ComparisonCards } from "@/components/comparison-cards";
+import { EvidenceDrawer, byCompetitor, type EvidenceQuery } from "@/components/evidence-drawer";
 
 // The delivered report (/reporte) — a polished, client-facing document. Standalone
 // (no app shell), case-aware (data comes from the run you opened) and responsive:
@@ -37,6 +38,7 @@ export function ReportPDF({ data }: { data: ResolvedCase }) {
   const today = new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   const [pptxBusy, setPptxBusy] = useState(false);
+  const [ev, setEv] = useState<EvidenceQuery>(null);
   async function exportPptxNow() {
     setPptxBusy(true);
     try {
@@ -132,7 +134,7 @@ export function ReportPDF({ data }: { data: ResolvedCase }) {
           <SectionLabel n="02" title="Volumen y share of voice" meta={`fuente · ${runId}`} />
           <div style={{ display: "flex", flexDirection: "column", gap: "clamp(9px, 2vw, 13px)", marginTop: 6 }}>
             {ranked.map((b) => (
-              <div key={b.handle} style={{ display: "grid", gridTemplateColumns: "minmax(74px, 150px) 1fr auto", alignItems: "center", gap: "clamp(8px, 2vw, 14px)" }}>
+              <div key={b.handle} onClick={() => setEv(byCompetitor(b.name))} title="Ver evidencia" style={{ display: "grid", gridTemplateColumns: "minmax(74px, 150px) 1fr auto", alignItems: "center", gap: "clamp(8px, 2vw, 14px)", cursor: "pointer" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, fontFamily: "var(--font-sans)", fontSize: "clamp(12px, 2.6vw, 13.5px)", fontWeight: b.isClient ? 600 : 400, color: b.isClient ? "var(--sa-base)" : "var(--n900)" }}>
                   <span style={{ width: 9, height: 9, borderRadius: 2, background: b.accent, flexShrink: 0 }} />
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
@@ -216,6 +218,7 @@ export function ReportPDF({ data }: { data: ResolvedCase }) {
           <span>Generado con Phatia</span>
         </footer>
       </article>
+      <EvidenceDrawer query={ev} caseSlug={c.slug} onClose={() => setEv(null)} />
     </div>
   );
 }

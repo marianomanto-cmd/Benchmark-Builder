@@ -327,15 +327,23 @@ export function MediaThumb({ kind, platform, isAd, label, metrics, ratio = "4/5"
 // ============================================================
 // MiniInsight — compact insight row (Overview)
 // ============================================================
-export function MiniInsight({ kind, t, s }: { kind: InsightKind; t: string; s: string }) {
+export function MiniInsight({ kind, t, s, onClick }: { kind: InsightKind; t: string; s: string; onClick?: () => void }) {
   const c = { opp: "var(--success)", thr: "var(--danger)", pat: "var(--info)", ano: "var(--warn)" }[kind];
-  return (
-    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+  const body = (
+    <>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: c, marginTop: 7, flexShrink: 0 }} />
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)", lineHeight: "18px" }}>{t}</div>
-        <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: 2 }}>{s}</div>
+        <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: 2, display: "inline-flex", alignItems: "center", gap: 5 }}>
+          {s}{onClick && <span style={{ color: "var(--accent)" }}>· ver evidencia →</span>}
+        </div>
       </div>
-    </div>
+    </>
+  );
+  if (!onClick) return <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>{body}</div>;
+  return (
+    <button type="button" onClick={onClick} style={{ display: "flex", gap: 10, alignItems: "flex-start", width: "100%", minHeight: 44, textAlign: "left", border: "none", background: "transparent", padding: 0, cursor: "pointer", color: "inherit", font: "inherit" }}>
+      {body}
+    </button>
   );
 }
