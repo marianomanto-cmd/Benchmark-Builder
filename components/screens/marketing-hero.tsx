@@ -60,7 +60,7 @@ export function MarketingHero() {
             {t("home.hookA")} <em style={{ fontStyle: "italic", color: "var(--accent)" }}>{t("home.hookEm")}</em>
           </motion.h1>
           <motion.p {...rise(0.2)} className="t-lead" style={{ marginTop: 20, maxWidth: "54ch" }}>{t("home.hookLead")}</motion.p>
-          <motion.div {...rise(0.3)} style={{ marginTop: 30, display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+          <motion.div {...rise(0.3)} style={{ marginTop: 30, display: "flex", alignItems: "center", justifyContent: "center", gap: 18, flexWrap: "wrap" }}>
             <button
               type="button"
               onClick={() => setOnboarding(true)}

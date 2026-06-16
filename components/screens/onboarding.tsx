@@ -144,8 +144,6 @@ export function Onboarding({ onFinish, onCancel }: { onFinish: () => void; onCan
       <div className={`${s.tint} ${s.tint1}`} style={{ opacity: step === 1 ? 1 : 0 }} aria-hidden />
       <div className={`${s.tint} ${s.tint2}`} style={{ opacity: step === 2 ? 1 : 0 }} aria-hidden />
 
-      <button type="button" className={s.skip} onClick={onFinish}>{t("onb.skip")} <X size={12} /></button>
-
       <motion.div
         className={s.panel}
         initial={{ scale: 0.82 }}
@@ -153,6 +151,7 @@ export function Onboarding({ onFinish, onCancel }: { onFinish: () => void; onCan
         exit={{ scale: 0.86, opacity: 0, filter: "blur(6px)" }}
         transition={{ duration: 0.6, ease: EASE }}
       >
+        <button type="button" className={s.close} onClick={onCancel} aria-label={t("onb.exit")}><X size={15} /></button>
         <div className={s.dots}>
           {[0, 1, 2].map((k) => <span key={k} className={`${s.dot} ${k === step ? s.dotOn : ""}`} />)}
         </div>
@@ -210,6 +209,7 @@ export function Onboarding({ onFinish, onCancel }: { onFinish: () => void; onCan
             {step === 2 ? t("onb.start") : t("onb.next")} <ArrowRight size={16} />
           </button>
         </div>
+        <button type="button" className={s.skipLink} onClick={onFinish}>{t("onb.skip")} →</button>
       </motion.div>
     </motion.div>
   );

@@ -361,18 +361,18 @@ export function HomeWizard({ initialQuery, onClose }: { initialQuery: string; on
                   <div style={briefLine}>{scopeLabel} · {networks.length} {t("wizard.brief.sources")} · {periodLabel}</div>
                 </BriefSec>
               </div>
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
-                <BriefSec label={t("wizard.brief.cost")} noMargin>
-                  {user ? (
+              {/* Credits estimate only for logged-in users; logged-out visitors
+                  see no cost here — the subscription paywall handles pricing. */}
+              {user && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+                  <BriefSec label={t("wizard.brief.cost")} noMargin>
                     <div style={briefLine}>
                       <b style={{ color: "var(--text)" }}>{REPORT_COST} {t("credits.unit")}</b> · {t("wizard.credits.balance")} {balance.toLocaleString()}{" "}
                       {balance >= REPORT_COST ? <span style={{ color: "var(--text-faint)" }}>· {t("wizard.credits.after", { n: (balance - REPORT_COST).toLocaleString() })}</span> : <span style={{ color: "var(--accent)" }}>· {t("wizard.credits.insufficient")}</span>}
                     </div>
-                  ) : (
-                    <div style={briefLine}><b style={{ color: "var(--text)" }}>{REPORT_COST} {t("credits.unit")}</b> · {t("wizard.brief.pickPlan")}</div>
-                  )}
-                </BriefSec>
-              </div>
+                  </BriefSec>
+                </div>
+              )}
             </div>
           </div>
 
