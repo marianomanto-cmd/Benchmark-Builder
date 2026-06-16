@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Share2, History, RotateCcw } from "lucide-react";
+import { Share2, History, RotateCcw, Presentation } from "lucide-react";
 import { ScreenShell } from "@/components/shell/screen-shell";
 import { Ic } from "@/components/ui/icons";
 import { Btn, BBBadge } from "@/components/ui/primitives";
@@ -60,8 +60,19 @@ export function Editor() {
   const [showVersions, setShowVersions] = useState(false);
   const [shareMsg, setShareMsg] = useState("");
   const [isPublic, setIsPublic] = useState(false);
+  const [pptxBusy, setPptxBusy] = useState(false);
 
   const blockLabel = (type: BlockType) => t(`ed.block.${type}`);
+
+  async function exportPptxNow() {
+    setPptxBusy(true);
+    try {
+      const { exportPptx } = await import("@/lib/export/pptx");
+      await exportPptx(doc, "phatia-reporte.pptx");
+    } finally {
+      setPptxBusy(false);
+    }
+  }
 
   // Persist the doc remotely (service-role API route); falls back to the LS cache.
   async function persist(d: Doc, snapshot: boolean, label?: string) {
@@ -364,6 +375,7 @@ export function Editor() {
               <Btn kind="secondary" size="sm" onClick={() => persist(doc, true, hhmm())}>{t("ed.saveVersion")}</Btn>
               <Btn kind="secondary" size="sm" icon={<Share2 size={12} />} onClick={publish}>{isPublic ? t("ed.copyLink") : t("ed.share")}</Btn>
               <Btn kind="secondary" size="md" icon={<Ic.eye s={12} />} onClick={() => setPreview(true)}>{t("ed.preview")}</Btn>
+              <Btn kind="secondary" size="md" loading={pptxBusy} icon={<Presentation size={13} />} onClick={exportPptxNow}>{t("ed.exportPptx")}</Btn>
               <Btn kind="accent" size="md" icon={<Ic.download s={12} />} onClick={() => window.print()}>{t("ed.exportPdf")}</Btn>
             </div>
           </div>
@@ -371,8 +383,9 @@ export function Editor() {
       </div>
 
       {preview && (
-        <div className="bb-noprint" style={{ position: "fixed", right: 24, bottom: 24, zIndex: 60, display: "flex", gap: 8 }}>
+        <div className="bb-noprint" style={{ position: "fixed", right: 24, bottom: 24, zIndex: 60, display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <Btn kind="secondary" size="md" onClick={() => setPreview(false)}>{t("ed.exitPreview")}</Btn>
+          <Btn kind="secondary" size="md" loading={pptxBusy} icon={<Presentation size={13} />} onClick={exportPptxNow}>{t("ed.exportPptx")}</Btn>
           <Btn kind="accent" size="md" icon={<Ic.download s={12} />} onClick={() => window.print()}>{t("ed.exportPdf")}</Btn>
         </div>
       )}

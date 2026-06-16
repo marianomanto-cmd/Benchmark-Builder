@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Printer } from "lucide-react";
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
+import { ArrowLeft, Printer, Presentation } from "lucide-react";
 import type { ResolvedCase } from "@/lib/demo-cases";
+import type { ReportDoc, Block } from "@/lib/report-doc";
 import { ComparisonCards } from "@/components/comparison-cards";
 
 // The delivered report (/reporte) — a polished, client-facing document. Standalone
@@ -35,12 +36,42 @@ export function ReportPDF({ data }: { data: ResolvedCase }) {
   const runId = `run #${String(c.runNumber).padStart(3, "0")}`;
   const today = new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
+  const [pptxBusy, setPptxBusy] = useState(false);
+  async function exportPptxNow() {
+    setPptxBusy(true);
+    try {
+      const exportDoc: ReportDoc = {
+        title: `${c.hero.title} ${c.hero.titleEm}`.trim(),
+        subtitle: c.hero.subtitle,
+        blocks: [
+          { id: "exec", type: "h1", text: "Resumen ejecutivo" },
+          { id: "head", type: "text", text: c.analysis.headline },
+          ...(c.analysis.body ? [{ id: "body", type: "text", text: c.analysis.body } as Block] : []),
+          ...c.kpis.slice(0, 2).map((k, i): Block => ({ id: `kpi${i}`, type: "kpi", text: k.label, value: k.value })),
+          { id: "chart", type: "chart", text: "Share of voice por competidor" },
+          { id: "find", type: "quote", text: finding },
+          { id: "cmp", type: "h2", text: "Comparativa" },
+          { id: "tbl", type: "table", text: "", rows: [["Métrica", ...cols.map((x) => x.name)], ...tableRows.map((r) => [r.label, ...r.vals.map(String)])] },
+          { id: "rech", type: "h2", text: "Recomendaciones" },
+          { id: "recl", type: "list", text: "", items: recs },
+        ],
+      };
+      const { exportPptx } = await import("@/lib/export/pptx");
+      await exportPptx(exportDoc, `phatia-${c.slug}.pptx`, { clientName });
+    } finally {
+      setPptxBusy(false);
+    }
+  }
+
   return (
     <div style={{ minHeight: "100dvh", background: "var(--surface-2)", display: "flex", flexDirection: "column", alignItems: "center", padding: "clamp(10px, 3vw, 28px)" }}>
       {/* toolbar — not part of the printed deliverable */}
       <div className="bb-noprint" style={{ width: "min(900px, 100%)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: "clamp(10px, 2vw, 16px)" }}>
         <Link href={`/overview?case=${encodeURIComponent(c.slug)}`} style={tbtn(false)}><ArrowLeft size={15} /> Volver al run</Link>
-        <button type="button" onClick={() => window.print()} style={tbtn(true)}><Printer size={15} /> Descargar PDF</button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" onClick={exportPptxNow} disabled={pptxBusy} style={{ ...tbtn(false), opacity: pptxBusy ? 0.6 : 1 }}><Presentation size={15} /> {pptxBusy ? "Generando…" : "Exportar PPTX"}</button>
+          <button type="button" onClick={() => window.print()} style={tbtn(true)}><Printer size={15} /> Descargar PDF</button>
+        </div>
       </div>
 
       {/* the sheet */}
