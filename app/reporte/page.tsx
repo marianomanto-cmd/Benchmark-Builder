@@ -1,5 +1,7 @@
 import { ReportPDF } from "@/components/screens/report-pdf";
+import { getCase } from "@/lib/demo-cases";
 
-export default function Page() {
-  return <ReportPDF />;
+export default async function Page({ searchParams }: { searchParams: Promise<{ case?: string }> }) {
+  const { case: slug } = await searchParams;
+  return <ReportPDF data={getCase(slug)} />;
 }

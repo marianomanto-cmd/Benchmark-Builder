@@ -170,7 +170,7 @@ export function Galeria({
           <Btn kind="ghost" size="sm" icon={<Ic.filter s={11} />} onClick={() => setView((v) => (v === "ambos" ? "organico" : v === "organico" ? "pago" : "ambos"))}>
             {view === "ambos" ? "Orgánico + pago" : view === "organico" ? "Sólo orgánico" : "Sólo pago"}
           </Btn>
-          <Link href="/reporte"><Btn kind="secondary" size="sm" iconRight={<Ic.eye s={11} />}>Modo presentación</Btn></Link>
+          <Link href={caseSlug ? `/reporte?case=${encodeURIComponent(caseSlug)}` : "/reporte"}><Btn kind="secondary" size="sm" iconRight={<Ic.eye s={11} />}>Modo presentación</Btn></Link>
         </div>
       </div>
       {analysis && <div style={{ marginBottom: 16 }}><AnalysisBlock analysis={analysis} /></div>}

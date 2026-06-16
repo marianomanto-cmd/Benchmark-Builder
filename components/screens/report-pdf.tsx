@@ -1,85 +1,220 @@
 "use client";
 
-import { Fragment } from "react";
-import { BBBarChart } from "@/components/ui/charts";
+import Link from "next/link";
+import { ArrowLeft, Printer } from "lucide-react";
+import type { CSSProperties } from "react";
+import type { ResolvedCase } from "@/lib/demo-cases";
 
-// 07.7 Report PDF (US Letter portrait) — the deliverable. Standalone (no shell).
-const tableRows: [string, string, string][] = [
-  ["Avianca", "998", "41,3 %"],
-  ["LATAM Colombia", "581", "24,0 %"],
-  ["Wingo", "312", "12,9 %"],
-  ["Arajet", "287", "11,9 %"],
-  ["Copa Airlines", "240", "9,9 %"],
-];
+// The delivered report (/reporte) — a polished, client-facing document. Standalone
+// (no app shell), case-aware (data comes from the run you opened) and responsive:
+// the "sheet" keeps a printed-page feel on desktop and reflows cleanly on mobile
+// (fluid width + clamp() type/padding, columns that stack). `.bb-print` is the
+// only thing that prints (see globals @media print); `.bb-noprint` is the toolbar.
 
-export function ReportPDF() {
+const SENT: Record<string, { label: string; c: string }> = {
+  pos: { label: "Positivo", c: "#1a8f4c" },
+  mix: { label: "Mixto", c: "#b67309" },
+  neu: { label: "Neutro", c: "#8c8696" },
+  neg: { label: "Negativo", c: "#c0392b" },
+};
+const KEY_ROWS = new Set(["Menciones · 60d", "Engagement total", "Reach estimado", "Share of voice", "Sentimiento dominante"]);
+const sovNum = (s: string) => Number(String(s).replace(",", ".")) || 0;
+
+export function ReportPDF({ data }: { data: ResolvedCase }) {
+  const c = data;
+  const client = c.competitors.find((x) => x.isClient) ?? c.competitors[c.competitors.length - 1];
+  const clientName = client?.name ?? c.project;
+  const ranked = [...c.competitors].sort((a, b) => sovNum(b.sov) - sovNum(a.sov));
+  const maxSov = Math.max(...c.competitors.map((x) => sovNum(x.sov)), 1);
+  const cols = c.comparativa.cols;
+  const tableRows = c.comparativa.rows.filter((r) => KEY_ROWS.has(r.label));
+  const takeaways = c.analysis.takeaways ?? [];
+  const recs = c.analysis.recommendations ?? [];
+  const finding = takeaways[0] ?? c.analysis.headline;
+  const runId = `run #${String(c.runNumber).padStart(3, "0")}`;
+  const today = new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
   return (
-    <div style={{ minHeight: "100vh", background: "var(--surface-2)", display: "flex", justifyContent: "center", padding: 24 }}>
-      <div style={{ width: 816, minHeight: 1056, background: "#fff", boxShadow: "var(--sh-4)", padding: "72px 88px", position: "relative", fontFamily: "var(--font-serif)", color: "var(--n900)" }}>
-        <div style={{ position: "absolute", top: 36, left: 88, right: 88, display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--n500)", fontFamily: "var(--font-mono)", letterSpacing: ".08em", textTransform: "uppercase" }}>
-          <span>Phatia · Cartagena Q2 2026</span>
-          <span>04 / 14</span>
-        </div>
-        <div style={{ position: "absolute", top: 36, left: 88, width: 6, height: 24, background: "var(--sa-base)" }} />
+    <div style={{ minHeight: "100dvh", background: "var(--surface-2)", display: "flex", flexDirection: "column", alignItems: "center", padding: "clamp(10px, 3vw, 28px)" }}>
+      {/* toolbar — not part of the printed deliverable */}
+      <div className="bb-noprint" style={{ width: "min(900px, 100%)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: "clamp(10px, 2vw, 16px)" }}>
+        <Link href={`/overview?case=${encodeURIComponent(c.slug)}`} style={tbtn(false)}><ArrowLeft size={15} /> Volver al run</Link>
+        <button type="button" onClick={() => window.print()} style={tbtn(true)}><Printer size={15} /> Descargar PDF</button>
+      </div>
 
-        <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--sa-base)", letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, marginTop: 8 }}>SECCIÓN 04 · VOLUMEN Y SOV</div>
-        <h1 style={{ fontSize: 54, lineHeight: "58px", fontWeight: 500, letterSpacing: "-0.03em", margin: "14px 0 10px", textWrap: "balance" }}>
-          Cartagena, en el aire <em style={{ fontStyle: "italic", color: "var(--n700)" }}>de cuatro aerolíneas.</em>
-        </h1>
-        <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--n500)", marginBottom: 18, letterSpacing: ".04em" }}>
-          Período · 1 mar – 30 abr 2026 · 5 competidores · 7 plataformas · 2.418 menciones
-        </div>
+      {/* the sheet */}
+      <article className="bb-print" style={{ width: "min(900px, 100%)", background: "#fff", boxShadow: "var(--sh-4)", borderRadius: 6, padding: "clamp(26px, 6vw, 76px)", fontFamily: "var(--font-serif)", color: "var(--n900)", position: "relative" }}>
+        {/* running head */}
+        <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", paddingBottom: 14, borderBottom: "1px solid var(--n200)" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "var(--font-mono)", fontSize: 10.5, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--n500)" }}>
+            <span style={{ width: 5, height: 18, background: "var(--sa-base)", display: "inline-block", borderRadius: 1 }} /> Phatia · {c.crumb}
+          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--n400)", letterSpacing: ".06em" }}>{runId} · {today}</span>
+        </header>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 20 }}>
-          <p style={{ fontSize: 14, lineHeight: "22px", margin: 0, textWrap: "pretty" }}>
-            Entre el 1 de marzo y el 30 de abril de 2026, las cinco aerolíneas con presencia activa en la ruta produjeron <span style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}>2.418</span> piezas relacionadas a Cartagena. <em>Avianca</em> concentra el <b style={{ color: "var(--sa-base)" }}>41,3 %</b> del volumen total, seguida por LATAM (24 %) y Wingo (12,9 %).
-          </p>
-          <p style={{ fontSize: 14, lineHeight: "22px", margin: 0, textWrap: "pretty" }}>
-            Copa, en quinta posición con <span style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}>240</span> menciones (<b>9,9 %</b>), opera con un perfil más orgánico que paid: 78 % del contenido es no-pago, frente al 62 % de Avianca. Esto sugiere una oportunidad — y un costo — de igualar la cadencia paga del líder.
-          </p>
-        </div>
-
-        {/* Figure */}
-        <div style={{ borderTop: "1px solid var(--n200)", borderBottom: "1px solid var(--n200)", padding: "18px 0", margin: "8px 0 22px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-            <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: ".08em", color: "var(--n500)" }}>FIG. 4.1</div>
-            <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--n500)" }}>fuente · run #042 · 04/05/26</div>
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 8, letterSpacing: "-0.01em" }}>Volumen mensual por competidor (menciones)</div>
-          <BBBarChart />
-          <div style={{ display: "flex", gap: 14, marginTop: 8, fontFamily: "var(--font-sans)" }}>
-            {([["Avianca", "var(--n900)"], ["LATAM", "var(--n700)"], ["Wingo", "var(--n500)"], ["Arajet", "var(--n300)"], ["Copa", "var(--sa-base)"]] as [string, string][]).map(([n, c]) => (
-              <div key={n} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--n700)" }}>
-                <span style={{ width: 9, height: 9, background: c, borderRadius: 1 }} />{n}
-              </div>
-            ))}
-          </div>
+        {/* title block */}
+        <div style={{ marginTop: "clamp(22px, 4vw, 36px)" }}>
+          <div style={eyebrow}>Informe competitivo · {c.project}</div>
+          <h1 style={{ fontSize: "clamp(30px, 7vw, 52px)", lineHeight: 1.05, fontWeight: 500, letterSpacing: "-0.03em", margin: "12px 0 10px", textWrap: "balance" }}>
+            {c.hero.title} <em style={{ fontStyle: "italic", color: "var(--n600)" }}>{c.hero.titleEm}</em>
+          </h1>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "clamp(10px, 2.4vw, 12px)", color: "var(--n500)", letterSpacing: ".03em", lineHeight: 1.5 }}>{c.hero.subtitle}</div>
+          <div style={{ marginTop: 12, fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--n400)", textTransform: "uppercase", letterSpacing: ".08em" }}>Preparado para {clientName} · uso interno</div>
         </div>
 
-        {/* Pull quote */}
-        <div style={{ borderLeft: "3px solid var(--sa-base)", padding: "4px 0 4px 18px", marginBottom: 22 }}>
-          <div style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--sa-base)", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>HALLAZGO · 4.1</div>
-          <div style={{ fontSize: 22, lineHeight: "30px", fontWeight: 500, marginTop: 6, letterSpacing: "-0.015em", textWrap: "balance" }}>
-            El volumen de Avianca casi cuadruplica al de Copa, pero su <em>engagement</em> por pieza es sólo 1,8 × más alto.
-          </div>
-        </div>
-
-        {/* Mini table */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, fontFamily: "var(--font-sans)", borderTop: "1px solid var(--n900)" }}>
-          {tableRows.map((r, i) => (
-            <Fragment key={i}>
-              <div style={{ padding: "10px 0", fontSize: 13, borderBottom: "1px solid var(--n200)", color: r[0] === "Copa Airlines" ? "var(--sa-base)" : "var(--n900)", fontWeight: r[0] === "Copa Airlines" ? 600 : 400 }}>{r[0]}</div>
-              <div style={{ padding: "10px 0", fontSize: 13, fontFamily: "var(--font-mono)", borderBottom: "1px solid var(--n200)", textAlign: "right" }}>{r[1]}</div>
-              <div style={{ padding: "10px 0", fontSize: 13, fontFamily: "var(--font-mono)", borderBottom: "1px solid var(--n200)", textAlign: "right" }}>{r[2]}</div>
-            </Fragment>
+        {/* KPI strip */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 1, marginTop: "clamp(20px, 4vw, 30px)", background: "var(--n200)", border: "1px solid var(--n200)", borderRadius: 8, overflow: "hidden" }}>
+          {c.kpis.map((k) => (
+            <div key={k.label} style={{ background: "#fff", padding: "13px 15px" }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 9.5, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--n500)" }}>{k.label}</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "clamp(20px, 4.5vw, 26px)", fontWeight: 500, marginTop: 6, letterSpacing: "-0.01em", color: k.tone === "ink" ? "var(--sa-base)" : "var(--n900)" }}>{k.value}</div>
+              {k.delta && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, marginTop: 3, color: k.up ? "#1a8f4c" : "var(--n500)" }}>{k.up ? "▲ " : ""}{k.delta}</div>}
+            </div>
           ))}
         </div>
 
-        <div style={{ position: "absolute", bottom: 36, left: 88, right: 88, display: "flex", justifyContent: "space-between", fontSize: 9, color: "var(--n400)", fontFamily: "var(--font-mono)", letterSpacing: ".08em", textTransform: "uppercase" }}>
-          <span>preparado para Copa Airlines · uso interno</span>
-          <span>generado con Phatia</span>
-        </div>
-      </div>
+        {/* 01 · Resumen ejecutivo */}
+        <section style={section}>
+          <SectionLabel n="01" title="Resumen ejecutivo" />
+          <p style={{ fontFamily: "var(--font-serif)", fontSize: "clamp(19px, 3.6vw, 25px)", lineHeight: 1.28, fontWeight: 500, letterSpacing: "-0.015em", margin: "4px 0 14px", textWrap: "balance", color: "var(--n900)" }}>{c.analysis.headline}</p>
+          {c.analysis.body && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 270px), 1fr))", gap: "clamp(12px, 3vw, 26px)" }}>
+              {splitTwo(c.analysis.body).map((para, i) => (
+                <p key={i} style={{ fontSize: "clamp(13px, 2.7vw, 14.5px)", lineHeight: 1.6, margin: 0, textWrap: "pretty", color: "var(--n700)" }}>{para}</p>
+              ))}
+            </div>
+          )}
+          {takeaways.length > 0 && (
+            <ul style={{ listStyle: "none", margin: "16px 0 0", padding: 0, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: "8px 22px" }}>
+              {takeaways.map((tk) => (
+                <li key={tk} style={{ display: "flex", gap: 9, fontSize: "clamp(12.5px, 2.6vw, 13.5px)", lineHeight: 1.45, color: "var(--n800)", fontFamily: "var(--font-sans)" }}>
+                  <span style={{ color: "var(--sa-base)", flexShrink: 0, fontWeight: 700 }}>→</span> {tk}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* 02 · Share of voice — case-aware horizontal bars */}
+        <section style={section}>
+          <SectionLabel n="02" title="Volumen y share of voice" meta={`fuente · ${runId}`} />
+          <div style={{ display: "flex", flexDirection: "column", gap: "clamp(9px, 2vw, 13px)", marginTop: 6 }}>
+            {ranked.map((b) => (
+              <div key={b.handle} style={{ display: "grid", gridTemplateColumns: "minmax(74px, 150px) 1fr auto", alignItems: "center", gap: "clamp(8px, 2vw, 14px)" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, fontFamily: "var(--font-sans)", fontSize: "clamp(12px, 2.6vw, 13.5px)", fontWeight: b.isClient ? 600 : 400, color: b.isClient ? "var(--sa-base)" : "var(--n900)" }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 2, background: b.accent, flexShrink: 0 }} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
+                </span>
+                <span style={{ height: 12, borderRadius: 3, background: "var(--n100, #f0ece6)", overflow: "hidden" }}>
+                  <span style={{ display: "block", height: "100%", width: `${Math.max(3, (sovNum(b.sov) / maxSov) * 100)}%`, background: b.accent, borderRadius: 3 }} />
+                </span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "clamp(12px, 2.6vw, 13.5px)", color: "var(--n900)", textAlign: "right", minWidth: 44 }}>{b.sov}%</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Hallazgo */}
+        <section style={section}>
+          <div style={{ borderLeft: "3px solid var(--sa-base)", paddingLeft: "clamp(14px, 3vw, 20px)" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--sa-base)", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>Hallazgo clave</div>
+            <div style={{ fontSize: "clamp(18px, 4vw, 24px)", lineHeight: 1.3, fontWeight: 500, marginTop: 7, letterSpacing: "-0.015em", textWrap: "balance" }}>{finding}</div>
+          </div>
+        </section>
+
+        {/* 03 · Comparativa */}
+        <section style={section}>
+          <SectionLabel n="03" title="Tabla comparativa" />
+          <div className="bb-scroll-x" style={{ overflowX: "auto", marginTop: 4 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: Math.max(420, 150 + cols.length * 88), fontFamily: "var(--font-sans)" }}>
+              <thead>
+                <tr>
+                  <th style={{ ...th, textAlign: "left", width: 150 }}>Métrica</th>
+                  {cols.map((col) => (
+                    <th key={col.name} style={{ ...th, textAlign: "right", color: col.isClient ? "var(--sa-base)" : "var(--n600)" }}>{col.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {tableRows.map((r) => (
+                  <tr key={r.label}>
+                    <td style={{ ...tdc, color: "var(--n500)", fontFamily: "var(--font-mono)", fontSize: 11 }}>{r.label}</td>
+                    {r.vals.map((v, j) => {
+                      const isClient = cols[j]?.isClient ?? false;
+                      const sent = r.fmt === "sent" ? SENT[String(v)] : null;
+                      return (
+                        <td key={j} style={{ ...tdc, textAlign: "right", fontFamily: sent ? "var(--font-sans)" : "var(--font-mono)", color: isClient ? "var(--sa-base)" : "var(--n900)", fontWeight: isClient ? 600 : 400 }}>
+                          {sent ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, justifyContent: "flex-end" }}>
+                              <span style={{ width: 7, height: 7, borderRadius: "50%", background: sent.c }} /> {sent.label}
+                            </span>
+                          ) : String(v)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* 04 · Recomendaciones */}
+        {recs.length > 0 && (
+          <section style={section}>
+            <SectionLabel n="04" title="Recomendaciones" />
+            <ol style={{ listStyle: "none", margin: "4px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+              {recs.map((r, i) => (
+                <li key={r} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <span style={{ flexShrink: 0, width: 24, height: 24, borderRadius: "50%", border: "1.5px solid var(--sa-base)", color: "var(--sa-base)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 600 }}>{i + 1}</span>
+                  <span style={{ fontSize: "clamp(13px, 2.8vw, 15px)", lineHeight: 1.5, color: "var(--n800)", fontFamily: "var(--font-sans)", paddingTop: 2 }}>{r}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+
+        {/* footer */}
+        <footer style={{ marginTop: "clamp(28px, 5vw, 44px)", paddingTop: 14, borderTop: "1px solid var(--n200)", display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", fontFamily: "var(--font-mono)", fontSize: 9.5, color: "var(--n400)", letterSpacing: ".06em", textTransform: "uppercase" }}>
+          <span>Preparado para {clientName} · uso interno</span>
+          <span>Generado con Phatia</span>
+        </footer>
+      </article>
     </div>
   );
+}
+
+// Split a body string into ~2 balanced paragraphs at a sentence boundary near the
+// middle, so the exec summary reads as a clean two-column block (one col on mobile).
+function splitTwo(body: string): string[] {
+  const sentences = body.match(/[^.]+\.(?:\s|$)/g);
+  if (!sentences || sentences.length < 2) return [body];
+  const mid = Math.ceil(sentences.length / 2);
+  return [sentences.slice(0, mid).join("").trim(), sentences.slice(mid).join("").trim()].filter(Boolean);
+}
+
+function SectionLabel({ n, title, meta }: { n: string; title: string; meta?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+      <div style={{ display: "inline-flex", alignItems: "baseline", gap: 9, fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--sa-base)", fontWeight: 600 }}>
+        <span>{n}</span><span style={{ color: "var(--n700)" }}>· {title}</span>
+      </div>
+      {meta && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--n400)" }}>{meta}</span>}
+    </div>
+  );
+}
+
+const eyebrow: CSSProperties = { fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--sa-base)", letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600 };
+const section: CSSProperties = { marginTop: "clamp(30px, 5vw, 46px)" };
+const th: CSSProperties = { padding: "0 10px 9px", fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: ".06em", textTransform: "uppercase", fontWeight: 500, color: "var(--n500)", borderBottom: "1.5px solid var(--n900)", whiteSpace: "nowrap" };
+const tdc: CSSProperties = { padding: "10px", fontSize: 13, borderBottom: "1px solid var(--n200)", whiteSpace: "nowrap" };
+
+function tbtn(primary: boolean): CSSProperties {
+  return {
+    display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 16px", borderRadius: 999,
+    fontFamily: "var(--font-sans)", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none",
+    border: primary ? "none" : "1px solid var(--border-strong)",
+    background: primary ? "var(--accent)" : "var(--surface)",
+    color: primary ? "var(--accent-ink)" : "var(--text)",
+  };
 }

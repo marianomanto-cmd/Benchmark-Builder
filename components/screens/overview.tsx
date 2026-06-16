@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { ScreenShell } from "@/components/shell/screen-shell";
@@ -124,7 +124,7 @@ export function Overview({
       <div className="bb-row" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
         <Segmented value={view} onChange={setView} options={VIEWS} />
         <div style={{ flex: 1 }} />
-        <Link href="/reporte"><Btn kind="secondary" size="sm" icon={<Ic.download s={12} />}>PDF</Btn></Link>
+        <Link href={caseSlug ? `/reporte?case=${encodeURIComponent(caseSlug)}` : "/reporte"}><Btn kind="secondary" size="sm" icon={<Ic.download s={12} />}>PDF</Btn></Link>
         <Link href="/editor"><Btn kind="accent" size="sm" iconRight={<Ic.arrow s={12} />}>Generar reporte</Btn></Link>
       </div>
 
@@ -215,7 +215,7 @@ function CockpitView({ vm }: { vm: VM }) {
       <div style={{ ...panel, gridColumn: "span 2" }}>
         <div className="t-micro" style={{ marginBottom: 10 }}>Insights destacados</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-          {vm.insights.map((it, i) => (
+          {vm.insights.map((it) => (
             <MiniInsight key={it.title} kind={it.kind} t={it.title} s={`${it.sources} fuentes · conf ${it.confidence}`} />
           ))}
         </div>

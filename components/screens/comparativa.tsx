@@ -108,7 +108,7 @@ export function Comparativa({
               <tr key={i}>
                 <td style={{ padding: "14px 16px", fontWeight: 500, color: "var(--text-muted)", borderBottom: "1px solid var(--border)", background: "var(--surface-2)" }}>{r.label}</td>
                 {r.vals.map((v, j) => {
-                  const isClient = cols[j].isClient;
+                  const isClient = cols[j]?.isClient ?? false;
                   let cell: ReactNode = v;
                   if (r.fmt === "mono") cell = <span style={{ fontFamily: "var(--font-mono)", fontSize: 15, fontWeight: 500, color: "var(--text)" }}>{v}</span>;
                   else if (r.fmt === "sent") cell = <SentimentChip kind={v as SentimentKind} big />;
@@ -118,12 +118,12 @@ export function Comparativa({
                       <div>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: 15, fontWeight: 500, color: "var(--text)" }}>{v}</div>
                         <div style={{ height: 6, background: "var(--surface-2)", borderRadius: 3, marginTop: 6 }}>
-                          <div style={{ width: `${num * 2}%`, height: "100%", background: cols[j].accent, borderRadius: 3 }} />
+                          <div style={{ width: `${num * 2}%`, height: "100%", background: cols[j]?.accent ?? "var(--accent)", borderRadius: 3 }} />
                         </div>
                       </div>
                     );
                   } else if (r.fmt === "plats") {
-                    cell = <div style={{ display: "flex", gap: 4 }}>{platsByCol[j].map((p) => <PlatformBadge key={p} platform={p} size="sm" />)}</div>;
+                    cell = <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{(platsByCol[j] ?? []).map((p) => <PlatformBadge key={p} platform={p} size="sm" />)}</div>;
                   } else if (r.fmt === "text") {
                     cell = <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{v}</span>;
                   }
