@@ -11,11 +11,21 @@ import { DEMO_MENTIONS, DEMO_INSIGHTS, DEMO_ANALYSIS_BY_SECTION } from "@/lib/de
 
 const pic = (s: string) => `https://picsum.photos/seed/bb-${s}/600/600`;
 const gpic = (s: string) => `https://picsum.photos/seed/bb-${s}/600/750`;
+// Short, light sample clips (~2 MB each), remote — autoplay-on-scroll in the
+// gallery/feed thumbs (see components/domain.tsx AutoVideo). No repo footprint.
 const VID = [
   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
 ];
+// Pick a clip deterministically per brand so different brands show different videos.
+function vidFor(name: string, k: number): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return VID[(Math.abs(h) + k) % VID.length];
+}
 
 const RIVAL_ACCENTS = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)"];
 
@@ -165,7 +175,7 @@ function adItems(b: Brand): GalleryItem[] {
   const sp = spendLabel(b.spend);
   return [
     ["ad", plat, "creativo · 12d", [sp, `${fmtK(b.reach * 0.6)} 👁`], true, gpic(sd + "a1")],
-    ["ad", plat, "video · 8d", [sp, `${fmtK(b.reach * 0.4)} 👁`], true, gpic(sd + "a2"), VID[0]],
+    ["ad", plat, "video · 8d", [sp, `${fmtK(b.reach * 0.4)} 👁`], true, gpic(sd + "a2"), vidFor(b.name, 0)],
     ["ad", plat, "static · 5d", [sp, `${fmtK(b.reach * 0.2)} 👁`], true, gpic(sd + "a3")],
   ];
 }
@@ -175,7 +185,7 @@ function organicItems(b: Brand): GalleryItem[] {
   const p0 = ps[0] ?? "instagram", p1 = ps[1] ?? p0, p2 = ps[2] ?? p1;
   return [
     ["photo", p0, b.top, [`${fmtK(b.eng * 0.3)} ♡`, "4 h"], false, gpic(sd + "o1")],
-    ["video", p1, "reel / POV", [`${fmtK(b.eng * 0.6)} ▷`, "1 d"], false, gpic(sd + "o2"), VID[1]],
+    ["video", p1, "reel / POV", [`${fmtK(b.eng * 0.6)} ▷`, "1 d"], false, gpic(sd + "o2"), vidFor(b.name, 2)],
     ["photo", p2, "carrusel", [`${fmtK(b.eng * 0.15)} ♡`, "2 d"], false, gpic(sd + "o3")],
   ];
 }

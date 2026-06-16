@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type CSSProperties } from "react";
 import { Ic, PlatformGlyph } from "@/components/ui/icons";
 import { Btn, BBBadge, SentimentChip } from "@/components/ui/primitives";
 import { Sparkline } from "@/components/ui/charts";
@@ -28,6 +28,30 @@ export function PlatformBadge({ platform, size = "md", label }: { platform: Plat
 // ============================================================
 export type ThumbKind = "photo" | "video" | "article" | "ad";
 
+// Autoplay-on-scroll video: muted/loop/playsInline, plays while it's in the
+// viewport and pauses when it leaves (so clips "run" as you scroll, without all
+// of them decoding at once). Respects prefers-reduced-motion (keeps the poster).
+function AutoVideo({ src, poster, style }: { src: string; poster?: string; style: CSSProperties }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) void v.play().catch(() => {});
+          else v.pause();
+        }
+      },
+      { threshold: 0.4 },
+    );
+    io.observe(v);
+    return () => io.disconnect();
+  }, []);
+  return <video ref={ref} src={src} poster={poster} muted loop playsInline preload="metadata" style={style} />;
+}
+
 export function ThumbPlaceholder({ kind, label, src, video }: { kind: ThumbKind; label?: string; src?: string; video?: string }) {
   const grad: Record<ThumbKind, string> = {
     photo: "linear-gradient(135deg, #d9c9b8, #a89e8b)",
@@ -36,22 +60,14 @@ export function ThumbPlaceholder({ kind, label, src, video }: { kind: ThumbKind;
     ad: "linear-gradient(135deg, #6b1a36, #8a2a5f)",
   };
   const fill = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" } as const;
-  const showPlay = kind === "video" || !!video;
+  // Only show the central play glyph for a video thumb with no real clip; actual
+  // clips autoplay on scroll, so the badge would be misleading.
+  const showPlay = kind === "video" && !video;
   const onMedia = !!src || !!video;
   return (
     <div style={{ position: "absolute", inset: 0, background: grad[kind], display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
       {video ? (
-        <video
-          src={video}
-          poster={src}
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          onMouseEnter={(e) => { void e.currentTarget.play().catch(() => {}); }}
-          onMouseLeave={(e) => { e.currentTarget.pause(); }}
-          style={fill}
-        />
+        <AutoVideo src={video} poster={src} style={fill} />
       ) : src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt={label || kind} loading="lazy" style={fill} />

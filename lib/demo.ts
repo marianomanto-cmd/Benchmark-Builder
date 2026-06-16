@@ -3,7 +3,10 @@ import { sparkFor } from "@/lib/view-models";
 
 // Free placeholder media (Lorem Picsum + Google sample video). Swap for scraped.
 const pic = (s: string) => `https://picsum.photos/seed/bb-${s}/600/600`;
+// Short, light sample clips (~2 MB), remote — autoplay-on-scroll in feed/gallery.
 const vid = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4";
+const vid2 = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4";
+const vid3 = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4";
 
 // Demo data for the Copa · Cartagena case. Used as a resilient fallback when
 // Supabase isn't reachable/seeded, so the deployed site never breaks.
@@ -32,7 +35,7 @@ export const DEMO_MENTIONS: MentionVM[] = [
   { platform: "instagram", author: "Avianca", handle: "avianca", ts: "hace 4 h", brand: "Avianca", body: "Cartagena en frecuencia diaria desde Bogotá y Medellín. Conocé los nuevos horarios ☀️", thumbType: "photo", media: pic("av-ig1"), sentiment: "pos", isAd: false, metrics: [["♡", "12,4k"], ["💬", "284"], ["↗", "842"]] },
   { platform: "meta_ads", author: "Avianca", handle: "avianca · ad", ts: "activo · 12 d", brand: "Avianca", isAd: true, body: "Vuelos a Cartagena desde USD 89. Combiná con Medellín y Santa Marta. Reservá hasta el 30/05.", thumbType: "ad", media: pic("av-ad1"), sentiment: "pos", metrics: [["€", "USD 8–12k"], ["👁", "est. 1,4M"]] },
   { platform: "tiktok", author: "LATAM Colombia", handle: "latamcol", ts: "hace 9 h", brand: "LATAM", body: "POV: tu primera vez en Cartagena. Etiquetá a quien te llevarías 👇 #latamtok", thumbType: "video", media: pic("la-tt1"), video: vid, sentiment: "pos", isAd: false, metrics: [["▷", "1,2M"], ["♡", "98k"], ["💬", "3,4k"]] },
-  { platform: "youtube", author: "Wingo", handle: "wingo.col", ts: "hace 1 d", brand: "Wingo", body: "Vlog · Cartagena en 48h con vuelo Wingo · Costos reales · Tips de viaje 2026", thumbType: "video", sentiment: "neu", isAd: false, metrics: [["▷", "42k"], ["♡", "2,1k"]] },
+  { platform: "youtube", author: "Wingo", handle: "wingo.col", ts: "hace 1 d", brand: "Wingo", body: "Vlog · Cartagena en 48h con vuelo Wingo · Costos reales · Tips de viaje 2026", thumbType: "video", media: pic("wi-yt1"), video: vid2, sentiment: "neu", isAd: false, metrics: [["▷", "42k"], ["♡", "2,1k"]] },
   { platform: "instagram", author: "Copa Airlines", handle: "copaairlines", ts: "hace 18 h", brand: "Copa", body: "Atardecer en Cartagena, vista desde el equipo Copa ✈️ #copaairlines", thumbType: "photo", media: pic("co-ig1"), sentiment: "pos", isAd: false, metrics: [["♡", "8,2k"], ["💬", "142"]] },
   { platform: "web", author: "El Espectador", handle: "elespectador.com", ts: "03/05", brand: "—", body: "Avianca, LATAM y Wingo aumentan frecuencia a Cartagena para temporada 2026.", thumbType: "article", sentiment: "neu", isAd: false, metrics: [["📄", "prensa"], ["👁", "24k"]] },
   { platform: "x", author: "Arajet", handle: "arajetdom", ts: "hace 6 h", brand: "Arajet", body: "Promo a Cartagena desde RD$ 3.999 ida. Tarifa final con impuestos publicada.", sentiment: "neu", isAd: false, metrics: [["♡", "312"], ["🔁", "48"], ["💬", "22"]] },
@@ -40,8 +43,8 @@ export const DEMO_MENTIONS: MentionVM[] = [
   { platform: "meta_ads", author: "LATAM", handle: "latamcol · ad", ts: "activo · 4 d", brand: "LATAM", isAd: true, body: "Cartagena con escala en Bogotá. Equipaje incluido. Reservá con LATAM Pass.", thumbType: "ad", sentiment: "neu", metrics: [["€", "USD 4–6k"], ["👁", "est. 620k"]] },
   { platform: "instagram", author: "Wingo", handle: "wingo.col", ts: "hace 7 h", brand: "Wingo", body: "Tarifas a Cartagena que sí caben en tu bolsillo 💜", thumbType: "photo", sentiment: "pos", isAd: false, metrics: [["♡", "3,4k"], ["💬", "96"]] },
   { platform: "facebook", author: "Avianca", handle: "avianca", ts: "hace 1 d", brand: "Avianca", body: "Sumamos un vuelo más por día a Cartagena en temporada alta.", thumbType: "article", sentiment: "pos", isAd: false, metrics: [["♡", "1,9k"], ["💬", "210"]] },
-  { platform: "tiktok", author: "Wingo", handle: "wingo.col", ts: "hace 14 h", brand: "Wingo", body: "Cartagena en modo low cost: 3 tips para volar barato ✈️", thumbType: "video", sentiment: "pos", isAd: false, metrics: [["▷", "210k"], ["♡", "18k"]] },
-  { platform: "youtube", author: "Avianca", handle: "avianca", ts: "hace 3 d", brand: "Avianca", body: "Detrás de escena: cómo preparamos un vuelo a Cartagena", thumbType: "video", sentiment: "neu", isAd: false, metrics: [["▷", "88k"], ["♡", "4,2k"]] },
+  { platform: "tiktok", author: "Wingo", handle: "wingo.col", ts: "hace 14 h", brand: "Wingo", body: "Cartagena en modo low cost: 3 tips para volar barato ✈️", thumbType: "video", media: pic("wi-tt1"), video: vid3, sentiment: "pos", isAd: false, metrics: [["▷", "210k"], ["♡", "18k"]] },
+  { platform: "youtube", author: "Avianca", handle: "avianca", ts: "hace 3 d", brand: "Avianca", body: "Detrás de escena: cómo preparamos un vuelo a Cartagena", thumbType: "video", media: pic("av-yt1"), video: vid, sentiment: "neu", isAd: false, metrics: [["▷", "88k"], ["♡", "4,2k"]] },
   { platform: "x", author: "LATAM Colombia", handle: "latamcol", ts: "hace 11 h", brand: "LATAM", body: "Hoy volamos lleno a Cartagena. Gracias por elegirnos ❤️", sentiment: "pos", isAd: false, metrics: [["♡", "1,1k"], ["🔁", "132"]] },
   { platform: "reddit", author: "r/Colombia", handle: "u/viajero_co", ts: "hace 4 d", brand: "—", body: "Comparativa de precios Bogotá–Cartagena: Avianca vs LATAM vs Wingo", sentiment: "neu", isAd: false, metrics: [["↑", "318"], ["💬", "124"]] },
   { platform: "bluesky", author: "Caro Méndez", handle: "caromendez.bsky.social", ts: "hace 5 h", brand: "—", body: "Servicio impecable de Copa a Cartagena, recomendadísimo 👌", sentiment: "pos", isAd: false, metrics: [["♡", "84"], ["🔁", "12"]] },

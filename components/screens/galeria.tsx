@@ -17,11 +17,12 @@ type Group = { name: string; count: number; items: Item[] };
 // Free placeholder media (Lorem Picsum images + Google sample videos). Swap for
 // the real scraped creatives once the media pipeline runs.
 const img = (s: string) => `https://picsum.photos/seed/bb-${s}/600/750`;
+// Short, light sample clips (~2 MB each) — remote, so they don't bloat the repo.
 const V = {
   blazes: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
   joy: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
   fun: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-  bunny: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+  melt: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
   escapes: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
 };
 
@@ -32,7 +33,7 @@ const DEFAULT_AD_GROUPS: Group[] = [
 ];
 
 const DEFAULT_ORG_GROUPS: Group[] = [
-  { name: "Avianca · 84", count: 84, items: [["photo", "instagram", "sunset reel", ["12,4k ♡", "4 h"], false, img("ao1")], ["photo", "instagram", "crew", ["8,2k ♡", "12 h"], false, img("ao2")], ["video", "tiktok", "recorrido", ["480k ▷", "1 d"], false, img("ao3"), V.bunny]] },
+  { name: "Avianca · 84", count: 84, items: [["photo", "instagram", "sunset reel", ["12,4k ♡", "4 h"], false, img("ao1")], ["photo", "instagram", "crew", ["8,2k ♡", "12 h"], false, img("ao2")], ["video", "tiktok", "recorrido", ["480k ▷", "1 d"], false, img("ao3"), V.melt]] },
   { name: "LATAM · 56", count: 56, items: [["video", "tiktok", "POV viaje", ["1,2M ▷", "9 h"], false, img("lo1"), V.escapes], ["photo", "instagram", "mapa", ["3,2k ♡", "2 d"], false, img("lo2")], ["photo", "facebook", "noticia", ["820 ↗", "3 d"], false, img("lo3")]] },
   { name: "Wingo · 42", count: 42, items: [["video", "youtube", "vlog 48h", ["42k ▷", "1 d"], false, img("wo1"), V.blazes], ["photo", "instagram", "tarifa", ["1,4k ♡", "2 d"], false, img("wo2")], ["video", "tiktok", "duet", ["98k ▷", "3 d"], false, img("wo3"), V.joy]] },
 ];
