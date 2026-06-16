@@ -115,6 +115,12 @@
 .next:active { transform: translateY(1px); }
 
 @media (max-width: 720px) { .panel { padding: 26px 20px 22px; } }
+@media (max-width: 480px) {
+  /* Stack the controls so long labels ("Empezar mi reporte") never collide. */
+  .controls { flex-direction: column-reverse; align-items: stretch; gap: 10px; }
+  .back, .next { width: 100%; justify-content: center; }
+  .back:disabled { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .rep, .tint { animation: none; transition: none; }
   .repFl { animation: none; transform: scaleX(var(--w, 1)); }

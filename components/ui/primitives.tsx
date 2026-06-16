@@ -62,6 +62,7 @@ export function Btn({
         cursor: disabled ? "not-allowed" : "pointer",
         display: "inline-flex",
         alignItems: "center",
+        justifyContent: "center",
         gap: 6,
         fontFamily: "var(--font-sans)",
         whiteSpace: "nowrap",

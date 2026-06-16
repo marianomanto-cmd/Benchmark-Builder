@@ -124,8 +124,8 @@ export function Overview({
       <div className="bb-row" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
         <Segmented value={view} onChange={setView} options={VIEWS} />
         <div style={{ flex: 1 }} />
-        <Link href={caseSlug ? `/reporte?case=${encodeURIComponent(caseSlug)}` : "/reporte"}><Btn kind="secondary" size="sm" icon={<Ic.download s={12} />}>PDF</Btn></Link>
-        <Link href="/editor"><Btn kind="accent" size="sm" iconRight={<Ic.arrow s={12} />}>Generar reporte</Btn></Link>
+        <Link href={caseSlug ? `/reporte?case=${encodeURIComponent(caseSlug)}` : "/reporte"} style={{ textAlign: "center" }}><Btn kind="secondary" size="sm" icon={<Ic.download s={12} />}>PDF</Btn></Link>
+        <Link href="/editor" style={{ textAlign: "center" }}><Btn kind="accent" size="sm" iconRight={<Ic.arrow s={12} />}>Generar reporte</Btn></Link>
       </div>
 
       <AnimatePresence mode="wait">
@@ -333,9 +333,19 @@ function SpreadView({ vm }: { vm: VM }) {
         <PanelHead title="Volumen de conversación por competidor" meta="" />
         <div style={{ position: "relative" }}>
           <BarChart data={vm.volume} index="month" categories={vm.volumeCategories} colors={vm.volumeColors} type="stacked" valueFormatter={(v) => formatInt(v)} showLegend className="mt-1 h-72" />
+          {/* Floating annotations only on wider screens — on mobile they'd overlap
+              the bars, so they move to a stacked caption list below the chart. */}
           {ann.map((text, i) => (
-            <div key={text} style={{ position: "absolute", ...annPos[i], maxWidth: 180, fontFamily: "var(--font-mono)", fontSize: 10, lineHeight: 1.3, color: "var(--text)", background: "color-mix(in srgb, var(--surface) 88%, transparent)", border: "1px solid var(--border-strong)", borderRadius: 6, padding: "6px 9px", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", boxShadow: "var(--sh-1)" }}>
+            <div key={text} className="bb-hide-sm" style={{ position: "absolute", ...annPos[i], maxWidth: 180, fontFamily: "var(--font-mono)", fontSize: 10, lineHeight: 1.3, color: "var(--text)", background: "color-mix(in srgb, var(--surface) 88%, transparent)", border: "1px solid var(--border-strong)", borderRadius: 6, padding: "6px 9px", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", boxShadow: "var(--sh-1)" }}>
               <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--viz-accent)", boxShadow: "0 0 8px var(--viz-accent)", marginRight: 6 }} />
+              {text}
+            </div>
+          ))}
+        </div>
+        <div className="bb-only-sm" style={{ width: "100%", flexDirection: "column", gap: 8, marginTop: 12 }}>
+          {ann.map((text) => (
+            <div key={text} style={{ display: "flex", gap: 8, fontFamily: "var(--font-mono)", fontSize: 11, lineHeight: 1.35, color: "var(--text)" }}>
+              <span style={{ marginTop: 5, width: 6, height: 6, borderRadius: "50%", background: "var(--viz-accent)", flexShrink: 0 }} />
               {text}
             </div>
           ))}

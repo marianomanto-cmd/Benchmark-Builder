@@ -59,7 +59,7 @@
 }
 @keyframes phPop { from { transform: scale(0.84); } to { transform: none; } }
 .ct { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--viz-accent); text-align: center; }
-.ch { font-family: var(--font-serif); font-style: italic; font-size: 15px; text-align: center; margin: 6px 0 14px; line-height: 1.2; color: var(--text); }
+.ch { font-family: var(--font-serif); font-style: italic; font-size: 15px; text-align: center; margin: 6px 0 14px; line-height: 1.2; color: var(--text); overflow-wrap: break-word; }
 .mbar { display: flex; align-items: center; gap: 7px; margin-top: 7px; }
 .ml { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); width: 42px; }
 .mt { flex: 1; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text) 12%, transparent); overflow: hidden; }
@@ -68,6 +68,12 @@
 @media (max-width: 820px) {
   .grid { grid-template-columns: 1fr; gap: 28px; }
   .lede { max-width: none; }
+}
+@media (max-width: 480px) {
+  /* Give the floating core text a touch more room on small phones. */
+  .core { inset: 19%; padding: clamp(13px, 5%, 22px); }
+  .ct { font-size: 8.5px; }
+  .ch { font-size: 13.5px; margin: 5px 0 11px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .core { animation: none; }
