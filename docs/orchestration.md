@@ -15,7 +15,7 @@
 | 2. **Planner / Interpreter** | Interpreta el caso de estudio (+ perfil) y genera **queries acotadas por fuente** (no el prompt crudo). | **Claude** | ✅ Implementado (`lib/discovery/planner.ts`) — heurística por defecto, Claude refina en live (salida tipada Zod `QuerySpec`) |
 | 3. **Data Collection** | Apify (queries acotadas) para IG/TT/YT/FB + ad-libraries; **Grok** para X y **web/portales** (búsqueda web+prensa independiente). | Apify + Grok | ✅ Implementado (`lib/sources/grok-live.ts`, `index.ts`). Actor de Apify elegido **automáticamente por caso** (`select-actor.ts`) |
 | 4. **Multimodal Analysis** | Imágenes (Claude vision) + **video nativo** (imagen+audio) + voiceover de calidad. | **Gemini** (video) + **AssemblyAI** (voiceover) | ✅ **Gemini implementado** (`lib/media/gemini-video.ts`, preferido si hay `GOOGLE_AI_API_KEY`; fallback frames+Claude+Whisper). **AssemblyAI = MUST futuro**. Ver abajo |
-| 5. **Synthesis** | Sentimiento + insights + reporte final. | **Claude** (Grok opcional) | ✅ Implementado (`lib/ai/`); `AI_PROVIDER=claude|grok`. Ensemble Claude+Grok = futuro |
+| 5. **Synthesis** | Sentimiento + insights + reporte final, apoyado en los **skills de análisis/estrategia del repo** (`.claude/skills`). | **Claude** (Grok opcional) | ✅ Implementado (`lib/ai/`); `AI_PROVIDER=claude|grok`. Ensemble Claude+Grok = futuro |
 
 ## Detalle de lo implementado
 
@@ -34,6 +34,27 @@
   → `grokLiveSource` (Grok Live Search con `sources:[{x}]` o `[{web},{news}]`);
   IG/TT/YT/FB y ad-libraries → Apify. El provider de X/web se fuerza a `grok`
   en `planToJobs` para que el guard de costos y la estimación usen tarifas Grok.
+
+## Capa de skills — frameworks de análisis y estrategia (`.claude/skills`)
+
+El paso de **Synthesis** (y el análisis en general) se apoya en los **agent skills
+vendorizados** en `.claude/skills/`, que aportan frameworks y mejores prácticas. La UI
+**nunca** los nombra (regla de etiquetado: sólo "Análisis + Insights"):
+
+- **`marketingskills`** (Corey Haines) — CRO, copywriting, SEO, paid ads, growth,
+  analytics, customer-research, competitors, etc. (colección/marketplace de plugin).
+- **`ai-marketing-skills`** — content-eval, revenue-intelligence, finance-ops,
+  yt-competitive-analysis, autoresearch, etc.
+- **`sangria-strategy-media`** (NUEVO) — la **capa conceptual/upstream** de la agencia
+  Sangria: pitches/RFP, concepto creativo & comunicación, y **estrategia de medios**
+  (arquitectura de funnel, roles de canal, demanda de dos motores, audiencias, fases,
+  filosofía de presupuesto). Es el "por qué" y el "approach" **aguas arriba** del análisis
+  competitivo/social y **complementa** a los skills de arriba. Deliberadamente **excluye**
+  planes y números (CPMs, pacing, trafficking, reporting, atribución) → esa capa ejecutable
+  es el skill hermano **`sangria-agency-os`** (referenciado por su SKILL.md, **aún no provisto**).
+
+Convención: cada skill es una carpeta cuyo nombre = el `name` del frontmatter, con su
+`SKILL.md` (y archivos de apoyo planos dentro), autodescubrible como project-skill.
 
 ## Multimodal — Gemini (video nativo) implementado · AssemblyAI pendiente
 
