@@ -126,16 +126,19 @@ export type Database = {
       };
       competitor_platforms: {
         Row: {
+          advertiser_id: string | null;
           competitor_id: string;
           platform: Database["public"]["Enums"]["platform"];
           sort_order: number;
         };
         Insert: {
+          advertiser_id?: string | null;
           competitor_id: string;
           platform: Database["public"]["Enums"]["platform"];
           sort_order?: number;
         };
         Update: {
+          advertiser_id?: string | null;
           competitor_id?: string;
           platform?: Database["public"]["Enums"]["platform"];
           sort_order?: number;

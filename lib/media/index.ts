@@ -1,7 +1,7 @@
 import "server-only";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { guardedCall } from "@/lib/cost/guarded";
-import { geminiVideoCostUSD } from "@/lib/cost/rates";
+import { geminiVideoCostUSD, imageAnalysisCostUSD, transcriptionCostUSD } from "@/lib/cost/rates";
 import { LIMITS, hasProviderKey } from "./config";
 import { downloadMedia } from "./download";
 import { extractFrames } from "./frames";
@@ -32,7 +32,7 @@ export async function processMediaFile(admin: Admin, runId: string, fileRow: Fil
   if (f.kind === "image") {
     const out = await guardedCall<ImageAnalysis>({
       admin, runId, provider: "claude_vision", operation: "analyze_image", label: "Visión · imagen",
-      estimatedCost: 0.01, call: () => analyzeImage(f, f.url), fixture: () => mockImageAnalysis(f),
+      estimatedCost: imageAnalysisCostUSD(), call: () => analyzeImage(f, f.url), fixture: () => mockImageAnalysis(f),
     });
     if (!out.ok) return null;
     cost += out.cost;
@@ -56,14 +56,14 @@ export async function processMediaFile(admin: Admin, runId: string, fileRow: Fil
       for (const fr of frames.slice(0, LIMITS.maxFramesPerVideo)) {
         const out = await guardedCall<ImageAnalysis>({
           admin, runId, provider: "claude_vision", operation: "analyze_frame", label: "Visión · frame",
-          estimatedCost: 0.01, call: () => analyzeImage(f, fr), fixture: () => mockImageAnalysis({ ...f, url: fr }),
+          estimatedCost: imageAnalysisCostUSD(), call: () => analyzeImage(f, fr), fixture: () => mockImageAnalysis({ ...f, url: fr }),
         });
         if (out.ok) { analyses.push(out.result); cost += out.cost; }
       }
       const audioPath = await extractAudio(dl.path);
       const trOut = await guardedCall<Transcript>({
         admin, runId, provider: "whisper", operation: "transcribe", label: "Transcripción · voiceover",
-        estimatedCost: 0.02, call: () => transcribe(f, audioPath), fixture: () => mockTranscript(f),
+        estimatedCost: transcriptionCostUSD(3, true), call: () => transcribe(f, audioPath), fixture: () => mockTranscript(f),
       });
       const transcript = trOut.ok ? trOut.result : null;
       if (trOut.ok) cost += trOut.cost;

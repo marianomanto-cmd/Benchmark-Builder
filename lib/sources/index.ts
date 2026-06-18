@@ -26,14 +26,20 @@ const ORGANIC: Record<PlatformKey, Source | undefined> = {
   web: grokLiveSource("web"),
 };
 
-// Paid (ad library) adapters. Meta commercial uses the Apify scraper; the
-// official API (meta-ads.ts) is the political route, selected in the runner.
-// X has no public ad library → Grok.
+// Paid (ad library) adapters. Meta commercial (meta_ads + Instagram/Facebook ad
+// scopes) uses the Apify Ad Library scraper; Google/LinkedIn/TikTok use their
+// respective ad-library actors. The official Meta API (meta-ads.ts) is the
+// political route, selected in the runner.
+// X has NO public ad library, so there is no paid X adapter — paid X used to
+// return organic conversation via Grok, which mislabeled it as advertising.
+// (source_settings x:paid is disabled in migration 20260618120000.)
 const PAID: Partial<Record<PlatformKey, Source>> = {
   meta_ads: paidAdsSource("meta_ads"),
+  instagram: paidAdsSource("instagram"),
+  facebook: paidAdsSource("facebook"),
+  tiktok: paidAdsSource("tiktok"),
   google_ads: paidAdsSource("google_ads"),
   linkedin_ads: paidAdsSource("linkedin_ads"),
-  x: grokLiveSource("x"),
 };
 
 // Resolve the adapter for a (platform, scope). For paid Meta with political

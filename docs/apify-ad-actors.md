@@ -49,7 +49,33 @@
 - `/settings` ya **no** expone el actor: sólo se elige qué fuentes participan y el
   tope de resultados (`results_limit`). `source_settings.actor_id` queda como pin
   opcional de ops; si está, gana sobre la selección automática.
+- **Cobertura (migración `20260618120000`):** `instagram`, `facebook` y `tiktok`
+  scope=paid ya tienen fila + adaptador (`PAID` en `lib/sources/index.ts`) — antes se
+  salteaban en silencio y los ads de Meta sólo entraban por `meta_ads`. **`x` paid
+  queda deshabilitado**: X no tiene ad library pública (devolvía conversación
+  orgánica mal etiquetada como publicidad).
+- **Fallback real:** cada fila paid declara `fallback_actor_id`; si el actor primario
+  falla (`call_failed`), el runner **reintenta con el fallback** antes de degradar
+  (antes el campo existía pero no se usaba).
+- **Input por actor:** `lib/sources/ad-input.ts` arma el input según la *familia* del
+  actor (meta/google/linkedin/tiktok/genérico) — prefiere targeting por anunciante/
+  page-id y, si no hay, por keyword (las ad libraries quieren *uno u otro*, no ambos);
+  pasa ventana de fecha + geo + límite. (Antes era un único molde "escopeta".)
+- **Una corrida por anunciante:** `apify-ads.ts` lanza **un run por anunciante**
+  (reparto justo del cupo, tope `APIFY_ADS_MAX_ADVERTISERS`) en vez de mezclar todos
+  en una sola corrida con un límite global.
+- **Async + costo real:** los runs usan `lib/sources/apify-run.ts` (start → poll →
+  dataset, con abort al `APIFY_ADS_RUN_TIMEOUT_MS` y reintento de arranque sólo ante
+  errores transitorios 429/5xx) y leen el **costo real** (`usageTotalUsd`).
+- **Idempotencia:** ids de ad **estables por contenido** (hash de autor+texto+creativo)
+  cuando el actor no trae id → re-runs no duplican.
+- **Atribución + caché de advertiser-id:** match anunciante→competidor normalizado y
+  por `advertiser_id`; lo descubierto se persiste en `competitor_platforms.advertiser_id`
+  (learn-back) para que el próximo run consulte por id (más recall/precisión).
+- **Creativos → análisis multimodal:** cada creativo (imagen/video) se encola en el
+  pipeline de medios (`queueRunMedia`/`processRunMedia`) → "qué muestra / qué dice".
 - El runner corre el actor elegido bajo el **guard de costos** y normaliza los ads a
-  `mentions` (`is_ad=true` + `engagement.ad`).
+  `mentions` (`is_ad=true` + `engagement.ad`, con `spendMin/Max`/`impressionsMin/Max`
+  parseados para agregación).
 - `meta_ads` → Meta; `google_ads` → Google Transparency; `linkedin_ads` → LinkedIn;
-  TikTok ads entran como `tiktok` scope=paid.
+  TikTok/IG/FB ads entran como su plataforma con scope=paid.

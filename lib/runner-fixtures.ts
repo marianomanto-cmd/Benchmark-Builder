@@ -39,6 +39,7 @@ export function demoAdMentions(platform: PlatformKey): RawMention[] {
     isAd: true,
     thumbType: "ad" as const,
     ad: {
+      creativeUrl: `https://picsum.photos/seed/${platform}-ad-${i}/600/600`,
       cta: "Reservar",
       landingUrl: "https://example.com/cartagena",
       startedAt: new Date(Date.now() - (i + 2) * 86400_000).toISOString(),

@@ -13,6 +13,17 @@ export type AdMeta = {
   spendRange?: string;
   impressions?: string;
   fundingEntity?: string;
+  // Resolved identifiers — used to attribute the ad to a competitor and to warm
+  // the advertiser-id cache (competitor_platforms.advertiser_id) for next runs.
+  advertiserId?: string;
+  pageId?: string;
+  // Parsed numeric ranges (from spendRange / impressions) for aggregation —
+  // SOV de inversión / alcance comparativo. See lib/sources/ad-parse.ts.
+  spendMin?: number;
+  spendMax?: number;
+  impressionsMin?: number;
+  impressionsMax?: number;
+  currency?: string;
 };
 
 // A normalized mention emitted by any source adapter.
@@ -48,6 +59,7 @@ export type SourceQuery = {
   sinceDays: number;
   limit: number;
   actorId?: string; // Apify actor override resolved from source_settings (DB)
+  advertiserIds?: string[]; // cached numeric advertiser/page ids (paid; preferred over handles)
   political?: boolean; // ad_intent==='political' → use official APIs when available
 };
 

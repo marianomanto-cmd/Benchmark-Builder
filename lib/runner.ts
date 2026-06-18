@@ -1,7 +1,8 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sourceFor, metaAdsOfficial } from "@/lib/sources";
-import { relativeTime, type RawMention, type SourceResult } from "@/lib/sources/types";
+import { relativeTime, type RawMention, type SourceResult, type AdMeta } from "@/lib/sources/types";
+import { queueRunMedia, processRunMedia } from "@/lib/media";
 import { scoreSentiments, scoreToSentiment, generateInsights } from "@/lib/ai";
 import { formatCompact } from "@/lib/format";
 import { demoRawMentions, demoAdMentions, demoScores, demoInsightDrafts } from "@/lib/runner-fixtures";
@@ -32,6 +33,11 @@ export type RunResult = {
 export type RunOptions = { scope?: ResearchPlan["scope"]; adIntent?: ResearchPlan["ad_intent"]; plan?: ResearchPlan };
 
 const FREE_NOKEY = new Set(["reddit", "mastodon", "bluesky"]);
+
+// Paid ad scrapes run long (the async Apify helper polls for minutes), so their
+// guarded call gets a bigger wall-clock budget than the default callTimeoutMs.
+// The helper enforces its own deadline (APIFY_ADS_RUN_TIMEOUT_MS) inside this.
+const PAID_CALL_TIMEOUT_MS = Number(process.env.APIFY_ADS_CALL_TIMEOUT_MS) > 0 ? Number(process.env.APIFY_ADS_CALL_TIMEOUT_MS) : 120_000;
 
 // Estimated cost of a job by provider (apify per item, grok per search, free=0).
 function jobCost(job: ExtractionJob): number {
@@ -96,7 +102,7 @@ export async function executeRun(
 
   const { data: competitors } = await admin
     .from("competitors")
-    .select("id, name, handle, targets, competitor_platforms(platform)")
+    .select("id, name, handle, targets, competitor_platforms(platform, advertiser_id)")
     .eq("project_id", project.id);
   const comps = competitors ?? [];
 
@@ -147,10 +153,17 @@ export async function executeRun(
       : undefined;
   const { spec: querySpec } = await planQueries(plan, { profile, intent: keywords.join(" ") });
 
+  // Paid runs additionally analyze ad creatives (qué muestra / qué dice) with
+  // vision. Estimate them as image-analysis calls so the estimate keeps bounding
+  // the actual ledger; bounded by MAX_VIDEOS_PER_RUN, the same cap the media
+  // pipeline enforces.
+  const paidItems = jobs.filter((j) => j.scope === "paid").reduce((a, j) => a + j.items, 0);
+  const estCreatives = Math.min(paidItems, LIMITS.maxVideosPerRun);
+
   // Estimate from the exact jobs we will run.
   const runPlan: RunPlan = {
     sources: jobs.map((j) => ({ platform: `${j.platform}:${j.scope}`, items: j.items, provider: estProvider(j) })),
-    images: 0,
+    images: estCreatives,
     videos: 0,
     framesPerVideo: 0,
     avgVideoMinutes: 0,
@@ -203,8 +216,24 @@ export async function executeRun(
         ),
       );
     }
-    // paid: ad libraries search by advertiser/keyword across all competitors.
-    return Array.from(new Set(comps.flatMap((c) => [c.handle, c.name, ...(c.targets ?? [])])));
+    // paid: ad libraries search by advertiser. One identifier per competitor (its
+    // brand / page name) so each maps to a single, bounded Apify run.
+    return Array.from(new Set(comps.map((c) => c.name || c.handle).filter(Boolean)));
+  };
+
+  // Cached numeric advertiser/page ids for this paid platform (warmed by prior
+  // runs via the learn-back step below); preferred over names by the ad source.
+  const advertiserIdsForJob = (job: ExtractionJob): string[] => {
+    if (job.scope !== "paid") return [];
+    return Array.from(
+      new Set(
+        comps.flatMap((c) =>
+          (c.competitor_platforms ?? [])
+            .filter((p) => p.platform === job.platform && p.advertiser_id)
+            .map((p) => p.advertiser_id as string),
+        ),
+      ),
+    );
   };
 
   const runJob = async (
@@ -216,31 +245,46 @@ export async function executeRun(
   ): Promise<boolean> => {
     const est = jobCost(job);
     const jobKeywords = keywordsForJob(querySpec, job.platform, job.scope, keywords);
-    const out = await guardedCall<SourceResult>({
-      admin,
-      runId,
-      provider: providerOverride ?? job.provider,
-      operation: `${job.scope}:${job.platform}`,
-      label,
-      estimatedCost: est,
-      freeProvider: FREE_NOKEY.has(providerOverride ?? job.provider),
-      call: () =>
-        source.fetch({
-          platform: job.platform,
-          scope: job.scope,
-          handles: handlesForJob(job),
-          keywords: jobKeywords,
-          languages: project.languages,
-          geo: project.geo,
-          sinceDays: project.period_days,
-          limit: job.items,
-          actorId: job.actorId,
-          political: job.political,
-        }),
-      fixture: () => ({ mentions: fixture(), cost: est }),
-      realCost: (r) => r.cost,
-      mockCost: est,
-    });
+    const provider = providerOverride ?? job.provider;
+    const advertiserIds = advertiserIdsForJob(job);
+
+    const attempt = (actorId?: string) =>
+      guardedCall<SourceResult>({
+        admin,
+        runId,
+        provider,
+        operation: `${job.scope}:${job.platform}`,
+        label,
+        estimatedCost: est,
+        freeProvider: FREE_NOKEY.has(provider),
+        timeoutMs: job.scope === "paid" ? PAID_CALL_TIMEOUT_MS : undefined,
+        call: () =>
+          source.fetch({
+            platform: job.platform,
+            scope: job.scope,
+            handles: handlesForJob(job),
+            keywords: jobKeywords,
+            languages: project.languages,
+            geo: project.geo,
+            sinceDays: project.period_days,
+            limit: job.items,
+            actorId,
+            advertiserIds,
+            political: job.political,
+          }),
+        fixture: () => ({ mentions: fixture(), cost: est }),
+        // Apify ad runs report real cost (usageTotalUsd); fall back to the
+        // estimate when the API doesn't surface a figure.
+        realCost: (r) => (r.cost && r.cost > 0 ? r.cost : est),
+        mockCost: est,
+      });
+
+    let out = await attempt(job.actorId);
+    // On a genuine call failure (not a pause / budget stop), retry once with the
+    // declared fallback actor before degrading (schema-drift mitigation).
+    if (!out.ok && out.reason === "call_failed" && job.fallbackActorId && job.fallbackActorId !== job.actorId) {
+      out = await attempt(job.fallbackActorId);
+    }
     if (!out.ok) {
       if (out.reason === "api_disabled" || out.reason === "budget_hard") {
         paused = out.reason;
@@ -285,6 +329,34 @@ export async function executeRun(
     }
   }
 
+  // ---- Competitor attribution (normalized + advertiser-id aware) -------------
+  // Ad authors are page names that rarely match a competitor name verbatim, so a
+  // strict equality check left most ads unattributed (competitor_id null → out of
+  // SOV). Match by cached advertiser id first, then by normalized name/handle.
+  const normKey = (s: string) => s.toLowerCase().replace(/^@/, "").replace(/[^a-z0-9]+/g, "");
+  const byAdvertiserId = new Map<string, (typeof comps)[number]>();
+  const compKeys: { key: string; comp: (typeof comps)[number] }[] = [];
+  for (const c of comps) {
+    for (const p of c.competitor_platforms ?? []) if (p.advertiser_id) byAdvertiserId.set(p.advertiser_id, c);
+    for (const raw of [c.handle, c.name, ...(c.targets ?? [])]) {
+      const k = normKey(raw ?? "");
+      if (k.length >= 3) compKeys.push({ key: k, comp: c });
+    }
+  }
+  const matchCompetitor = (m: RawMention): (typeof comps)[number] | undefined => {
+    const advId = m.ad?.advertiserId || m.ad?.pageId;
+    if (advId && byAdvertiserId.has(advId)) return byAdvertiserId.get(advId);
+    const a = normKey(m.author);
+    const h = normKey(m.handle);
+    let hit = compKeys.find((x) => x.key === a || x.key === h);
+    if (!hit) {
+      hit = compKeys.find(
+        (x) => (a && (a.includes(x.key) || x.key.includes(a))) || (h && (h.includes(x.key) || x.key.includes(h))),
+      );
+    }
+    return hit?.comp;
+  };
+
   // ---- Sentiment scoring (IA) under the guard --------------------------------
   let scores: number[] = [];
   if (!paused && collected.length) {
@@ -305,9 +377,7 @@ export async function executeRun(
 
   // ---- Persist mentions (idempotent upsert) ----------------------------------
   const rows = collected.map((m, i) => {
-    const comp = comps.find(
-      (c) => m.handle.toLowerCase().includes(c.handle.toLowerCase()) || m.author.toLowerCase() === c.name.toLowerCase(),
-    );
+    const comp = matchCompetitor(m);
     const engagement = { ...(m.engagement ?? {}), ...(m.ad ? { ad: m.ad } : {}) };
     const metrics = m.ad ? metricsFromAd(m.ad) : metricsFromEngagement(m.engagement);
     return {
@@ -341,6 +411,44 @@ export async function executeRun(
     if (!error) inserted = count ?? rows.length;
   }
 
+  // ---- Learn-back: warm the advertiser-id cache for next runs -----------------
+  // Once an ad is attributed to a competitor, persist its advertiser/page id so
+  // future paid runs query by id (higher recall + precision) instead of name.
+  const advLearn = new Map<string, { competitor_id: string; platform: PlatformKey; advertiser_id: string }>();
+  for (const m of collected) {
+    if (!m.isAd) continue;
+    const advId = m.ad?.advertiserId || m.ad?.pageId;
+    if (!advId) continue;
+    const comp = matchCompetitor(m);
+    if (!comp) continue;
+    if ((comp.competitor_platforms ?? []).some((p) => p.platform === m.platform && p.advertiser_id === advId)) continue;
+    advLearn.set(`${comp.id}:${m.platform}`, { competitor_id: comp.id, platform: m.platform, advertiser_id: advId });
+  }
+  if (advLearn.size) {
+    await admin.from("competitor_platforms").upsert(Array.from(advLearn.values()), { onConflict: "competitor_id,platform" });
+  }
+
+  // ---- Ad creatives → media pipeline (qué muestra / qué dice) -----------------
+  // Analyze the visual + voiceover of each scraped ad creative (the messaging /
+  // offer / CTA), the highest-value signal in paid. Bounded by MAX_VIDEOS_PER_RUN
+  // and mock-safe (download returns a marker; analysis falls back to fixtures).
+  if (!paused && inserted > 0) {
+    const { data: adRows } = await admin.from("mentions").select("id, engagement").eq("run_id", runId).eq("is_ad", true);
+    const creatives = (adRows ?? [])
+      .map((r) => {
+        const ad = (r.engagement as { ad?: AdMeta } | null)?.ad;
+        const url = ad?.creativeUrl;
+        if (!url) return null;
+        const isVideo = /\.(mp4|mov|webm|m3u8)(\?|$)/i.test(url) || (ad?.adType ?? "").toLowerCase().includes("video");
+        return { mentionId: r.id as string, url, kind: (isVideo ? "video" : "image") as "image" | "video" };
+      })
+      .filter((x): x is { mentionId: string; url: string; kind: "image" | "video" } => x !== null);
+    if (creatives.length) {
+      await queueRunMedia(admin, project.id, runId, creatives);
+      await processRunMedia(admin, runId);
+    }
+  }
+
   // ---- Recompute competitor aggregates ----------------------------------------
   const { data: allMentions } = await admin
     .from("mentions")
@@ -365,7 +473,7 @@ export async function executeRun(
   if (!paused && collected.length) {
     const byComp = comps
       .map((c) => {
-        const n = collected.filter((m) => m.handle.toLowerCase().includes(c.handle.toLowerCase()) || m.author.toLowerCase() === c.name.toLowerCase()).length;
+        const n = collected.filter((m) => matchCompetitor(m)?.id === c.id).length;
         return `${c.name}: ${n} menciones`;
       })
       .join("; ");
