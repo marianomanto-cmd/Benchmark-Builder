@@ -152,6 +152,16 @@ export function SheetWhatsApp({
   const [paso, setPaso] = React.useState<'redactar' | 'enviado'>('redactar')
   const [enviando, setEnviando] = React.useState(false)
   const [registrado, setRegistrado] = React.useState(true)
+  /**
+   * Si el estado se movió DE VERDAD, según lo que devolvió el servidor.
+   *
+   * No alcanza con el toggle: `registrarEnvioWhatsapp` sólo pasa a
+   * `enviado` cuando el presupuesto venía de `borrador` o `realizado`.
+   * Uno que ya estaba en `interesado` o `aceptado` no se pisa —
+   * volverlo a `enviado` sería perder seguimiento— y la confirmación
+   * tiene que decir lo que pasó, no lo que se pidió.
+   */
+  const [estadoCambiado, setEstadoCambiado] = React.useState(false)
 
   /**
    * El PDF se pide apenas se abre el sheet, no al tocar "Enviar".
@@ -333,6 +343,7 @@ export function SheetWhatsApp({
     // El mensaje ya salió: si el registro falla no se puede deshacer
     // nada, así que se avisa y la confirmación lo dice sin mentir.
     setRegistrado(registro.ok)
+    setEstadoCambiado(registro.ok && registro.estado === 'enviado')
     if (!registro.ok) toast.error(registro.error)
 
     setEnviando(false)
@@ -399,7 +410,7 @@ export function SheetWhatsApp({
               }
             >
               {registrado
-                ? `${registroTexto(marcarEnviado)} Quedó anotado en el historial del ${datos.numero} con tu nombre y la fecha.`
+                ? `${registroTexto(estadoCambiado)} Quedó anotado en el historial del ${datos.numero} con tu nombre y la fecha.`
                 : `El envío no se pudo anotar en el historial del ${datos.numero}. Si el mensaje salió, cambiá el estado a mano desde el detalle.`}
             </p>
           </div>
@@ -599,8 +610,8 @@ export function SheetWhatsApp({
 
 /* ── Textos auxiliares ───────────────────────────────────── */
 
-function registroTexto(marcado: boolean): string {
-  return marcado
+function registroTexto(cambioElEstado: boolean): string {
+  return cambioElEstado
     ? 'Registramos el envío y el presupuesto quedó como Enviado.'
     : 'Registramos el envío sin tocar el estado.'
 }

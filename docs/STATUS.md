@@ -302,6 +302,7 @@ antes de aceptarlo. Los que resultaron reales:
 | `esBorrador` validaba 6 de 16 campos: un borrador viejo rompía el wizard | Valida también la forma de cada ítem y cada cuota |
 | El duplicado mezclaba la obra social del original con el afiliado actual del paciente | El afiliado sólo se refresca si la ficha sigue en la misma obra social |
 | El conteo de usos del histórico se cortaba en las 1000 filas de PostgREST, y de él depende el sello «no editable» | Vista `aranceles_usos`: una fila por arancel en vez de una por ítem |
+| La confirmación del envío afirmaba «quedó como Enviado» aunque el estado no se hubiera tocado | Reporta lo que devolvió el servidor, no lo que se pidió |
 
 ### Pendiente
 
