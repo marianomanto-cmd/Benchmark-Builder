@@ -70,7 +70,6 @@ export async function GET(
       // `inline`: el consultorio lo abre en una pestaña y decide si lo
       // descarga. El nombre es el mismo con el que le llega al paciente.
       'Content-Disposition': `inline; filename="${nombreArchivoPdf(resultado.numero)}"`,
-      'Content-Length': String(resultado.buffer.byteLength),
       'Cache-Control': 'private, no-store',
     },
   })

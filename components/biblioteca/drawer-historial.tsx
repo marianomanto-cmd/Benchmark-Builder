@@ -5,7 +5,7 @@ import { Lock, TriangleAlert } from 'lucide-react'
 
 import { Banner, Button, Drawer, MicroBadge, Monto, Skeleton } from '@/components/ui'
 import { calcularItem } from '@/lib/calculo'
-import { fechaCorta, fechaLarga, numero } from '@/lib/formato'
+import { fechaCorta, fechaLarga, isoDate, numero } from '@/lib/formato'
 import { createClient } from '@/lib/supabase/client'
 import type { CoberturaTipo } from '@/lib/types'
 
@@ -44,8 +44,18 @@ export function DrawerHistorial({
   })
 
   const vigencias = consulta.data ?? []
-  const actual = vigencias.find((v) => v.vigente_hasta === null) ?? null
-  const cerradas = vigencias.filter((v) => v.vigente_hasta !== null)
+  const hoy = isoDate()
+
+  // «Actual» es la que rige HOY, no la que tiene `vigente_hasta` en
+  // null: un aumento programado hacia adelante también lo tiene, y
+  // mostrarlo como actual haría creer que ya se está cotizando.
+  const actual =
+    vigencias.find((v) => v.vigente_desde <= hoy && (v.vigente_hasta === null || v.vigente_hasta >= hoy)) ??
+    null
+  const programadas = vigencias.filter((v) => v.vigente_desde > hoy)
+  const cerradas = vigencias.filter(
+    (v) => v.vigente_hasta !== null && v.vigente_hasta < hoy,
+  )
 
   return (
     <Drawer
@@ -79,6 +89,28 @@ export function DrawerHistorial({
       ) : (
         <div className="space-y-6">
           {actual ? <VigenciaActual vigencia={actual} /> : <SinArancel />}
+
+          {programadas.length > 0 && (
+            <section>
+              <h3 className="t-label">Ya cargadas, todavía no arrancaron</h3>
+              <ul className="mt-3 space-y-2">
+                {programadas.map((v) => (
+                  <li
+                    key={v.id}
+                    className="flex items-baseline justify-between gap-3 rounded-input border border-warm-line/25 bg-warm-soft px-3 py-2.5"
+                  >
+                    <span className="t-helper text-warm-ink">
+                      Rige desde el {fechaCorta(v.vigente_desde)}
+                    </span>
+                    <Monto valor={v.monto} jerarquia="fuerte" />
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 t-helper">
+                Hasta esa fecha se sigue cotizando la vigencia de arriba.
+              </p>
+            </section>
+          )}
 
           <section>
             <h3 className="t-label">Vigencias cerradas</h3>

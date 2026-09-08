@@ -5,7 +5,7 @@ import * as React from 'react'
 
 import { Card, MicroBadge, Monto, Tabla, Tbody, Td, Th, Thead, Tr } from '@/components/ui'
 import { calcularItem } from '@/lib/calculo'
-import { money, numero } from '@/lib/formato'
+import { fechaCorta, money, numero } from '@/lib/formato'
 import { cn } from '@/lib/utils'
 
 import {
@@ -172,6 +172,12 @@ function ContenidoCelda({ vigente }: { vigente: CeldaVigente }) {
         {etiquetaCobertura(vigente.cobertura_tipo, Number(vigente.cobertura_valor))} · a cargo{' '}
         {money(aCargo)}
       </span>
+      {vigente.programado && (
+        <span className="mt-1 block t-helper text-warm-ink">
+          {money(vigente.programado.monto)} desde el{' '}
+          {fechaCorta(vigente.programado.vigente_desde)}
+        </span>
+      )}
     </>
   )
 }

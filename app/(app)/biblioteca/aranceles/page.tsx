@@ -66,7 +66,7 @@ export default async function ArancelesPage(props: PageProps<'/biblioteca/arance
 
   const supabase = await createClient()
 
-  const [prestacionesRes, obrasRes, vigentesRes] = await Promise.all([
+  const [prestacionesRes, obrasRes, vigentesRes, programadosRes] = await Promise.all([
     supabase
       .from('prestaciones')
       .select('id, nombre, codigo, rubro, activa')
@@ -78,8 +78,19 @@ export default async function ArancelesPage(props: PageProps<'/biblioteca/arance
       .select(
         'id, prestacion_id, obra_social_id, monto, cobertura_tipo, cobertura_valor, vigente_desde, usos',
       ),
+    // Aumentos ya cargados que todavía no arrancaron. No se cotizan,
+    // pero la celda tiene que avisar que existen: si no, alguien que
+    // programó el aumento de octubre no lo ve en septiembre y lo carga
+    // de nuevo.
+    supabase
+      .from('aranceles_programados')
+      .select('prestacion_id, obra_social_id, monto, vigente_desde')
+      .order('vigente_desde'),
   ])
 
+  // `programadosRes` no entra en esta guarda a propósito: si esa lectura
+  // falla, la grilla sigue sirviendo con los precios de hoy y sólo se
+  // pierde el aviso de los aumentos programados.
   if (prestacionesRes.error || obrasRes.error || vigentesRes.error) {
     return (
       <div className="animate-enter">
@@ -113,6 +124,26 @@ export default async function ArancelesPage(props: PageProps<'/biblioteca/arance
     vigente_desde: v.vigente_desde,
     usos: Number(v.usos ?? 0),
   }))
+
+  // El primero por fecha es el que va a arrancar: si hubiera más de uno
+  // programado para la misma celda, el resto llega después.
+  const programados = new Map<string, { monto: number; vigente_desde: string }>()
+  for (const p of (programadosRes.data ?? []) as {
+    prestacion_id: string
+    obra_social_id: string | null
+    monto: number | string
+    vigente_desde: string
+  }[]) {
+    const clave = `${p.prestacion_id}:${p.obra_social_id ?? ''}`
+    if (!programados.has(clave)) {
+      programados.set(clave, { monto: Number(p.monto), vigente_desde: p.vigente_desde })
+    }
+  }
+
+  for (const celda of vigentes) {
+    celda.programado =
+      programados.get(`${celda.prestacion_id}:${celda.obra_social_id ?? ''}`) ?? null
+  }
 
   const conVigencia = new Set(vigentes.map((v) => v.prestacion_id))
   const osConVigencia = new Set(

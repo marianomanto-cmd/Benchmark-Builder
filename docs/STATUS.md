@@ -33,8 +33,10 @@ Consecuencias que el código respeta hoy:
 | 2 | Un arancel usado no se edita | Trigger `trg_arancel_inmutable` + sello "no editable" en la UI |
 | 3 | Precio desactualizado → banner informativo, sólo duplicar | Pantalla 11 + RPC `duplicar_presupuesto` |
 | 4 | Los overrides viven en el ítem | Columnas `cobertura_original_*` y `motivo_override` en `presupuesto_items` |
-| 5 | Un presupuesto emitido no vuelve a borrador | Guarda en `cambiar_estado` |
+| 5 | Un presupuesto emitido no vuelve a borrador, ni cambia de contenido | Trigger `trg_presupuesto_emitido` (no sólo la RPC: PostgREST expone un UPDATE por tabla) |
 | 6 | El historial no se borra ni se edita | Trigger `trg_evento_inmutable`, policies sólo SELECT/INSERT |
+| 7 | Un arancel usado no cambia de prestación ni de obra social | `guard_arancel_inmutable` |
+| 8 | Un ítem no puede quedar con a-cargo negativo | Checks de `presupuesto_items` + tope en `calcular_cobertura` y `calcularItem` |
 
 ---
 
@@ -80,6 +82,11 @@ Migraciones en `supabase/migrations/`, en este orden:
 | `20260101000200_rpc_vistas.sql` | Cálculo, RPC y vistas |
 | `20260101000300_rls.sql` | Row Level Security y `grant execute` de las RPC |
 | `20260101000400_storage.sql` | Bucket privado `presupuestos` y sus policies |
+| `20260101000500_items_check.sql` | Checks de coherencia del ítem congelado |
+| `20260101000600_vigencia_por_fecha.sql` | «Vigente» pasa a resolverse por fecha |
+| `20260101000700_guardas_en_la_base.sql` | Las guardas del snapshot, fuera de la RPC |
+| `20260101000800_duplicar_fiel.sql` | Duplicado fiel: cuotas y obra social por ítem |
+| `20260101000900_reloj_sin_respuesta.sql` | El reloj de «días sin respuesta» no se resetea |
 
 ### Tablas
 
@@ -115,7 +122,8 @@ Migraciones en `supabase/migrations/`, en este orden:
 
 | Nombre | Qué hace |
 |---|---|
-| `calcular_cobertura(monto, tipo, valor)` | Espejo SQL de `lib/calculo.ts`. **Si cambia una, cambia la otra.** |
+| `calcular_cobertura(monto, tipo, valor)` | Espejo SQL de `lib/calculo.ts`, con la cobertura acotada a `[0, monto]`. **Si cambia una, cambia la otra**; `npm run test:paridad` lo verifica contra una base real |
+| `arancel_vigente(prestacion, obra_social, fecha)` | El arancel que rige en una fecha. Única definición de «vigente» |
 | `actor_nombre()` | Nombre legible del usuario para los eventos |
 | `nueva_vigencia(...)` | Cierra la vigencia abierta e inserta la nueva, atómico |
 | `aumento_masivo(rubro, os, solo_particular, pct, desde)` | Una llamada a `nueva_vigencia` por fila, en una transacción |
@@ -127,7 +135,11 @@ Migraciones en `supabase/migrations/`, en este orden:
 
 ### Vistas
 
-- `aranceles_vigentes` — grilla de la pantalla 10, con `usos` por arancel.
+- `aranceles_vigentes` — lo que rige **hoy** (`vigente_desde <= hoy` y
+  `vigente_hasta` nulo o futuro), con `usos` por arancel. Es la grilla de la
+  pantalla 10 y la base del banner de precio desactualizado.
+- `aranceles_programados` — aumentos ya cargados que todavía no arrancaron.
+  Sin esta vista, arreglar la anterior los haría desaparecer de la pantalla.
 - `presupuestos_listado` — agrega `prestacion_principal`, `items_count` y
   `dias_en_estado` para Home y pipeline.
 
@@ -149,6 +161,10 @@ borrador → realizado → enviado → pendiente → interesado → aceptado →
 - `perdido` no se reabre como flujo principal: se ofrece duplicar. La transición
   inversa existe pero es secundaria en la UI.
 - Cada transición inserta una fila en `presupuesto_eventos` con autor y fecha.
+- `estado_desde` se reinicia en cada cambio de estado **menos** en
+  `enviado → pendiente`: ese pase no es una respuesta del paciente, así que el
+  reloj de «días sin respuesta» sigue corriendo desde que se envió. Si se
+  reiniciara, el tinte warm del kanban recién aparecería a los 14 días.
 - Un presupuesto emitido **no vuelve a borrador**: eso reabriría sus ítems a
   edición y rompería la regla del snapshot.
 
@@ -243,15 +259,44 @@ En **Storage**: bucket privado `presupuestos`, signed URL de 7 días.
 - [x] Sheet de WhatsApp con plantillas y `navigator.share` (14)
 - [x] Cron `enviado → pendiente`
 
+- [x] Suite de tests del núcleo: `npm test` (40 casos sobre `lib/calculo.ts`,
+      `lib/formato.ts` y `lib/estados.ts`) y `npm run test:paridad`, que
+      compara `calcularItem` contra `calcular_cobertura()` en una base real.
+      Los casos compartidos viven en `tests/casos-cobertura.json`.
+
+### Revisión adversarial · qué encontró y cómo quedó
+
+Se revisó el código con ocho lentes independientes y se verificó cada hallazgo
+antes de aceptarlo. Los que resultaron reales:
+
+| Qué pasaba | Cómo se arregló |
+|---|---|
+| Una vigencia con fecha futura se cotizaba como si rigiera hoy: programar el aumento de octubre lo aplicaba en septiembre | «Vigente» pasa a resolverse por fecha (`arancel_vigente`, vista `aranceles_vigentes`); los programados se muestran aparte |
+| Un `UPDATE` directo devolvía a `borrador` un presupuesto emitido y reabría sus ítems | Trigger `trg_presupuesto_emitido`: la guarda deja de vivir sólo en la RPC |
+| Un arancel usado se podía reapuntar a otra prestación u obra social | `guard_arancel_inmutable` congela también `prestacion_id` y `obra_social_id` |
+| Un override de más de 100 % dejaba el a-cargo negativo | Cobertura acotada a `[0, monto]` en TS y SQL + checks en `presupuesto_items` |
+| El banner de precio desactualizado se disparaba por los overrides del propio presupuesto | Se decide por identidad del arancel citado, no por diferencia de totales |
+| Al duplicar, las cuotas se redondeaban una a una y no cerraban contra el total | La última absorbe el resto, igual que en `crear_presupuesto` |
+| Al duplicar, un ítem cargado «con valor particular» se re-cotizaba contra la obra social | Cada ítem se re-cotiza contra la obra social de su propio arancel |
+| El pase automático a `pendiente` reiniciaba el reloj: el aviso de 7 días era inalcanzable | `estado_desde` se conserva en `enviado → pendiente` |
+| El cron nunca corría: el proxy mandaba `/api/cron` al login | `/api/cron` se exceptúa del proxy; se autentica con `CRON_SECRET` |
+| Cambiar la obra social en el paso 1 dejaba los ítems con la cobertura anterior | El paso 1 re-cotiza los ítems y avisa qué cambió |
+| Un corte de red durante un arrastre dejaba la tarjeta congelada | `mover()` con `try/catch/finally` y rollback |
+| Un tratamiento `iniciado` se degradaba arrastrándolo y no se distinguía de `aceptado` | Badge propio en la tarjeta y arrastre bloqueado con aviso |
+| Setear estado dentro de efectos provocaba renders en cascada (React 19) | Reseteo por `key`, derivación en render y `useSyncExternalStore` para el borrador |
+
 ### Pendiente
 
-- [ ] Tests automatizados (hoy no hay suite). Lo primero a cubrir:
-      `calcularItem`, `repartirCuotas` y su paridad con `calcular_cobertura()`.
+- [ ] Tests de componentes y de integración (hoy la suite cubre el núcleo de
+      cálculo, formato y estados, no la UI).
 - [ ] Reporte de pérdidas por motivo y período (hoy sólo la franja del kanban).
 - [ ] Registro de autorizaciones previas de obra social.
 - [ ] Cuotas con interés o financiación en más de dos pagos.
 - [ ] Recordatorio automático a los 7 días por WhatsApp (hoy sólo se promete en
       la confirmación de envío; el cambio de estado sí es automático).
+- [ ] Confirmar con el consultorio el formato de teléfono: `telefonoWhatsApp`
+      arma `54 9 + área + abonado` y descarta el `15`, que es lo que exige
+      WhatsApp para un celular argentino.
 
 ---
 

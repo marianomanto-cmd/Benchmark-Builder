@@ -83,7 +83,11 @@ export const COLUMNA = {
 } as const
 
 export const estilos = StyleSheet.create({
-  // ── Página ───────────────────────────────────────────────────────
+  /*
+   * Página. NO agregar `lineHeight` acá: se hereda hasta el pie fijo y
+   * rompe su posicionamiento absoluto (ver el comentario de `pie`). El
+   * interlineado se declara estilo por estilo.
+   */
   pagina: {
     paddingTop: MARGEN.superior,
     paddingBottom: MARGEN.inferior,
@@ -400,7 +404,14 @@ export const estilos = StyleSheet.create({
     color: COLOR.muted,
   },
 
-  // ── Pie fijo ─────────────────────────────────────────────────────
+  /*
+   * Pie fijo. Ojo con el interlineado: ni esta caja ni su texto pueden
+   * declarar `lineHeight`, y tampoco puede declararlo `pagina` (se
+   * hereda). Con un `lineHeight` en juego, react-pdf calcula mal el
+   * `bottom` de un elemento absoluto y manda el pie a miles de puntos
+   * fuera de la hoja — desaparece del PDF sin ningún error. Por eso el
+   * interlineado se declara estilo por estilo y no a nivel de página.
+   */
   pie: {
     position: 'absolute',
     bottom: px(24),

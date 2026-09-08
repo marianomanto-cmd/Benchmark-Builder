@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities'
 import Link from 'next/link'
 import * as React from 'react'
 
-import { MicroBadge, Monto } from '@/components/ui'
+import { EstadoBadge, MicroBadge, Monto } from '@/components/ui'
 import { estaFrio } from '@/lib/estados'
 import { fechaCorta } from '@/lib/formato'
 import { cn } from '@/lib/utils'
@@ -124,6 +124,11 @@ const TarjetaBase = React.forwardRef<HTMLElement, TarjetaBaseProps>(function Tar
         <MicroBadge tono={fila.obra_social_nombre ? 'neutro' : 'primary'}>
           {fila.obra_social_nombre ?? 'Particular'}
         </MicroBadge>
+
+        {/* Aceptado e iniciado comparten columna: sin este badge, un
+            tratamiento que ya arrancó no se distingue de uno que
+            todavía no. */}
+        {fila.estado === 'iniciado' && <EstadoBadge estado="iniciado" size="sm" />}
 
         <span
           title={`En este estado desde hace ${textoDias(fila.dias_en_estado)}`}

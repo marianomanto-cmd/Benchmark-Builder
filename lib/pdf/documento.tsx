@@ -260,8 +260,8 @@ export function DocumentoPresupuesto({ datos }: { datos: DatosPdf }) {
         <View style={estilos.encabezado}>
           <Marca nombre={datos.consultorio.nombre} />
           <View style={estilos.consultorio}>
-            {contacto.map((linea) => (
-              <Text key={linea}>{linea}</Text>
+            {contacto.map((linea, i) => (
+              <Text key={i}>{linea}</Text>
             ))}
           </View>
         </View>
@@ -285,19 +285,20 @@ export function DocumentoPresupuesto({ datos }: { datos: DatosPdf }) {
               <Campo
                 rotulo="PACIENTE"
                 valor={datos.pacienteNombre}
-                secundario={datos.pacienteDni ? `DNI ${datos.pacienteDni}` : 'DNI sin cargar'}
+                secundario={datos.pacienteDni ? `DNI ${datos.pacienteDni}` : null}
               />
             </View>
             <View style={estilos.identificacionColumna}>
+              {/* Sin obra social el paciente es particular, y se dice así.
+                  Los datos que faltan no se anuncian: el documento del
+                  paciente no es el lugar para señalar huecos de la ficha. */}
               <Campo
                 rotulo="OBRA SOCIAL"
                 valor={datos.obraSocial ?? 'Particular'}
                 secundario={
-                  datos.obraSocial
-                    ? datos.nroAfiliado
-                      ? `Afiliado ${datos.nroAfiliado}`
-                      : 'Sin número de afiliado'
-                    : 'Sin cobertura de obra social'
+                  datos.obraSocial && datos.nroAfiliado
+                    ? `Afiliado ${datos.nroAfiliado}`
+                    : null
                 }
               />
             </View>
@@ -308,11 +309,7 @@ export function DocumentoPresupuesto({ datos }: { datos: DatosPdf }) {
               <Campo
                 rotulo="PROFESIONAL"
                 valor={datos.profesionalNombre}
-                secundario={
-                  datos.profesionalMatricula
-                    ? `MP ${datos.profesionalMatricula}`
-                    : null
-                }
+                secundario={datos.profesionalMatricula ? `MP ${datos.profesionalMatricula}` : null}
               />
             </View>
             <View style={estilos.identificacionColumna}>

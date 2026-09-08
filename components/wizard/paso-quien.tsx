@@ -12,14 +12,20 @@
 
 import { Check } from 'lucide-react'
 import * as React from 'react'
+import { toast } from 'sonner'
 
 import { Field, Input, MicroBadge, Segmented } from '@/components/ui'
 import { fechaLarga, hora } from '@/lib/formato'
 import type { BorradorPresupuesto, ObraSocial, Paciente, Profesional } from '@/lib/types'
 
-import { calcularValidoHasta, VIGENCIAS_RAPIDAS } from './borrador'
+import { calcularValidoHasta, recotizarItem, VIGENCIAS_RAPIDAS } from './borrador'
 import { Capa, enfocar } from './capa'
-import { useObrasSociales, usePacientes, useProfesionalPropio } from './consultas'
+import {
+  buscarAranceles,
+  useObrasSociales,
+  usePacientes,
+  useProfesionalPropio,
+} from './consultas'
 import { FormObraSocial, FormPaciente, FormProfesional } from './form-entidades'
 import { nombreObraSocial, PickerObraSocial, PickerPaciente, PickerProfesional } from './pickers'
 
@@ -69,23 +75,75 @@ export function PasoQuien({
     })
   }, [borrador.profesional_id, profesionalPropio, parche])
 
+  /**
+   * Cambiar la cobertura con ítems ya cargados obliga a re-cotizarlos.
+   *
+   * Si no, el presupuesto sale con «OSDE 210» en la cabecera y los
+   * ítems con la cobertura de la obra social anterior: el documento
+   * mentiría sobre su propia cobertura, que es justo lo que este
+   * producto no puede hacer.
+   */
+  async function cambiarCobertura(
+    obraSocialId: string | null,
+    obraSocialNombre: string | null,
+  ) {
+    const cambio = { obra_social_id: obraSocialId, obra_social_nombre: obraSocialNombre }
+
+    if (borrador.obra_social_id === obraSocialId || borrador.items.length === 0) {
+      parche(cambio)
+      return
+    }
+
+    const conPrestacion = borrador.items.filter((i) => i.prestacion_id)
+    const overridesPrevios = borrador.items.filter((i) => i.editado).length
+
+    let recotizados = 0
+    let sinArancel = 0
+
+    const nuevos = await Promise.all(
+      borrador.items.map(async (item) => {
+        if (!item.prestacion_id) return item
+        try {
+          const { deObraSocial, particular } = await buscarAranceles(
+            item.prestacion_id,
+            obraSocialId,
+          )
+          const r = recotizarItem(item, deObraSocial, particular)
+          if (r.recotizado) recotizados++
+          else sinArancel++
+          return r.item
+        } catch {
+          sinArancel++
+          return item
+        }
+      }),
+    )
+
+    parche({ ...cambio, items: nuevos })
+
+    if (conPrestacion.length === 0) return
+
+    const partes = [`Se recalcularon ${recotizados} prestación(es) con la cobertura nueva`]
+    if (sinArancel > 0) {
+      partes.push(`${sinArancel} quedó sin arancel para esta obra social`)
+    }
+    if (overridesPrevios > 0) {
+      partes.push(`se perdieron ${overridesPrevios} cobertura(s) editada(s) a mano`)
+    }
+    toast.info(`${partes.join(' · ')}.`)
+  }
+
   function elegirPaciente(p: Paciente) {
     const osFicha = p.obra_social_id ? obras.find((o) => o.id === p.obra_social_id) : null
-    parche({
-      paciente_id: p.id,
-      paciente_nombre: p.nombre,
-      // La obra social viaja con el paciente: en el 90 % de los casos
-      // es la correcta y nadie tiene que volver a elegirla.
-      obra_social_id: osFicha?.id ?? null,
-      obra_social_nombre: osFicha ? nombreObraSocial(osFicha) : null,
-    })
+    parche({ paciente_id: p.id, paciente_nombre: p.nombre })
+    // La obra social viaja con el paciente: en el 90 % de los casos es
+    // la correcta y nadie tiene que volver a elegirla. Pasa por
+    // `cambiarCobertura` para que los ítems ya cargados se recalculen.
+    void cambiarCobertura(osFicha?.id ?? null, osFicha ? nombreObraSocial(osFicha) : null)
   }
 
   function elegirObraSocial(os: ObraSocial | null) {
-    parche({
-      obra_social_id: os?.id ?? null,
-      obra_social_nombre: os ? nombreObraSocial(os) : null,
-    })
+    void cambiarCobertura(os?.id ?? null, os ? nombreObraSocial(os) : null)
   }
 
   function elegirProfesional(p: Profesional) {

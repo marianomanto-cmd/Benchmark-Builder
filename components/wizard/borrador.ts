@@ -201,3 +201,48 @@ export function aPayload(borrador: BorradorPresupuesto): PayloadPresupuesto {
     })),
   }
 }
+
+/**
+ * Vuelve a cotizar un ítem contra el arancel de otra obra social.
+ *
+ * Se usa cuando en el paso 1 se cambia la obra social (o el paciente)
+ * con ítems ya cargados en el paso 2. Sin esto, el presupuesto sale
+ * diciendo «OSDE 210» en la cabecera mientras los ítems conservan la
+ * cobertura y el `arancel_id` de la obra social anterior: el documento
+ * mentiría sobre su propia cobertura.
+ *
+ * Los overrides no se heredan, por la misma razón que no los hereda un
+ * duplicado: un «40 % en vez de 50 %» decidido para otra obra social no
+ * significa nada acá. Quien llama avisa cuántos se perdieron.
+ */
+export function recotizarItem(
+  item: ItemBorrador,
+  arancel: Arancel | null,
+  particular: Arancel | null,
+): { item: ItemBorrador; recotizado: boolean } {
+  const elegido = arancel ?? particular
+  if (!elegido) {
+    // Ninguna de las dos tiene vigencia hoy: se conserva el ítem tal
+    // como está y el paso 2 lo va a marcar como sin arancel.
+    return { item, recotizado: false }
+  }
+
+  const esParticular = arancel === null
+  const monto = Math.round(Number(elegido.monto))
+
+  return {
+    recotizado: true,
+    item: {
+      ...item,
+      arancel_id: elegido.id,
+      monto,
+      monto_original: monto,
+      cobertura_tipo: esParticular ? 'ninguna' : elegido.cobertura_tipo,
+      cobertura_valor: esParticular ? 0 : Number(elegido.cobertura_valor),
+      editado: false,
+      cobertura_original_tipo: null,
+      cobertura_original_valor: null,
+      motivo_override: null,
+    },
+  }
+}

@@ -153,19 +153,22 @@ export async function buscarArancelVigente(
   prestacionId: string,
   obraSocialId: string | null,
 ): Promise<Arancel | null> {
-  let consulta = db()
-    .from('aranceles')
-    .select('*')
-    .eq('prestacion_id', prestacionId)
-    .is('vigente_hasta', null)
+  // Se resuelve con la RPC `arancel_vigente` y no con un
+  // `vigente_hasta is null` acá: si el consultorio dejó programado el
+  // aumento del mes que viene, esa fila también tiene `vigente_hasta`
+  // en null y se cotizaría un precio que todavía no rige. Además la
+  // fecha la pone Postgres, así que no puede quedar desfasada respecto
+  // del reloj del navegador.
+  const { data, error } = await db().rpc('arancel_vigente', {
+    p_prestacion: prestacionId,
+    p_obra_social: obraSocialId,
+  })
 
-  consulta = obraSocialId
-    ? consulta.eq('obra_social_id', obraSocialId)
-    : consulta.is('obra_social_id', null)
-
-  const { data, error } = await consulta.limit(1).maybeSingle()
   if (error) throw new Error(error.message)
-  return (data as Arancel | null) ?? null
+
+  const fila = (Array.isArray(data) ? data[0] : data) as Arancel | null
+  // La función devuelve una fila vacía cuando no hay vigencia.
+  return fila?.id ? fila : null
 }
 
 /**

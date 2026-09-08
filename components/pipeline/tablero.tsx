@@ -162,27 +162,38 @@ export function TableroPipeline({
       }))
       setEnVuelo((previos) => ({ ...previos, [fila.id]: true }))
 
-      const resultado = await cambiarEstado(fila.id, estado, motivo, nota)
-
-      setEnVuelo((previos) => {
-        const siguientes = { ...previos }
-        delete siguientes[fila.id]
-        return siguientes
-      })
-
-      if (!resultado.ok) {
-        // Rollback: se descarta el cambio pintado y la tarjeta vuelve a
-        // la columna en la que la dejó el servidor.
+      /** Descarta el cambio pintado: la tarjeta vuelve a su columna. */
+      const revertir = () =>
         setOptimistas((previos) => {
           const siguientes = { ...previos }
           delete siguientes[fila.id]
           return siguientes
         })
-        toast.error(resultado.error)
-        return false
-      }
 
-      return true
+      try {
+        const resultado = await cambiarEstado(fila.id, estado, motivo, nota)
+
+        if (!resultado.ok) {
+          revertir()
+          toast.error(resultado.error)
+          return false
+        }
+
+        return true
+      } catch {
+        // Sin este catch, un corte de red dejaba la tarjeta congelada en
+        // la columna equivocada y el modal de perdido trabado en
+        // "guardando": la promesa rechazada nunca limpiaba nada.
+        revertir()
+        toast.error('No se pudo guardar el cambio. Fijate la conexión y probá de nuevo.')
+        return false
+      } finally {
+        setEnVuelo((previos) => {
+          const siguientes = { ...previos }
+          delete siguientes[fila.id]
+          return siguientes
+        })
+      }
     },
     [estadoServidor],
   )
@@ -265,6 +276,17 @@ export function TableroPipeline({
 
     const columnaDestino: ClaveColumna = datos.columna
     if (columnaDeEstado(fila.estado) === columnaDestino) return
+
+    // Un tratamiento que ya arrancó no vuelve atrás de un arrastre: el
+    // gesto es demasiado barato para deshacer algo que ya pasó en el
+    // sillón. Si de verdad hay que corregirlo, se hace desde el detalle,
+    // donde el cambio de estado es explícito y queda en el historial.
+    if (fila.estado === 'iniciado') {
+      toast.error(
+        'El tratamiento ya está iniciado. Si hay que corregirlo, cambiá el estado desde el detalle.',
+      )
+      return
+    }
 
     void mover(fila, estadoDeColumna(columnaDestino))
   }

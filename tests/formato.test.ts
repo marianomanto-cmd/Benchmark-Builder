@@ -96,13 +96,29 @@ test('normalizar permite buscar sin acentos ni mayúsculas', () => {
   assert.ok(normalizar('Gómez').includes(normalizar('gomez')))
 })
 
-test('telefonoWhatsApp normaliza a formato wa.me', () => {
-  assert.equal(telefonoWhatsApp('+54 351 555-0134'), '543515550134')
-  assert.equal(telefonoWhatsApp('351 555-0134'), '543515550134')
-  // Un 0 inicial es prefijo nacional: se reemplaza por el país.
-  assert.equal(telefonoWhatsApp('0351 555-0134'), '543515550134')
-  // Paciente sin teléfono o con un dato inservible.
+test('telefonoWhatsApp arma el celular argentino que acepta wa.me', () => {
+  // WhatsApp necesita 54 + 9 + área + abonado, sin el 15 ni el 0.
+  const esperado = '5493515550134'
+
+  assert.equal(telefonoWhatsApp('+54 9 351 555-0134'), esperado, 'ya venía completo')
+  assert.equal(telefonoWhatsApp('+54 351 555-0134'), esperado, 'faltaba el 9')
+  assert.equal(telefonoWhatsApp('351 555-0134'), esperado, 'sin país')
+  assert.equal(telefonoWhatsApp('0351 555-0134'), esperado, 'con 0 de larga distancia')
+  assert.equal(telefonoWhatsApp('0351 15 555-0134'), esperado, 'con 0 y con 15')
+  assert.equal(telefonoWhatsApp('351 155550134'), esperado, 'con 15 pegado')
+  assert.equal(telefonoWhatsApp('00 54 9 351 5550134'), esperado, 'internacional a mano')
+  assert.equal(telefonoWhatsApp('(351) 555-0134'), esperado, 'con paréntesis')
+
+  // Buenos Aires: área de 2 dígitos.
+  assert.equal(telefonoWhatsApp('011 15 4123-4567'), '5491141234567')
+  // Área de 4 dígitos.
+  assert.equal(telefonoWhatsApp('02954 15 123456'), '5492954123456')
+
+  // Paciente sin teléfono o con un dato inservible: quien llama tiene
+  // que ofrecer cargarlo, no abrir un chat roto.
   assert.equal(telefonoWhatsApp(null), null)
+  assert.equal(telefonoWhatsApp(undefined), null)
   assert.equal(telefonoWhatsApp(''), null)
+  assert.equal(telefonoWhatsApp('sin teléfono'), null)
   assert.equal(telefonoWhatsApp('123'), null)
 })

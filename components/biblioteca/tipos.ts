@@ -155,6 +155,12 @@ export interface CeldaVigente {
   vigente_desde: string
   /** Presupuestos emitidos que la usan. Arriba de 0 ya no se edita. */
   usos: number
+  /**
+   * Aumento ya cargado que todavía no arrancó. La celda sigue mostrando
+   * lo que se cotiza hoy; esto avisa que hay uno esperando, para que
+   * nadie lo cargue dos veces creyendo que se perdió.
+   */
+  programado?: { monto: number; vigente_desde: string } | null
 }
 
 /** Una vigencia cualquiera (abierta o cerrada) para el histórico. */

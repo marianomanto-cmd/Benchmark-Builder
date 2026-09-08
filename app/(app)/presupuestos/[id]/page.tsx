@@ -83,66 +83,120 @@ async function cargarDetalle(id: string): Promise<DetalleCompleto | null> {
 }
 
 /**
- * Qué saldrían hoy las mismas prestaciones.
+ * Lo que este mismo presupuesto costaría hoy, y si los aranceles que
+ * citó realmente cambiaron.
  *
- * Se resuelve igual que `duplicar_presupuesto()`: se busca el arancel
- * vigente de cada prestación para la obra social del presupuesto y, si
- * no hay ninguno abierto, se conserva el snapshot. Así el número del
- * banner es exactamente el que va a salir si el usuario duplica —y no
- * una promesa distinta.
+ * Dos cosas que parecen detalles y no lo son:
  *
- * Los overrides de cobertura tampoco se heredan al duplicar, así que
- * acá se comparan contra el arancel puro, no contra el valor editado.
+ * 1. «Desactualizado» se decide comparando la IDENTIDAD del arancel
+ *    (el `arancel_id` que citó el ítem contra el que rige hoy), no los
+ *    totales. Si se comparan totales, un presupuesto con la cobertura
+ *    editada a mano dispara el banner para siempre —el snapshot difiere
+ *    del arancel por el override, no porque haya cambiado un precio— y
+ *    el banner le miente al consultorio.
+ *
+ * 2. Cada ítem se re-cotiza contra la obra social de SU arancel, no
+ *    contra la del presupuesto: el paso 2 permite cargar un ítem «con
+ *    valor particular» dentro de un presupuesto con obra social. Es la
+ *    misma regla que aplica `duplicar_presupuesto`, y tiene que serlo:
+ *    la única acción que ofrece el banner es duplicar, así que el
+ *    número que promete y el que produce el duplicado deben coincidir.
  */
 async function calcularHoy(
   cabecera: CabeceraPresupuesto,
   items: PresupuestoItem[],
-): Promise<TotalesLinea[]> {
-  const prestacionIds = Array.from(
-    new Set(items.map((i) => i.prestacion_id).filter((x): x is string => Boolean(x))),
-  )
-
+): Promise<{ lineas: TotalesLinea[]; cambiaron: boolean }> {
   const snapshot = (item: PresupuestoItem): TotalesLinea => ({
     monto: item.monto,
     cobertura_tipo: item.cobertura_tipo,
     cobertura_valor: item.cobertura_valor,
   })
 
+  const prestacionIds = Array.from(
+    new Set(items.map((i) => i.prestacion_id).filter((x): x is string => Boolean(x))),
+  )
+
   // Ítems cargados a mano (sin prestación del catálogo) no tienen contra
   // qué compararse: el documento es su única fuente.
-  if (prestacionIds.length === 0) return items.map(snapshot)
-
-  const supabase = await createClient()
-  let consulta = supabase
-    .from('aranceles')
-    .select('prestacion_id, monto, cobertura_tipo, cobertura_valor')
-    .in('prestacion_id', prestacionIds)
-    .is('vigente_hasta', null)
-
-  consulta = cabecera.obra_social_id
-    ? consulta.eq('obra_social_id', cabecera.obra_social_id)
-    : consulta.is('obra_social_id', null)
-
-  const { data, error } = await consulta
-
-  if (error) {
-    console.error('[detalle] no se pudieron leer los aranceles vigentes', error)
-    return items.map(snapshot)
+  if (prestacionIds.length === 0) {
+    return { lineas: items.map(snapshot), cambiaron: false }
   }
 
-  const vigentes = new Map<string, TotalesLinea>()
-  for (const fila of (data ?? []) as FilaCruda[]) {
-    vigentes.set(texto(fila.prestacion_id), {
+  const supabase = await createClient()
+  const arancelIds = Array.from(
+    new Set(items.map((i) => i.arancel_id).filter((x): x is string => Boolean(x))),
+  )
+
+  const [vigentesRes, citadosRes] = await Promise.all([
+    // La vista filtra por fecha en la base: un aumento programado para
+    // más adelante no se cotiza todavía.
+    supabase
+      .from('aranceles_vigentes')
+      .select('id, prestacion_id, obra_social_id, monto, cobertura_tipo, cobertura_valor')
+      .in('prestacion_id', prestacionIds),
+    arancelIds.length > 0
+      ? supabase.from('aranceles').select('id, obra_social_id').in('id', arancelIds)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+
+  if (vigentesRes.error || citadosRes.error) {
+    console.error(
+      '[detalle] no se pudieron leer los aranceles vigentes',
+      vigentesRes.error ?? citadosRes.error,
+    )
+    return { lineas: items.map(snapshot), cambiaron: false }
+  }
+
+  /** Con qué obra social se cotizó cada ítem en su momento. */
+  const osDelArancel = new Map<string, string | null>()
+  for (const fila of (citadosRes.data ?? []) as { id: string; obra_social_id: string | null }[]) {
+    osDelArancel.set(fila.id, fila.obra_social_id)
+  }
+
+  const clave = (prestacionId: string, obraSocialId: string | null) =>
+    `${prestacionId}:${obraSocialId ?? ''}`
+
+  const vigentes = new Map<string, { id: string } & TotalesLinea>()
+  for (const fila of (vigentesRes.data ?? []) as FilaCruda[]) {
+    // `FilaCruda` es Record<string, unknown>: la obra social se
+    // normaliza a string | null antes de usarla como parte de la clave.
+    const obraSocialId = fila.obra_social_id == null ? null : String(fila.obra_social_id)
+    vigentes.set(clave(texto(fila.prestacion_id), obraSocialId), {
+      id: texto(fila.id),
       monto: monto(fila.monto),
       cobertura_tipo: fila.cobertura_tipo as CoberturaTipo,
       cobertura_valor: monto(fila.cobertura_valor),
     })
   }
 
-  return items.map((item) => {
-    const vigente = item.prestacion_id ? vigentes.get(item.prestacion_id) : undefined
-    return vigente ?? snapshot(item)
+  let cambiaron = false
+
+  const lineas = items.map((item) => {
+    if (!item.prestacion_id) return snapshot(item)
+
+    const os = item.arancel_id
+      ? (osDelArancel.get(item.arancel_id) ?? cabecera.obra_social_id)
+      : cabecera.obra_social_id
+
+    const vigente = vigentes.get(clave(item.prestacion_id, os))
+    if (!vigente) {
+      // Ya no hay arancel vigente para esta prestación: el documento
+      // sigue siendo su propia fuente y no hay nada que comparar.
+      return snapshot(item)
+    }
+
+    // El arancel citado dejó de ser el vigente: eso, y sólo eso, es que
+    // el precio quedó desactualizado.
+    if (item.arancel_id && item.arancel_id !== vigente.id) cambiaron = true
+
+    return {
+      monto: vigente.monto,
+      cobertura_tipo: vigente.cobertura_tipo,
+      cobertura_valor: vigente.cobertura_valor,
+    }
   })
+
+  return { lineas, cambiaron }
 }
 
 export async function generateMetadata(
@@ -185,7 +239,7 @@ export default async function DetallePresupuestoPage(
       cobertura_tipo: i.cobertura_tipo,
       cobertura_valor: i.cobertura_valor,
     })),
-    hoy,
+    hoy.lineas,
   )
 
   /**
@@ -193,7 +247,12 @@ export default async function DetallePresupuestoPage(
    * altura el precio dejó de estar en discusión y lo único que haría
    * es sugerir una acción que nadie va a tomar.
    */
-  const mostrarBanner = comparacion.desactualizado && cabecera.estado !== 'iniciado'
+  // `hoy.cambiaron` mira si el arancel citado dejó de ser el vigente;
+  // `comparacion.diferencia` evita el banner cuando el cambio no mueve
+  // el número que le importa al paciente (por ejemplo, un ajuste de
+  // monto y cobertura que deja el a-cargo igual).
+  const mostrarBanner =
+    hoy.cambiaron && comparacion.diferencia !== 0 && cabecera.estado !== 'iniciado'
 
   // Quién y cuándo lo dio por perdido, según el historial append-only.
   const eventoPerdida =

@@ -79,6 +79,8 @@ migración `…_storage.sql`.
 | `npm run start` | Sirve el build |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Tests del núcleo de cálculo, formato y estados |
+| `npm run test:paridad` | Verifica que `lib/calculo.ts` y `calcular_cobertura()` den el mismo número (necesita `DATABASE_URL`) |
 
 ---
 
@@ -103,6 +105,8 @@ components/
   presupuesto/             Detalle y pantalla 14 · sheet de WhatsApp
   home/ biblioteca/ pipeline/ shell/
   ui/                      Button, Pill, EstadoBadge, Field, Combobox, Sheet, Drawer…
+tests/                     Núcleo de cálculo, formato y estados
+scripts/paridad-sql.mjs    Paridad entre lib/calculo.ts y calcular_cobertura()
 lib/
   calculo.ts               cobertura y a-cargo — única fuente de verdad
   formato.ts               moneda, fechas y números es-AR

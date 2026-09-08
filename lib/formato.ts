@@ -121,12 +121,48 @@ export function normalizar(texto: string): string {
     .trim()
 }
 
-/** Teléfono a formato wa.me: sólo dígitos, con código de país. */
+/**
+ * Teléfono argentino a formato wa.me.
+ *
+ * WhatsApp exige `54` + `9` + código de área + abonado para un celular
+ * argentino, y NO acepta el `15` que se marca a nivel local ni el `0`
+ * de larga distancia. Un `wa.me/543515550134` (sin el 9) abre un chat
+ * vacío o directamente falla, así que hay que armarlo bien.
+ *
+ * Se aceptan las formas en que el consultorio carga un número en la
+ * ficha:
+ *   +54 9 351 555-0134 · +54 351 555-0134 · 0351 15 555-0134
+ *   351 155550134      · 3515550134       · 00 54 9 351 5550134
+ *
+ * Devuelve `null` cuando no queda un número usable: quien llama tiene
+ * que ofrecer cargar el teléfono en vez de abrir un chat roto.
+ */
 export function telefonoWhatsApp(telefono: string | null | undefined): string | null {
   if (!telefono) return null
-  const digitos = telefono.replace(/\D/g, '')
-  if (digitos.length < 8) return null
-  if (digitos.startsWith('54')) return digitos
-  if (digitos.startsWith('0')) return `54${digitos.slice(1)}`
-  return `54${digitos}`
+
+  let d = telefono.replace(/\D/g, '')
+  if (!d) return null
+
+  if (d.startsWith('00')) d = d.slice(2)   // internacional marcado a mano
+  if (d.startsWith('54')) d = d.slice(2)   // país
+  if (d.startsWith('9')) d = d.slice(1)    // el 9 lo agregamos al final
+  if (d.startsWith('0')) d = d.slice(1)    // larga distancia nacional
+
+  // El `15` va después del código de área, que en Argentina tiene entre
+  // 2 y 4 dígitos. El número nacional sin el 15 son 10 dígitos: si
+  // sacando ese par quedan 10, era el 15 y no parte del abonado.
+  if (d.length === 12) {
+    for (const corte of [2, 3, 4]) {
+      if (d.slice(corte, corte + 2) === '15') {
+        d = d.slice(0, corte) + d.slice(corte + 2)
+        break
+      }
+    }
+  }
+
+  // Área más corta (11) + abonado más corto deja 10 dígitos; por debajo
+  // de 8 no hay número que valga.
+  if (d.length < 8) return null
+
+  return `549${d}`
 }
