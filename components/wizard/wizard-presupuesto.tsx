@@ -197,7 +197,25 @@ function WizardInterno() {
     )
   }
 
-  const siguienteDeshabilitado = paso === 2 && (borrador?.items.length ?? 0) === 0
+  /**
+   * Por qué no se puede seguir, o `null` si se puede.
+   *
+   * El paso 1 también bloquea: el profesional se autocompleta con el
+   * usuario logueado, pero queda vacío si no tiene ficha en
+   * `profesionales`. Sin esto, el error aparecía recién al guardar en
+   * el paso 3, con el presupuesto entero ya cargado.
+   */
+  const motivoBloqueo: string | null = !borrador
+    ? null
+    : paso === 1 && !borrador.paciente_id
+      ? 'Elegí un paciente para seguir.'
+      : paso === 1 && !borrador.profesional_id
+        ? 'Elegí el profesional que firma el presupuesto.'
+        : paso === 2 && borrador.items.length === 0
+          ? 'Agregá al menos una prestación para seguir.'
+          : null
+
+  const siguienteDeshabilitado = motivoBloqueo !== null
 
   const footer = !borrador ? null : hayCapa ? null : (
     <div className="flex w-full flex-col gap-2 md:flex-row md:items-center">
@@ -223,10 +241,8 @@ function WizardInterno() {
           >
             Siguiente
           </Button>
-          {siguienteDeshabilitado && (
-            <p className="t-helper text-center md:text-right">
-              Agregá al menos una prestación para seguir.
-            </p>
+          {motivoBloqueo && (
+            <p className="t-helper text-center md:text-right">{motivoBloqueo}</p>
           )}
         </div>
       ) : (
@@ -296,6 +312,7 @@ function WizardInterno() {
                 paso={paso}
                 itemsCargados={borrador.items.length}
                 pacienteElegido={Boolean(borrador.paciente_id)}
+                profesionalElegido={Boolean(borrador.profesional_id)}
                 onIr={irAlPaso}
                 onCerrar={cerrar}
               />
@@ -337,20 +354,32 @@ function BarraPasos({
   paso,
   itemsCargados,
   pacienteElegido,
+  profesionalElegido,
   onIr,
   onCerrar,
 }: {
   paso: 1 | 2 | 3
   itemsCargados: number
   pacienteElegido: boolean
+  profesionalElegido: boolean
   onIr: (n: 1 | 2 | 3) => void
   onCerrar: () => void
 }) {
-  /** Sólo se puede saltar a un paso ya alcanzado: nunca hacia adelante sin datos. */
+  /**
+   * Sólo se puede saltar a un paso ya alcanzado: nunca hacia adelante
+   * sin datos.
+   *
+   * El profesional cuenta igual que el paciente: normalmente se
+   * autocompleta con el usuario logueado, pero si no tiene ficha en
+   * `profesionales` queda vacío. Sin esta condición el error recién
+   * aparecía al guardar en el paso 3, con todo el presupuesto cargado.
+   */
+  const paso1Completo = pacienteElegido && profesionalElegido
+
   function alcanzable(n: 1 | 2 | 3) {
     if (n === 1) return true
-    if (n === 2) return pacienteElegido
-    return pacienteElegido && itemsCargados > 0
+    if (n === 2) return paso1Completo
+    return paso1Completo && itemsCargados > 0
   }
 
   return (

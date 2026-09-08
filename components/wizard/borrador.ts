@@ -53,6 +53,7 @@ export function borradorInicial(): BorradorPresupuesto {
     valido_hasta: calcularValidoHasta(hoy, VIGENCIA_POR_DEFECTO),
     items: [],
     cuotas: [],
+    cuotas_heredadas: false,
     observaciones: '',
     nota_interna: '',
     estado_inicial: 'realizado',
@@ -120,6 +121,9 @@ export function conCoberturaEditada(
     : { tipo: item.cobertura_tipo, valor: item.cobertura_valor }
 
   const igualAlArancel = tipo === original.tipo && valor === original.valor
+  // El monto también puede estar editado: mientras alguna de las dos
+  // cosas difiera del arancel, el ítem sigue siendo un override.
+  const sigueEditado = !igualAlArancel || item.monto !== item.monto_original
 
   return {
     ...item,
@@ -127,10 +131,13 @@ export function conCoberturaEditada(
     cobertura_valor: valor,
     // Volver al valor del arancel a mano equivale a restaurar: la fila
     // deja de estar teñida y el chip "editado" desaparece.
-    editado: !igualAlArancel || item.monto !== item.monto_original,
+    editado: sigueEditado,
     cobertura_original_tipo: igualAlArancel ? null : original.tipo,
     cobertura_original_valor: igualAlArancel ? null : original.valor,
-    motivo_override: igualAlArancel ? null : item.motivo_override,
+    // El motivo se borra sólo cuando el ítem deja de estar editado. Si
+    // el monto sigue cambiado, el motivo es lo único que explica por
+    // qué: borrarlo deja el override sin justificación auditable.
+    motivo_override: sigueEditado ? item.motivo_override : null,
   }
 }
 

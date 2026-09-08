@@ -303,6 +303,11 @@ antes de aceptarlo. Los que resultaron reales:
 | El duplicado mezclaba la obra social del original con el afiliado actual del paciente | El afiliado sólo se refresca si la ficha sigue en la misma obra social |
 | El conteo de usos del histórico se cortaba en las 1000 filas de PostgREST, y de él depende el sello «no editable» | Vista `aranceles_usos`: una fila por arancel en vez de una por ítem |
 | La confirmación del envío afirmaba «quedó como Enviado» aunque el estado no se hubiera tocado | Reporta lo que devolvió el servidor, no lo que se pidió |
+| El mínimo táctil de 44px en mobile se cumplía a mano y sólo a veces: 63 botones sin `size`, 21 en `sm` y el `Segmented` quedaban en 28-34px | La altura arranca en 44px y baja a la nominal recién en `md:`, dentro del propio variant |
+| Elegir el paciente antes de que resolviera el listado de obras sociales dejaba el presupuesto en Particular, sin avisar | Se consulta esa obra social puntual; si tampoco se puede, se avisa en vez de asumir |
+| Restaurar la cobertura al valor del arancel borraba el motivo del override aunque el monto siguiera editado | El motivo se borra sólo cuando el ítem deja de estar editado |
+| Las condiciones de pago borradas a propósito reaparecían al volver del paso 2 al 3 | La marca de «ya heredadas» vive en el borrador, no en un `useRef` que se reinicia al desmontar |
+| Se podía llegar al paso 2 sin profesional y el error aparecía recién al guardar | «Siguiente» bloquea el paso 1 incompleto y dice qué falta |
 
 ### Pendiente
 
@@ -313,6 +318,10 @@ antes de aceptarlo. Los que resultaron reales:
 - [ ] Cuotas con interés o financiación en más de dos pagos.
 - [ ] Recordatorio automático a los 7 días por WhatsApp (hoy sólo se promete en
       la confirmación de envío; el cambio de estado sí es automático).
+- [ ] Decidir si un presupuesto con subtotal $ 0 debe rechazarse. Hoy se
+      permite: un ítem sin cargo es raro pero no imposible, y el número se ve
+      en el preview antes de guardar. Bloquearlo impediría presupuestar una
+      prestación de cortesía sola.
 - [ ] Confirmar con el consultorio el formato de teléfono: `telefonoWhatsApp`
       arma `54 9 + área + abonado` y descarta el `15`, que es lo que exige
       WhatsApp para un celular argentino.

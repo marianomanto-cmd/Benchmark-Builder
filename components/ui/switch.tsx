@@ -107,7 +107,10 @@ export function Segmented<T extends string>({
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            'h-8 rounded-pill px-3.5 font-sans text-[13px] font-medium transition-colors',
+            // 44px de alto en mobile: es el control de la vigencia, del
+            // estado inicial y de la plantilla de WhatsApp, todos pasos
+            // que se cargan desde el celular entre pacientes.
+            'h-11 rounded-pill px-3.5 font-sans text-[13px] font-medium transition-colors md:h-8',
             value === o.value
               ? 'bg-primary text-white'
               : 'text-muted hover:bg-tint hover:text-ink',

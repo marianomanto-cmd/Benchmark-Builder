@@ -100,11 +100,20 @@ export function leerBorrador(): BorradorPresupuesto | null {
     const crudo = window.localStorage.getItem(CLAVE_BORRADOR)
     if (!crudo) return null
     const dato: unknown = JSON.parse(crudo)
-    return esBorrador(dato) ? dato : null
+    return esBorrador(dato) ? normalizar(dato) : null
   } catch {
     // Storage bloqueado o JSON roto: para el wizard es "no hay borrador".
     return null
   }
+}
+
+/**
+ * Completa los campos que un borrador de una versión anterior del
+ * wizard no tenía. Tirar el borrador entero por un campo que se agregó
+ * después sería peor que el problema que resuelve validarlo.
+ */
+function normalizar(b: BorradorPresupuesto): BorradorPresupuesto {
+  return { ...b, cuotas_heredadas: b.cuotas_heredadas ?? false }
 }
 
 /**
@@ -201,7 +210,7 @@ export function useBorradorGuardado(): BorradorPresupuesto | null {
     if (!crudo) return null
     try {
       const dato: unknown = JSON.parse(crudo)
-      return esBorrador(dato) ? dato : null
+      return esBorrador(dato) ? normalizar(dato) : null
     } catch {
       return null
     }

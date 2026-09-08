@@ -34,14 +34,24 @@ const buttonVariants = cva(
           'bg-card text-warm-line border border-warm-line/40 hover:bg-warm-soft',
         link: 'bg-transparent text-primary underline-offset-4 hover:underline p-0 h-auto rounded-none',
       },
+      /*
+       * Área táctil mínima 44px en mobile (handoff §4), densidad
+       * Linear-balanced en desktop (28/34/40).
+       *
+       * Los dos requisitos se resuelven acá y no en cada botón: la
+       * altura arranca en 44px y recién a partir de `md:` baja a la
+       * nominal. Si dependiera de que cada llamada recuerde agregar
+       * `size="touch" className="md:h-[34px]"`, se cumpliría a veces —
+       * que es exactamente lo que pasaba.
+       */
       size: {
-        sm: 'h-7 px-3 text-[12px]',
-        md: 'h-[34px] px-4',
-        lg: 'h-10 px-5',
-        /* Área táctil mínima en mobile. */
+        sm: 'h-11 px-3 text-[12px] md:h-7',
+        md: 'h-11 px-4 md:h-[34px]',
+        lg: 'h-11 px-5 md:h-10',
+        /** 44px en todos lados: acciones principales de una pantalla. */
         touch: 'h-11 px-5',
-        icon: 'h-[34px] w-[34px] p-0',
-        'icon-touch': 'h-11 w-11 p-0',
+        icon: 'size-11 p-0 md:size-[34px]',
+        'icon-touch': 'size-11 p-0',
       },
       full: { true: 'w-full', false: '' },
     },

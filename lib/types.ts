@@ -236,6 +236,14 @@ export interface BorradorPresupuesto {
   valido_hasta: string
   items: ItemBorrador[]
   cuotas: CuotaBorrador[]
+  /**
+   * Si la plantilla de condiciones de pago ya se aplicó una vez.
+   *
+   * Vive en el borrador y no en el componente del paso 3 porque el paso
+   * se desmonta al volver al 2: con un `useRef` la plantilla se
+   * reponía sola y las condiciones borradas a propósito reaparecían.
+   */
+  cuotas_heredadas: boolean
   observaciones: string
   nota_interna: string
   estado_inicial: Extract<EstadoPresupuesto, 'realizado' | 'enviado'>

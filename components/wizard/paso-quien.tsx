@@ -22,6 +22,7 @@ import { calcularValidoHasta, recotizarItem, VIGENCIAS_RAPIDAS } from './borrado
 import { Capa, enfocar } from './capa'
 import {
   buscarAranceles,
+  buscarObraSocial,
   useObrasSociales,
   usePacientes,
   useProfesionalPropio,
@@ -133,13 +134,38 @@ export function PasoQuien({
     toast.info(`${partes.join(' · ')}.`)
   }
 
-  function elegirPaciente(p: Paciente) {
-    const osFicha = p.obra_social_id ? obras.find((o) => o.id === p.obra_social_id) : null
+  async function elegirPaciente(p: Paciente) {
     parche({ paciente_id: p.id, paciente_nombre: p.nombre })
+
     // La obra social viaja con el paciente: en el 90 % de los casos es
-    // la correcta y nadie tiene que volver a elegirla. Pasa por
-    // `cambiarCobertura` para que los ítems ya cargados se recalculen.
-    void cambiarCobertura(osFicha?.id ?? null, osFicha ? nombreObraSocial(osFicha) : null)
+    // la correcta y nadie tiene que volver a elegirla.
+    if (!p.obra_social_id) {
+      await cambiarCobertura(null, null)
+      return
+    }
+
+    // Si el listado todavía no resolvió, se pregunta por esta obra
+    // social en particular. Caer a Particular porque la consulta no
+    // llegó sería emitir un documento con la cobertura equivocada, y
+    // sin avisar.
+    let osFicha = obras.find((o) => o.id === p.obra_social_id) ?? null
+    if (!osFicha) {
+      try {
+        osFicha = await buscarObraSocial(p.obra_social_id)
+      } catch {
+        osFicha = null
+      }
+    }
+
+    if (!osFicha) {
+      toast.error(
+        'No se pudo leer la obra social del paciente. Elegila a mano antes de seguir.',
+      )
+      await cambiarCobertura(null, null)
+      return
+    }
+
+    await cambiarCobertura(osFicha.id, nombreObraSocial(osFicha))
   }
 
   function elegirObraSocial(os: ObraSocial | null) {
@@ -196,7 +222,7 @@ export function PasoQuien({
           onCancelar={() => setCapa(null)}
           onListo={(p) => {
             setCapa(null)
-            elegirPaciente(p)
+            void elegirPaciente(p)
             enfocar(ID.obraSocial)
           }}
         />

@@ -40,14 +40,16 @@ export function PasoCerrar({
 
   // Las condiciones se heredan una sola vez: si alguien las borró todas
   // a propósito, no se las volvemos a poner al pasar de paso.
-  const heredadas = React.useRef(false)
-
+  //
+  // La marca vive en el borrador y no en un `useRef`: este paso se
+  // desmonta al volver al 2, así que un ref se reiniciaba y la
+  // plantilla reaparecía en cuanto se volvía al paso 3.
   React.useEffect(() => {
-    if (heredadas.current || borrador.cuotas.length > 0) return
+    if (borrador.cuotas_heredadas || borrador.cuotas.length > 0) return
     const principal = itemPrincipal(borrador.items)
     if (!principal) return
 
-    heredadas.current = true
+    parche({ cuotas_heredadas: true })
     let vigente = true
 
     async function heredar(prestacionId: string | null) {
@@ -68,7 +70,7 @@ export function PasoCerrar({
     return () => {
       vigente = false
     }
-  }, [borrador.cuotas.length, borrador.items, setCuotas])
+  }, [borrador.cuotas_heredadas, borrador.cuotas.length, borrador.items, setCuotas, parche])
 
   const formulario = (
     <div className="flex flex-col gap-5">

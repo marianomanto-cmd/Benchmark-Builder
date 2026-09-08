@@ -94,6 +94,21 @@ export function useObrasSociales() {
   })
 }
 
+/**
+ * Una obra social por id, para cuando el listado todavía no resolvió.
+ *
+ * El listado se usa para mapear la obra social de la ficha del paciente
+ * al elegirlo. Si alguien elige el paciente antes de que llegue esa
+ * consulta, el `find` no encuentra nada y el presupuesto se iba a
+ * Particular sin decir una palabra: un documento con la cobertura
+ * equivocada. Ante la duda se pregunta a la base, no se asume.
+ */
+export async function buscarObraSocial(id: string): Promise<ObraSocial | null> {
+  const { data, error } = await db().from('obras_sociales').select('*').eq('id', id).maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as ObraSocial | null) ?? null
+}
+
 export function usePrestaciones() {
   return useQuery({
     queryKey: CLAVES.prestaciones,
