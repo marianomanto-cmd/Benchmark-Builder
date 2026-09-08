@@ -5,6 +5,7 @@ import Link from 'next/link'
 import * as React from 'react'
 
 import { cerrarSesion } from '@/app/actions/auth'
+import { borrarBorrador } from '@/lib/draft'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui'
 import { iniciales } from './navegacion'
 
@@ -73,6 +74,9 @@ export function MenuUsuario({ usuario }: { usuario: UsuarioShell }) {
             // action llegue a despacharse.
             evento.preventDefault()
             empezarSalida(async () => {
+              // El borrador vive en el navegador con datos del paciente:
+              // en una máquina compartida no puede sobrevivir al logout.
+              borrarBorrador()
               await cerrarSesion()
             })
           }}

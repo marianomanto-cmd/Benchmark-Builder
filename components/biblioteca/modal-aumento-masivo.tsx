@@ -25,6 +25,7 @@ import {
   Thead,
   Tr,
 } from '@/components/ui'
+import { montoConAumento } from '@/lib/calculo'
 import { fechaLarga, isoDate, money, numero, porcentaje } from '@/lib/formato'
 
 import type { CeldaVigente, ColumnaObraSocial, PrestacionGrilla } from './tipos'
@@ -104,13 +105,15 @@ export function ModalAumentoMasivo({
       const prestacion = porPrestacion.get(v.prestacion_id)
       if (alcance === 'rubro' && (prestacion?.rubro ?? null) !== rubro) continue
 
-      const actual = Math.round(Number(v.monto))
+      const actual = Number(v.monto)
       filas.push({
         clave: v.id,
         prestacion: prestacion?.nombre ?? 'Prestación',
         obra_social: nombrePorColumna.get(v.obra_social_id ?? '') ?? 'Particular',
-        actual,
-        nuevo: Math.round(actual * (1 + pct / 100)),
+        actual: Math.round(actual),
+        // Misma cuenta que `aumento_masivo()` en la base: el preview no
+        // puede prometer un número y la RPC escribir otro.
+        nuevo: montoConAumento(actual, pct),
       })
     }
 

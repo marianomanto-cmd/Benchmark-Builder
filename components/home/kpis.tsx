@@ -64,7 +64,9 @@ function definir(kpis: KpisHome): DefinicionKpi[] {
       helper:
         aceptacion.pct90 === null
           ? `Sobre ${numero(aceptacion.base30)} emitidos a 30 días`
-          : `A 90 días: ${porcentaje(aceptacion.pct90)} · base ${numero(aceptacion.base30)}`,
+          : // Cada porcentaje va con SU base: mezclarlas hacía leer la
+            // tasa de 90 días contra los emitidos de 30.
+            `A 90 días: ${porcentaje(aceptacion.pct90)} sobre ${numero(aceptacion.base90)} · a 30 días, ${numero(aceptacion.base30)}`,
       helperVacio: 'Cuántos se aceptan, medido a 30 días',
     },
     {

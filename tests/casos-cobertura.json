@@ -7,17 +7,133 @@
     "Consumidores: tests/calculo.test.ts y scripts/paridad-sql.mjs"
   ],
   "casos": [
-    { "monto": 138000, "tipo": "porcentaje", "valor": 60,   "cobertura": 82800,  "aCargo": 55200,  "nota": "porcentaje redondo" },
-    { "monto": 48000,  "tipo": "porcentaje", "valor": 70,   "cobertura": 33600,  "aCargo": 14400,  "nota": "porcentaje redondo" },
-    { "monto": 12345,  "tipo": "porcentaje", "valor": 33,   "cobertura": 4074,   "aCargo": 8271,   "nota": "redondeo al peso: 4073,85 → 4074" },
-    { "monto": 10001,  "tipo": "porcentaje", "valor": 50,   "cobertura": 5001,   "aCargo": 5000,   "nota": "medio peso hacia arriba: 5000,5 → 5001" },
-    { "monto": 20000,  "tipo": "porcentaje", "valor": 100,  "cobertura": 20000,  "aCargo": 0,      "nota": "cobertura total" },
-    { "monto": 20000,  "tipo": "porcentaje", "valor": 0,    "cobertura": 0,      "aCargo": 20000,  "nota": "porcentaje cero" },
-    { "monto": 132000, "tipo": "monto",      "valor": 62000, "cobertura": 62000, "aCargo": 70000,  "nota": "monto fijo" },
-    { "monto": 50000,  "tipo": "monto",      "valor": 80000, "cobertura": 50000, "aCargo": 0,      "nota": "el tope es el monto: nunca cobertura mayor que el arancel" },
-    { "monto": 50000,  "tipo": "monto",      "valor": 50000, "cobertura": 50000, "aCargo": 0,      "nota": "monto fijo igual al arancel" },
-    { "monto": 22000,  "tipo": "ninguna",    "valor": 0,     "cobertura": 0,     "aCargo": 22000,  "nota": "particular" },
-    { "monto": 22000,  "tipo": "ninguna",    "valor": 999,   "cobertura": 0,     "aCargo": 22000,  "nota": "ninguna ignora el valor" },
-    { "monto": 0,      "tipo": "porcentaje", "valor": 70,    "cobertura": 0,     "aCargo": 0,      "nota": "monto cero" }
+    {
+      "monto": 138000,
+      "tipo": "porcentaje",
+      "valor": 60,
+      "cobertura": 82800,
+      "aCargo": 55200,
+      "nota": "porcentaje redondo"
+    },
+    {
+      "monto": 48000,
+      "tipo": "porcentaje",
+      "valor": 70,
+      "cobertura": 33600,
+      "aCargo": 14400,
+      "nota": "porcentaje redondo"
+    },
+    {
+      "monto": 12345,
+      "tipo": "porcentaje",
+      "valor": 33,
+      "cobertura": 4074,
+      "aCargo": 8271,
+      "nota": "redondeo al peso: 4073,85 → 4074"
+    },
+    {
+      "monto": 10001,
+      "tipo": "porcentaje",
+      "valor": 50,
+      "cobertura": 5001,
+      "aCargo": 5000,
+      "nota": "medio peso hacia arriba: 5000,5 → 5001"
+    },
+    {
+      "monto": 20000,
+      "tipo": "porcentaje",
+      "valor": 100,
+      "cobertura": 20000,
+      "aCargo": 0,
+      "nota": "cobertura total"
+    },
+    {
+      "monto": 20000,
+      "tipo": "porcentaje",
+      "valor": 0,
+      "cobertura": 0,
+      "aCargo": 20000,
+      "nota": "porcentaje cero"
+    },
+    {
+      "monto": 132000,
+      "tipo": "monto",
+      "valor": 62000,
+      "cobertura": 62000,
+      "aCargo": 70000,
+      "nota": "monto fijo"
+    },
+    {
+      "monto": 50000,
+      "tipo": "monto",
+      "valor": 80000,
+      "cobertura": 50000,
+      "aCargo": 0,
+      "nota": "el tope es el monto: nunca cobertura mayor que el arancel"
+    },
+    {
+      "monto": 50000,
+      "tipo": "monto",
+      "valor": 50000,
+      "cobertura": 50000,
+      "aCargo": 0,
+      "nota": "monto fijo igual al arancel"
+    },
+    {
+      "monto": 22000,
+      "tipo": "ninguna",
+      "valor": 0,
+      "cobertura": 0,
+      "aCargo": 22000,
+      "nota": "particular"
+    },
+    {
+      "monto": 22000,
+      "tipo": "ninguna",
+      "valor": 999,
+      "cobertura": 0,
+      "aCargo": 22000,
+      "nota": "ninguna ignora el valor"
+    },
+    {
+      "monto": 0,
+      "tipo": "porcentaje",
+      "valor": 70,
+      "cobertura": 0,
+      "aCargo": 0,
+      "nota": "monto cero"
+    },
+    {
+      "monto": 385000,
+      "tipo": "porcentaje",
+      "valor": 99.99,
+      "cobertura": 384962,
+      "aCargo": 38,
+      "nota": "porcentaje con dos decimales: el float de JS daba 384961, la base 384962"
+    },
+    {
+      "monto": 126000,
+      "tipo": "porcentaje",
+      "valor": 33.33,
+      "cobertura": 41996,
+      "aCargo": 84004,
+      "nota": "porcentaje con dos decimales"
+    },
+    {
+      "monto": 720000,
+      "tipo": "porcentaje",
+      "valor": 66.67,
+      "cobertura": 480024,
+      "aCargo": 239976,
+      "nota": "porcentaje con dos decimales sobre un monto alto"
+    },
+    {
+      "monto": 99999999,
+      "tipo": "porcentaje",
+      "valor": 50,
+      "cobertura": 50000000,
+      "aCargo": 49999999,
+      "nota": "monto máximo de numeric(12,2) sin decimales"
+    }
   ]
 }

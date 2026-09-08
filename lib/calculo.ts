@@ -24,7 +24,15 @@ export function calcularItem(
 ): ItemCalculado {
   const bruta =
     tipo === 'porcentaje'
-      ? Math.round(monto * (valor / 100))
+      ? // En centésimas y con la multiplicación PRIMERO, para dar el
+        // mismo número que el `numeric` exacto de Postgres.
+        //
+        // `monto * (valor / 100)` en punto flotante se desvía: con
+        // $ 385.000 al 99,99 % da 384961,49999999994 y redondea a
+        // 384.961, mientras la base calcula 384961,5 exacto y redondea
+        // a 384.962. Un peso de diferencia entre lo que el wizard le
+        // muestra al paciente y lo que se congela en el documento.
+        Math.round((monto * Math.round(valor * 100)) / 10000)
       : tipo === 'monto'
         ? valor
         : 0
@@ -116,4 +124,20 @@ export function compararConHoy(
     aCargoSnapshot: s.aCargo,
     diferencia: h.aCargo - s.aCargo,
   }
+}
+
+/**
+ * Monto resultante de aplicar un porcentaje de aumento.
+ *
+ * El espejo en SQL es la cuenta de `aumento_masivo()`. Igual que en
+ * `calcularItem`, se trabaja en centésimas y se multiplica ANTES de
+ * dividir: `monto * (1 + pct / 100)` en punto flotante se desvía medio
+ * peso en los casos que caen justo en .5, y entonces el preview del
+ * aumento masivo prometería un número y la base escribiría otro.
+ *
+ * Redondeo al peso, igual que todo el resto.
+ */
+export function montoConAumento(monto: number, porcentajeAumento: number): number {
+  const factorEnCentesimas = Math.round((100 + porcentajeAumento) * 100)
+  return Math.round((monto * factorEnCentesimas) / 10000)
 }

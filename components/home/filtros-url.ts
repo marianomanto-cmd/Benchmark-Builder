@@ -12,7 +12,7 @@
 import { ESTADOS } from '@/lib/estados'
 import type { EstadoPresupuesto } from '@/lib/types'
 
-import { type FiltrosHome } from './tipos'
+import { OBRA_SOCIAL_PARTICULAR, type FiltrosHome } from './tipos'
 
 export const FILTROS_VACIOS: FiltrosHome = {
   q: '',
@@ -37,6 +37,20 @@ function fecha(valor: string | string[] | undefined): string {
   return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : ''
 }
 
+const ES_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function uuid(valor: string | string[] | undefined): string {
+  const v = texto(valor)
+  return ES_UUID.test(v) ? v : ''
+}
+
+/** La obra social admite además el sentinela de «Particular». */
+function obraSocialFiltro(valor: string | string[] | undefined): string {
+  const v = texto(valor)
+  if (v === OBRA_SOCIAL_PARTICULAR) return v
+  return ES_UUID.test(v) ? v : ''
+}
+
 export function parseFiltros(searchParams: Entrada): FiltrosHome {
   const crudos = texto(searchParams.estado)
   const estados = crudos
@@ -48,8 +62,12 @@ export function parseFiltros(searchParams: Entrada): FiltrosHome {
     q: texto(searchParams.q),
     // Sin duplicados y en el orden canónico de la máquina de estados.
     estados: ESTADOS.filter((e) => estados.includes(e)),
-    profesional: texto(searchParams.prof),
-    obraSocial: texto(searchParams.os),
+    // Un `?prof=cualquier-cosa` iría directo a un `.eq()` contra una
+    // columna uuid: Postgres rechaza el cast y la pantalla se queda
+    // trabada en el estado de falla. Lo que no es un uuid se descarta,
+    // que es lo mismo que no filtrar.
+    profesional: uuid(searchParams.prof),
+    obraSocial: obraSocialFiltro(searchParams.os),
     desde: fecha(searchParams.desde),
     hasta: fecha(searchParams.hasta),
   }

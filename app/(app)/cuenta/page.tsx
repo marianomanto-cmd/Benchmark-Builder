@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { LogOut } from 'lucide-react'
 import { redirect } from 'next/navigation'
 
-import { cerrarSesion } from '@/app/actions/auth'
-import { Button, Card, CardBody, CardHeader, CardTitle } from '@/components/ui'
+import { BotonCerrarSesion } from '@/components/shell/boton-cerrar-sesion'
+import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui'
 import { fechaLarga } from '@/lib/formato'
 import { getSesion } from '@/lib/supabase/server'
 import { PerfilForm } from './perfil-form'
@@ -58,12 +57,9 @@ export default async function CuentaPage() {
             </p>
           </div>
 
-          <form action={cerrarSesion} className="shrink-0">
-            <Button type="submit" variant="danger" size="touch">
-              <LogOut aria-hidden />
-              Cerrar sesión
-            </Button>
-          </form>
+          <div className="shrink-0">
+            <BotonCerrarSesion />
+          </div>
         </CardBody>
       </Card>
     </div>

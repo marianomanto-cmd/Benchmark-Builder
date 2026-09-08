@@ -34,13 +34,50 @@ export const DEBOUNCE_MS = 800
  * versión vieja del wizard o directamente basura de otra app. Se valida
  * la forma antes de devolverlo.
  */
+const TIPOS_COBERTURA = ['porcentaje', 'monto', 'ninguna']
+
+/**
+ * Un ítem a medio guardar es peor que ningún borrador: el paso 2 lo
+ * renderiza y el footer suma su monto. Si no tiene la forma completa,
+ * se descarta el borrador entero.
+ */
+function esItem(dato: unknown): boolean {
+  if (!dato || typeof dato !== 'object') return false
+  const i = dato as Record<string, unknown>
+  return (
+    typeof i.key === 'string' &&
+    typeof i.nombre === 'string' &&
+    typeof i.monto === 'number' &&
+    Number.isFinite(i.monto) &&
+    typeof i.cobertura_valor === 'number' &&
+    Number.isFinite(i.cobertura_valor) &&
+    typeof i.cobertura_tipo === 'string' &&
+    TIPOS_COBERTURA.includes(i.cobertura_tipo)
+  )
+}
+
+function esCuota(dato: unknown): boolean {
+  if (!dato || typeof dato !== 'object') return false
+  const c = dato as Record<string, unknown>
+  return (
+    typeof c.key === 'string' &&
+    typeof c.etiqueta === 'string' &&
+    typeof c.porcentaje === 'number' &&
+    Number.isFinite(c.porcentaje)
+  )
+}
+
 function esBorrador(dato: unknown): dato is BorradorPresupuesto {
   if (!dato || typeof dato !== 'object') return false
   const b = dato as Partial<BorradorPresupuesto>
   if (b.paso !== 1 && b.paso !== 2 && b.paso !== 3) return false
   if (typeof b.guardado_en !== 'string') return false
   if (typeof b.fecha_emision !== 'string' || typeof b.valido_hasta !== 'string') return false
-  if (!Array.isArray(b.items) || !Array.isArray(b.cuotas)) return false
+  if (typeof b.observaciones !== 'string' || typeof b.nota_interna !== 'string') return false
+  if (b.estado_inicial !== 'realizado' && b.estado_inicial !== 'enviado') return false
+  if (typeof b.vigencia_dias !== 'number' || !Number.isFinite(b.vigencia_dias)) return false
+  if (!Array.isArray(b.items) || !b.items.every(esItem)) return false
+  if (!Array.isArray(b.cuotas) || !b.cuotas.every(esCuota)) return false
   return true
 }
 

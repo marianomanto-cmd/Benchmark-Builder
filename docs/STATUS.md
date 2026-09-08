@@ -87,6 +87,9 @@ Migraciones en `supabase/migrations/`, en este orden:
 | `20260101000700_guardas_en_la_base.sql` | Las guardas del snapshot, fuera de la RPC |
 | `20260101000800_duplicar_fiel.sql` | Duplicado fiel: cuotas y obra social por ítem |
 | `20260101000900_reloj_sin_respuesta.sql` | El reloj de «días sin respuesta» no se resetea |
+| `20260101001000_paridad_redondeo.sql` | Redondeo idéntico al del cliente |
+| `20260101001100_alta_historial.sql` | Historial honesto y cuotas validadas |
+| `20260101001200_aumento_exacto.sql` | El aumento masivo escribe lo que promete |
 
 ### Tablas
 
@@ -284,6 +287,15 @@ antes de aceptarlo. Los que resultaron reales:
 | Un corte de red durante un arrastre dejaba la tarjeta congelada | `mover()` con `try/catch/finally` y rollback |
 | Un tratamiento `iniciado` se degradaba arrastrándolo y no se distinguía de `aceptado` | Badge propio en la tarjeta y arrastre bloqueado con aviso |
 | Setear estado dentro de efectos provocaba renders en cascada (React 19) | Reseteo por `key`, derivación en render y `useSyncExternalStore` para el borrador |
+| `lib/calculo.ts` y `calcular_cobertura()` diferían un peso con porcentajes de dos decimales (float vs `numeric`) | Los dos multiplican antes de dividir; el barrido de `npm run test:paridad` lo vigila |
+| El preview del aumento masivo prometía un monto y la RPC escribía otro | Misma cuenta en los dos lados (`montoConAumento`) |
+| El evento «creado» contaba las prestaciones como condiciones de pago | Contador propio; el historial es append-only y esa línea no se corrige después |
+| Unos porcentajes que no sumaban 100 abortaban la emisión con un error de Postgres crudo | Se valida antes, con un mensaje que se entiende |
+| El KPI de aceptación mostraba la tasa de 90 días sobre la base de 30 | Cada porcentaje con su base |
+| El primer envío por WhatsApp proponía la plantilla de recordatorio | La plantilla se decide por el historial de envíos, no por el estado |
+| Cerrar sesión dejaba el borrador —con nombre del paciente— en el navegador compartido | El logout lo borra en los dos lugares donde se cierra sesión |
+| Un `?prof=` que no era uuid dejaba la home y el pipeline trabados | Los filtros descartan lo que no es uuid |
+| `esBorrador` validaba 6 de 16 campos: un borrador viejo rompía el wizard | Valida también la forma de cada ítem y cada cuota |
 
 ### Pendiente
 
@@ -300,7 +312,19 @@ antes de aceptarlo. Los que resultaron reales:
 
 ---
 
-## 10 · Por confirmar con el consultorio
+## 10 · Cómo se verifica
+
+- `npm run build` · `npm run typecheck` · `npm run lint` — sin errores.
+- `npm test` — 45 casos sobre `lib/calculo.ts`, `lib/formato.ts` y `lib/estados.ts`.
+- `npm run test:paridad` — 220 casos comparando `calcularItem` contra
+  `calcular_cobertura()` en una base real. **Es el que hay que correr después
+  de tocar cualquiera de los dos.**
+- Las guardas de la regla del snapshot se probaron contra un Postgres real
+  aplicando las migraciones desde cero: cada regla se intentó violar y tiene
+  que fallar (ítems de un emitido, arancel usado, borrado de aranceles,
+  edición del historial, vuelta a borrador, reapuntado de un arancel).
+
+## 11 · Por confirmar con el consultorio
 
 - ¿Los profesionales tienen login propio, o carga siempre la recepción a nombre
   del profesional? Afecta la RLS y el default del paso 1. **Hoy se asume login

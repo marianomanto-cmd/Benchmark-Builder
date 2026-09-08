@@ -10,6 +10,7 @@ import {
   repartirCuotas,
   cuotasSuman100,
   compararConHoy,
+  montoConAumento,
   type CoberturaTipo,
 } from '../lib/calculo.ts'
 
@@ -113,4 +114,27 @@ test('compararConHoy detecta el precio desactualizado', () => {
   const igual = compararConHoy(snapshot, snapshot)
   assert.equal(igual.desactualizado, false)
   assert.equal(igual.diferencia, 0)
+})
+
+test('montoConAumento coincide con la cuenta de aumento_masivo()', () => {
+  assert.equal(montoConAumento(48000, 10), 52800)
+  assert.equal(montoConAumento(48000, 15), 55200)
+  assert.equal(montoConAumento(66000, 15), 75900)
+  assert.equal(montoConAumento(48000, 20), 57600)
+  assert.equal(montoConAumento(126000, 0), 126000, 'sin aumento no cambia')
+
+  // El caso que separaba al preview de la RPC: `monto * (1 + pct/100)`
+  // en punto flotante daba 769961 y la base escribía 769962.
+  assert.equal(montoConAumento(385000, 99.99), 769962)
+  assert.equal(montoConAumento(126000, 33.33), 167996)
+
+  // Un aumento nunca puede bajar el precio.
+  for (const monto of [1, 999, 48000, 385000, 999999]) {
+    for (const pct of [0, 1, 12.5, 15, 33.33, 99.99, 100]) {
+      assert.ok(
+        montoConAumento(monto, pct) >= monto,
+        `${monto} con +${pct} % quedó por debajo del original`,
+      )
+    }
+  }
 })

@@ -59,19 +59,31 @@ interface DatosEnvio {
   profesionalNombre: string
   profesionalMatricula: string | null
   esDuplicado: boolean
+  /** Si ya se mandó alguna vez, según el historial append-only. */
+  yaSeEnvio: boolean
 }
 
 const CONSULTORIO = process.env.NEXT_PUBLIC_CONSULTORIO_NOMBRE ?? null
 
 async function traerDatos(presupuestoId: string): Promise<DatosEnvio | null> {
   const supabase = createClient()
-  const { data, error } = await supabase
-    .from('presupuestos')
-    .select(
-      'id, numero, estado, paciente_id, paciente_nombre, paciente_telefono, total_a_cargo, valido_hasta, profesional_nombre, profesional_matricula, duplicado_de, paciente:pacientes(telefono, tiene_whatsapp)',
-    )
-    .eq('id', presupuestoId)
-    .maybeSingle()
+  const [{ data, error }, envios] = await Promise.all([
+    supabase
+      .from('presupuestos')
+      .select(
+        'id, numero, estado, paciente_id, paciente_nombre, paciente_telefono, total_a_cargo, valido_hasta, profesional_nombre, profesional_matricula, duplicado_de, paciente:pacientes(telefono, tiene_whatsapp)',
+      )
+      .eq('id', presupuestoId)
+      .maybeSingle(),
+    // El estado no alcanza para saber si es el primer envío: el wizard
+    // guarda como «Enviado» y recién después abre este sheet. Lo que sí
+    // lo sabe es el historial, que es append-only.
+    supabase
+      .from('presupuesto_eventos')
+      .select('id', { count: 'exact', head: true })
+      .eq('presupuesto_id', presupuestoId)
+      .eq('tipo', 'enviado_whatsapp'),
+  ])
 
   if (error) throw new Error(error.message)
   if (!data) return null
@@ -97,13 +109,18 @@ async function traerDatos(presupuestoId: string): Promise<DatosEnvio | null> {
     profesionalNombre: texto(fila.profesional_nombre),
     profesionalMatricula: textoOpcional(fila.profesional_matricula),
     esDuplicado: textoOpcional(fila.duplicado_de) !== null,
+    yaSeEnvio: (envios.count ?? 0) > 0,
   }
 }
 
 /** Plantilla que conviene según dónde está parado el presupuesto. */
 function plantillaSugerida(datos: DatosEnvio): PlantillaWhatsApp {
   if (datos.esDuplicado) return 'actualizacion'
-  if (datos.estado === 'enviado' || datos.estado === 'pendiente') return 'recordatorio'
+  // Sólo es recordatorio si de verdad ya se mandó una vez. Mirar el
+  // estado no alcanza: «Guardar y enviar por WhatsApp» deja el
+  // presupuesto en `enviado` y recién ahí abre este sheet, así que el
+  // primer envío llegaba acá proponiendo un recordatorio.
+  if (datos.yaSeEnvio) return 'recordatorio'
   return 'primer_envio'
 }
 
