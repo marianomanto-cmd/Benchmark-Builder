@@ -1,14 +1,18 @@
-import { type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+import type { NextRequest } from 'next/server'
+import { actualizarSesion } from '@/lib/supabase/proxy'
 
-// Next 16 renamed the `middleware` file convention to `proxy`.
+// Next 16: `middleware.ts` pasó a llamarse `proxy.ts` y la función
+// exportada es `proxy`. El runtime es nodejs y no se configura.
 export async function proxy(request: NextRequest) {
-  return await updateSession(request);
+  return actualizarSesion(request)
 }
 
 export const config = {
   matcher: [
-    // Run on everything except static assets and images.
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    /*
+     * Todo menos estáticos, imágenes y el favicon.
+     * La route del PDF sí pasa: necesita sesión.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff2?)$).*)',
   ],
-};
+}

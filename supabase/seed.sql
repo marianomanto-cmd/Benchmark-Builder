@@ -1,68 +1,130 @@
--- Benchmark Builder — demo seed (Copa · Cartagena Q2 2026 case).
--- Idempotent enough to re-run; competitors use (project_id, handle) conflict guard.
--- Provenance (migration 20260616130000): the in-app "click al dato" runs on the
--- in-memory case mentions (lib/demo-cases). For the live DB path, set
--- mentions.competitor_id and insert insight_sources rows here when seeding —
--- TODO once mention↔competitor↔insight IDs are pinned in this file.
+-- ════════════════════════════════════════════════════════════════════
+-- Smile Lab · Presupuestos — Semilla de desarrollo
+--
+--   supabase db reset          (local)
+--   psql "$DATABASE_URL" -f supabase/seed.sql
+--
+-- No crea presupuestos: el wizard es lo primero que hay que probar y
+-- conviene que la Home arranque en su estado vacío (pantalla 03).
+-- ════════════════════════════════════════════════════════════════════
 
-insert into workspaces (name, slug, brand_color)
-values ('Copa Airlines', 'copa', '#6b1a36')
-on conflict (slug) do nothing;
-
-insert into projects (workspace_id, name, slug, period_days, status)
-select id, 'Cartagena · Q2 2026', 'cartagena-q2-2026', 60, 'active'
-from workspaces where slug = 'copa'
-on conflict (slug) do nothing;
-
-insert into competitors (project_id, name, handle, brand_letter, accent, is_client, mentions, engagement_total, reach_estimate, sov, sentiment, sort_order)
-select p.id, v.name, v.handle, v.brand_letter, v.accent, v.is_client, v.mentions, v.engagement_total, v.reach_estimate, v.sov, v.sentiment::sentiment_kind, v.sort_order
-from projects p,
-(values
-  ('Avianca','avianca','A','var(--series-1)',false,998,'412k','1,8M',41.3,'pos',0),
-  ('LATAM Colombia','latamcol','L','var(--series-2)',false,581,'264k','1,1M',24.0,'mix',1),
-  ('Wingo','wingo.col','W','var(--series-3)',false,312,'198k','680k',12.9,'neu',2),
-  ('Arajet','arajetdom','J','var(--series-4)',false,287,'142k','420k',11.9,'neu',3),
-  ('Copa Airlines','copaairlines','C','var(--series-client)',true,240,'188k','520k',9.9,'pos',4)
-) as v(name,handle,brand_letter,accent,is_client,mentions,engagement_total,reach_estimate,sov,sentiment,sort_order)
-where p.slug = 'cartagena-q2-2026'
-on conflict (project_id, handle) do nothing;
-
-insert into competitor_platforms (competitor_id, platform, sort_order)
-select c.id, pf.platform::platform, pf.ord
-from competitors c
-join projects p on p.id = c.project_id and p.slug = 'cartagena-q2-2026'
-join (values
-  ('avianca','instagram',0),('avianca','tiktok',1),('avianca','youtube',2),('avianca','x',3),('avianca','meta_ads',4),
-  ('latamcol','instagram',0),('latamcol','facebook',1),('latamcol','x',2),('latamcol','meta_ads',3),
-  ('wingo.col','instagram',0),('wingo.col','tiktok',1),('wingo.col','facebook',2),
-  ('arajetdom','instagram',0),('arajetdom','x',1),('arajetdom','web',2),
-  ('copaairlines','instagram',0),('copaairlines','youtube',1),('copaairlines','x',2),('copaairlines','meta_ads',3)
-) as pf(handle, platform, ord) on pf.handle = c.handle
+-- ── Profesionales ────────────────────────────────────────────
+insert into profesionales (nombre, matricula, especialidad) values
+  ('Álvarez, María',   'MP 12.345', 'Odontología general'),
+  ('Benítez, Tomás',   'MP 23.456', 'Endodoncia'),
+  ('Cabral, Lucía',    'MP 34.567', 'Prótesis y rehabilitación')
 on conflict do nothing;
 
-insert into mentions (project_id, platform, author, handle, ts_label, brand, body, sentiment, is_ad, thumb_type, metrics, sort_order)
-select p.id, v.platform::platform, v.author, v.handle, v.ts_label, v.brand, v.body, v.sentiment::sentiment_kind, v.is_ad, nullif(v.thumb_type,'')::thumb_kind, v.metrics::jsonb, v.sort_order
-from projects p,
-(values
-  ('instagram','Avianca','avianca','hace 4 h','Avianca','Cartagena en frecuencia diaria desde Bogotá y Medellín. Conocé los nuevos horarios de mañana ☀️','pos',false,'photo','[["♡","12,4k"],["💬","284"],["↗","842"]]',0),
-  ('meta_ads','Avianca','avianca · ad','activo · 12 d','Avianca','Vuelos a Cartagena desde USD 89. Combiná con Medellín y Santa Marta. Reservá hasta el 30/05.','pos',true,'ad','[["€","USD 8–12k"],["👁","est. 1,4M"]]',1),
-  ('tiktok','LATAM Colombia','latamcol','hace 9 h','LATAM','POV: tu primera vez en Cartagena. Etiquetá a quien te llevarías 👇 #latamtok','pos',false,'video','[["▷","1,2M"],["♡","98k"],["💬","3,4k"]]',2),
-  ('youtube','Wingo','wingo.col','hace 1 d','Wingo','Vlog · Cartagena en 48h con vuelo Wingo · Costos reales · Tips de viaje 2026','neu',false,'video','[["▷","42k"],["♡","2,1k"]]',3),
-  ('instagram','Copa Airlines','copaairlines','hace 18 h','Copa','Atardecer en Cartagena, vista desde el equipo Copa ✈️ #copaairlines','pos',false,'photo','[["♡","8,2k"],["💬","142"]]',4),
-  ('web','El Espectador','elespectador.com','03/05','—','Avianca, LATAM y Wingo aumentan frecuencia a Cartagena para temporada 2026.','neu',false,'article','[["📄","prensa"],["👁","24k"]]',5)
-) as v(platform,author,handle,ts_label,brand,body,sentiment,is_ad,thumb_type,metrics,sort_order)
-where p.slug = 'cartagena-q2-2026';
+-- ── Obras sociales ───────────────────────────────────────────
+insert into obras_sociales (nombre, plan, notas) values
+  ('Particular',  null, 'Fila testigo: el valor particular se carga con obra_social_id = null'),
+  ('OSDE',        '210', null),
+  ('OSDE',        '310', null),
+  ('Apross',      null,  'Requiere autorización previa para prótesis'),
+  ('Swiss Medical', 'SMG02', null),
+  ('Galeno',      null, null),
+  ('PAMI',        null, null)
+on conflict (nombre, plan) do nothing;
 
-insert into insights (project_id, kind, title, body, sources, confidence, sort_order)
-select p.id, v.kind::insight_kind, v.title, v.body, v.sources, v.confidence, v.sort_order
-from projects p,
-(values
-  ('opp','LATAM no usa TikTok orgánico','Cero piezas orgánicas en TikTok en los últimos 60 días, mientras Avianca y Wingo concentran 124 videos combinados. Nicho abierto.',38,0.87,0),
-  ('thr','Avianca duplicó spend en Meta','Spend estimado pasó de USD 4–6k (mes 1) a USD 8–12k (mes 2). 22 nuevos creativos, segmentación CO + PA + US.',14,0.79,1),
-  ('pat','Picos jueves 11h','89 % de las publicaciones top en engagement se publicaron entre martes 18 h y jueves 11 h. Patrón estable a 8 semanas.',62,0.92,2)
-) as v(kind,title,body,sources,confidence,sort_order)
-where p.slug = 'cartagena-q2-2026';
+-- La fila "Particular" existe sólo para que aparezca en listados de
+-- referencia; los aranceles particulares van con obra_social_id null.
+delete from obras_sociales where nombre = 'Particular';
 
-insert into runs (project_id, number, cost_used, cost_soft, cost_hard, status)
-select p.id, 42, 42.18, 50, 75, 'done'
-from projects p where p.slug = 'cartagena-q2-2026';
+-- ── Prestaciones ─────────────────────────────────────────────
+insert into prestaciones (nombre, codigo, rubro, descripcion, vigencia_dias) values
+  ('Consulta y diagnóstico',        '01.01', 'Diagnóstico', 'Examen clínico completo, fichado y plan de tratamiento.', 30),
+  ('Radiografía periapical',        '01.02', 'Diagnóstico', 'Radiografía digital de una pieza.', 30),
+  ('Obturación simple (una cara)',  '02.01', 'Operatoria',  'Restauración con composite fotocurable en una cara.', 30),
+  ('Obturación compuesta (dos caras)', '02.02', 'Operatoria', 'Restauración con composite fotocurable en dos caras.', 30),
+  ('Endodoncia unirradicular',      '03.01', 'Endodoncia',  'Tratamiento de conducto en pieza de un conducto, incluye obturación provisoria.', 60),
+  ('Endodoncia multirradicular',    '03.02', 'Endodoncia',  'Tratamiento de conducto en molar, incluye obturación provisoria.', 60),
+  ('Corona de porcelana',           '04.01', 'Prótesis',    'Corona cerámica sobre pieza natural. Incluye provisorio y cementado.', 60),
+  ('Perno muñón colado',            '04.02', 'Prótesis',    'Perno intrarradicular colado, incluye toma de impresión.', 60),
+  ('Implante unitario',             '05.01', 'Implantes',   'Implante de titanio, incluye cirugía. No incluye corona.', 90),
+  ('Limpieza y profilaxis',         '06.01', 'Preventiva',  'Tartrectomía ultrasónica y pulido coronario.', 30),
+  ('Extracción simple',             '07.01', 'Cirugía',     'Exodoncia de pieza erupcionada sin complicaciones.', 30),
+  ('Extracción de tercer molar retenido', '07.02', 'Cirugía', 'Exodoncia quirúrgica con colgajo y osteotomía.', 60)
+on conflict (codigo) do nothing;
+
+-- ── Plantillas de condiciones de pago ────────────────────────
+insert into prestacion_cuotas (prestacion_id, orden, porcentaje, etiqueta)
+select p.id, 0, 50, 'al iniciar' from prestaciones p
+ where p.codigo in ('03.01','03.02','04.01','04.02','05.01','07.02')
+on conflict do nothing;
+
+insert into prestacion_cuotas (prestacion_id, orden, porcentaje, etiqueta)
+select p.id, 1, 50, 'última sesión' from prestaciones p
+ where p.codigo in ('03.01','03.02','04.01','04.02','05.01','07.02')
+on conflict do nothing;
+
+-- ── Aranceles vigentes ───────────────────────────────────────
+-- Valor particular (obra_social_id null) para todas las prestaciones.
+insert into aranceles (prestacion_id, obra_social_id, monto, cobertura_tipo, cobertura_valor, vigente_desde)
+select p.id, null, v.monto, 'ninguna', 0, current_date - 90
+from prestaciones p
+join (values
+  ('01.01',  22000),
+  ('01.02',  14000),
+  ('02.01',  48000),
+  ('02.02',  66000),
+  ('03.01', 138000),
+  ('03.02', 196000),
+  ('04.01', 385000),
+  ('04.02', 142000),
+  ('05.01', 720000),
+  ('06.01',  38000),
+  ('07.01',  52000),
+  ('07.02', 168000)
+) as v(codigo, monto) on v.codigo = p.codigo
+on conflict do nothing;
+
+-- OSDE 210: cobertura porcentual sobre un arancel de convenio.
+insert into aranceles (prestacion_id, obra_social_id, monto, cobertura_tipo, cobertura_valor, vigente_desde)
+select p.id, os.id, v.monto, 'porcentaje', v.pct, current_date - 90
+from prestaciones p
+join obras_sociales os on os.nombre = 'OSDE' and os.plan = '210'
+join (values
+  ('01.01',  20000, 100),
+  ('01.02',  13000, 100),
+  ('02.01',  44000,  70),
+  ('02.02',  60000,  70),
+  ('03.01', 126000,  60),
+  ('03.02', 178000,  60),
+  ('04.01', 350000,  40),
+  ('06.01',  35000, 100),
+  ('07.01',  47000,  80)
+) as v(codigo, monto, pct) on v.codigo = p.codigo
+on conflict do nothing;
+
+-- Apross: coberturas de monto fijo. Deja huecos a propósito
+-- (prótesis, implantes) para poder probar el bloque "sin arancel".
+insert into aranceles (prestacion_id, obra_social_id, monto, cobertura_tipo, cobertura_valor, vigente_desde)
+select p.id, os.id, v.monto, 'monto', v.fijo, current_date - 60
+from prestaciones p
+join obras_sociales os on os.nombre = 'Apross' and os.plan is null
+join (values
+  ('01.01',  21000, 21000),
+  ('02.01',  46000, 30000),
+  ('03.01', 132000, 62000),
+  ('06.01',  36000, 24000)
+) as v(codigo, monto, fijo) on v.codigo = p.codigo
+on conflict do nothing;
+
+-- Una vigencia cerrada, para que el drawer de historial (pantalla 10)
+-- tenga algo que mostrar desde el primer arranque.
+insert into aranceles (prestacion_id, obra_social_id, monto, cobertura_tipo, cobertura_valor, vigente_desde, vigente_hasta)
+select p.id, null, 42000, 'ninguna', 0, current_date - 240, current_date - 91
+from prestaciones p where p.codigo = '02.01'
+on conflict do nothing;
+
+-- ── Pacientes ────────────────────────────────────────────────
+insert into pacientes (nombre, dni, telefono, tiene_whatsapp, email, obra_social_id, nro_afiliado)
+values
+  ('Gómez, Renata',    '32.114.556', '+54 351 555-0134', true,  'renata.gomez@example.com',
+   (select id from obras_sociales where nombre = 'OSDE' and plan = '210'), '61234567801'),
+  ('Suárez, Martín',   '28.997.031', '+54 351 555-0192', true,  null,
+   (select id from obras_sociales where nombre = 'Apross'), 'AP-884120'),
+  ('Iriarte, Camila',  '41.203.778', '+54 351 555-0177', true,  'cami.iriarte@example.com', null, null),
+  ('Pereyra, Osvaldo', '14.556.220', null,               false, null,
+   (select id from obras_sociales where nombre = 'PAMI'), 'PAMI-9931204')
+on conflict do nothing;

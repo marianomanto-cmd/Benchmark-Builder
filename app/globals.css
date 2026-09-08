@@ -1,365 +1,296 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
-/* Drive Tailwind's dark: variant from the .dark class (next-themes), not OS preference */
-@custom-variant dark (&:where(.dark, .dark *));
+/* ════════════════════════════════════════════════════════════
+   Smile Lab · Presupuestos — Tokens de diseño
+   Fuente: handoff §4. Tomados de web-smile-lab.vercel.app.
+   Tailwind v4: las variables de @theme generan utilidades
+   (--color-ink → text-ink / bg-ink / border-ink).
+   ════════════════════════════════════════════════════════════ */
 
-/* ============================================================
- * Benchmark Builder — design tokens
- * Mirror of design/_shared/tokens.css, wired to next/font variables.
- * Components reference these raw CSS variables directly (var(--n900) …),
- * so the visual contract stays 1:1 with the design mocks.
- * ========================================================== */
+@theme {
+  /* ── Tinta ───────────────────────────────────────────────── */
+  --color-ink: #153a44; /* títulos, labels de tabla */
+  --color-body: #334155; /* párrafo */
+  --color-muted: #64748b; /* helper, metadatos */
+  --color-faint: #94a3b8; /* placeholder, deshabilitado */
 
-:root {
-  /* === NEUTRALS · stone, warm === */
-  --paper: #faf8f4;
-  --n50:   #f4f1eb;
-  --n100:  #ece7dd;
-  --n200:  #ddd6c7;
-  --n300:  #c7bdab;
-  --n400:  #a89e8b;
-  --n500:  #847a68;
-  --n600:  #635a4b;
-  --n700:  #3d352a;
-  --n800:  #2a241c;
-  --n900:  #181410;
+  /* ── Acento ──────────────────────────────────────────────── */
+  --color-primary: #2fa6b4; /* CTA, foco, acento */
+  --color-primary-hover: #1f8d9b;
+  --color-primary-press: #0d2730;
 
-  /* === ACCENT · sangría (burgundy → violet) === */
-  --sa-soft:   #f6e6ec;
-  --sa-light:  #c3517a;
-  --sa-base:   #6b1a36;
-  --sa-strong: #4a0f24;
-  --sa-violet: #8a2a5f;
+  /* ── Superficies ─────────────────────────────────────────── */
+  --color-tint: #eaf8fa; /* row hover, superficies */
+  --color-page: #f5fbfc; /* fondo */
+  --color-card: #ffffff;
+  --color-hairline: #e5eef0; /* bordes 1px, divisores */
 
-  /* === SEMANTIC STATES === */
-  --success: #1f7a3a;
-  --success-soft: #e3f1e7;
-  --warn:    #9a4a14;
-  --warn-soft: #f5e8d8;
-  --danger:  #b8261d;
-  --danger-soft: #fbe5e3;
-  --info:    #1d3fb8;
-  --info-soft: #e1e6f7;
+  /* ── Rama negativa / avisos ──────────────────────────────── */
+  --color-warm: #ffe7da;
+  --color-warm-soft: #fff6ef; /* banner de aviso */
+  --color-warm-faint: #fffcf9; /* fila con override */
+  --color-warm-ink: #8a4326;
+  --color-warm-line: #c4603a;
 
-  /* === PLATFORMS · dataviz only === */
-  --pf-instagram: #c13584;
-  --pf-tiktok:    #111111;
-  --pf-youtube:   #c4302b;
-  --pf-facebook:  #1877f2;
-  --pf-x:         #0f0f0f;
-  --pf-reddit:    #ff4500;
-  --pf-mastodon:  #6364ff;
-  --pf-bluesky:   #1083fe;
-  --pf-web:       #6b6b6b;
-  --pf-meta-ads:  #4267b2;
+  /* ── Tipografía ──────────────────────────────────────────── */
+  --font-display: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
 
-  /* === ORG vs AD === */
-  --organic: var(--n700);
-  --ad: var(--sa-base);
+  /* ── Radios ──────────────────────────────────────────────── */
+  --radius-hero: 28px;
+  --radius-card: 20px;
+  --radius-input: 16px;
+  --radius-pill: 999px;
 
-  /* === TYPE === wired to next/font (see app/layout.tsx) === */
-  --font-sans: var(--font-geist), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: var(--font-jbmono), ui-monospace, "SF Mono", Menlo, monospace;
-  --font-serif: var(--font-newsreader), "Source Serif Pro", Georgia, serif;
+  /* ── Sombras ─────────────────────────────────────────────── */
+  --shadow-rest: 0 1px 2px #153a440a, 0 6px 18px -10px #153a4414;
+  --shadow-lift: 0 2px 4px #2fa6b414, 0 18px 38px -20px #2fa6b447;
+  --shadow-cta: 0 10px 28px -12px rgba(47, 166, 180, 0.55);
 
-  /* === SPACING · 4pt scale === */
-  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
-  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
-  --sp-12: 48px; --sp-16: 64px;
-
-  /* === RADIUS === */
-  --r-xs: 3px; --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
-
-  /* === SHADOWS === */
-  --sh-1: 0 1px 0 rgba(24,20,16,.04), 0 1px 2px rgba(24,20,16,.04);
-  --sh-2: 0 1px 2px rgba(24,20,16,.06), 0 4px 12px rgba(24,20,16,.04);
-  --sh-3: 0 4px 12px rgba(24,20,16,.08), 0 12px 32px rgba(24,20,16,.06);
-  --sh-4: 0 8px 24px rgba(24,20,16,.12), 0 24px 64px rgba(24,20,16,.10);
-
-  /* === SEMANTIC (theme-aware) — components should use these for dark mode === */
-  --bg: var(--paper);
-  --surface: #ffffff;
-  --surface-2: var(--n50);
-  --border: var(--n200);
-  --border-strong: var(--n300);
-  --text: var(--n900);
-  --text-muted: var(--n500);
-  --text-faint: var(--n400);
-  --accent: var(--sa-base);
-  --accent-soft: var(--sa-soft);
-  --accent-ink: #ffffff;
-  /* dataviz series — theme-aware (monochrome scale + sangría client) */
-  --series-1: var(--n900);
-  --series-2: var(--n700);
-  --series-3: var(--n500);
-  --series-4: var(--n400);
-  --series-client: var(--sa-base);
-  /* data-viz accent — warm gold; coherent with the warm-neutral series, no coral.
-   * Used by charts/diagrams (NOT the brand chrome accent). */
-  --viz-accent: #a6741a;
+  /* ── Motion ──────────────────────────────────────────────── */
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Dark theme — DEFAULT site language (fourmula-inspired near-black plum).
- * Two colors: near-black canvas + bright sangría accent. */
-.dark {
-  --bg: #0a0810;
-  --surface: #15131c;
-  --surface-2: #1c1924;
-  --border: rgba(244, 241, 234, 0.10);
-  --border-strong: rgba(244, 241, 234, 0.18);
-  --text: #f4f1ea;
-  --text-muted: #8c8696;
-  --text-faint: #5a5563;
-  --accent: #f23a5e;            /* on-brand sangría, high-sat to pop on black */
-  --accent-ink: #0a0810;        /* text on the accent */
-  --accent-soft: #241019;
-  /* dashboard series stay monochrome (brand comparison), client in accent */
-  --series-1: #f4f1ea;
-  --series-2: #c7bdab;
-  --series-3: #8c8696;
-  --series-4: #5a5563;
-  --series-client: #f23a5e;
-  /* data-viz accent — warm amber/gold for charts & diagrams (replaces coral). */
-  --viz-accent: #e0a458;
-  /* Visible depth on dark — the light-theme shadows vanish on near-black. */
-  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --sh-2: 0 2px 10px rgba(0, 0, 0, 0.5);
-  --sh-3: 0 10px 30px rgba(0, 0, 0, 0.55);
-  --sh-4: 0 20px 60px rgba(0, 0, 0, 0.65);
-  color-scheme: dark;
+/* ════════════════════════════════════════════════════════════
+   Base
+   ════════════════════════════════════════════════════════════ */
+
+@layer base {
+  * {
+    border-color: var(--color-hairline);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-page);
+    color: var(--color-body);
+    font-family: var(--font-sans);
+    font-size: 15.5px;
+    line-height: 1.7;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--color-ink);
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Foco: ring 2px primary con offset 2 sobre la superficie. */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Todo monto lleva tabular-nums. */
+  [data-monto],
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font-family: inherit;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-faint);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cfe3e7;
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #a9ccd3;
+    background-clip: content-box;
+  }
 }
 
-/* Expose a handful of tokens to Tailwind utilities (optional convenience). */
-@theme inline {
-  --font-sans: var(--font-geist);
-  --font-mono: var(--font-jbmono);
-  --font-serif: var(--font-newsreader);
-  --color-paper: var(--paper);
-  --color-ink: var(--n900);
-  --color-sangria: var(--sa-base);
+/* ════════════════════════════════════════════════════════════
+   Escala tipográfica (handoff §4)
+   ════════════════════════════════════════════════════════════ */
+
+@layer components {
+  .t-display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 44px;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    color: var(--color-ink);
+  }
+
+  .t-h2 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 26px;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+  }
+
+  .t-h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+  }
+
+  /* Número héroe: el que el paciente busca. */
+  .t-hero-num {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 34px;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink);
+  }
+
+  .t-body {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 15.5px;
+    line-height: 1.7;
+    color: var(--color-body);
+  }
+
+  .t-ui {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .t-label {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1.3;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(21, 58, 68, 0.7);
+  }
+
+  .t-helper {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+
+  /* Micro-badge de 24px para metadatos dentro de filas. */
+  .t-micro {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10.5px;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* Superficie de tarjeta estándar. */
+  .surface {
+    background: var(--color-card);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-rest);
+  }
+
+  /* Fila de tabla desktop: 15px de padding vertical, hover tint. */
+  .row-hover {
+    transition: background-color 140ms var(--ease-out-soft);
+  }
+  .row-hover:hover {
+    background-color: var(--color-tint);
+  }
 }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  background: var(--bg);
-  font-family: var(--font-sans);
-  color: var(--text);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  font-feature-settings: "cv11", "ss01";
+/* ════════════════════════════════════════════════════════════
+   Motion — fade + translateY, 300ms ease-out
+   ════════════════════════════════════════════════════════════ */
+
+@layer utilities {
+  @keyframes enter-up {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .animate-enter {
+    animation: enter-up 300ms var(--ease-out-soft) both;
+  }
+
+  .press:active {
+    transform: scale(0.97);
+  }
+
+  /* Carrusel de KPIs en mobile: 2,5 visibles, sin scrollbar. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-/* Body is transparent so the fixed global video background (SiteBackground,
- * z-index:-1) shows through; html keeps --bg as the ultimate fallback. */
-body { background: transparent; }
-
-/* ============================================================
- * Cosmetic polish — selección con acento + scrollbars finos temáticos.
- * ========================================================== */
-::selection { background: color-mix(in srgb, var(--accent) 32%, transparent); color: var(--text); }
-* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
-
-/* Botones (Btn) — feedback consistente en hover/active en toda la app. */
-.bb-btn:not(:disabled):hover { filter: brightness(1.08); }
-.bb-btn:not(:disabled):active { transform: translateY(1px); }
-
-/* Card hover elevation (runs, proyectos, galería). */
-.bb-lift { transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease; }
-.bb-lift:hover { transform: translateY(-3px); box-shadow: var(--sh-3); border-color: var(--border-strong); }
-
-/* Logo mark — glow de marca con pulso suave. */
-@keyframes bb-logo-glow {
-  0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 10px color-mix(in srgb, var(--accent) 38%, transparent); }
-  50% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 48%, transparent), 0 0 20px color-mix(in srgb, var(--accent) 62%, transparent); }
-}
-.bb-logo { border-radius: 50%; animation: bb-logo-glow 3.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .bb-logo { animation: none; box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent); }
-}
-
-/* contentEditable placeholder (editor de reporte). */
-[contenteditable][data-ph]:empty::before { content: attr(data-ph); color: var(--n400); pointer-events: none; }
-
-/* Exportar PDF — imprime sólo la hoja del reporte (.bb-print). */
-@media print {
-  body * { visibility: hidden !important; }
-  .bb-print, .bb-print * { visibility: visible !important; }
-  .bb-print { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none !important; }
-  .bb-noprint { display: none !important; }
-}
-
-/* ============================================================
- * Type utilities (mirror of tokens.css)
- * ========================================================== */
-.t-display { font-size: 36px; line-height: 40px; font-weight: 600; letter-spacing: -0.02em; text-wrap: balance; }
-.t-h1 { font-size: 24px; line-height: 28px; font-weight: 600; letter-spacing: -0.02em; text-wrap: balance; }
-.t-h2 { font-size: 18px; line-height: 24px; font-weight: 600; letter-spacing: -0.01em; }
-.t-h3 { font-size: 15px; line-height: 20px; font-weight: 600; }
-.t-body { font-size: 14px; line-height: 20px; font-weight: 400; }
-.t-small { font-size: 13px; line-height: 18px; font-weight: 400; }
-.t-micro { font-size: 11px; line-height: 14px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--n500); }
-.t-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.t-serif { font-family: var(--font-serif); }
-
-/* ============================================================
- * Editorial type scale (fourmula language) — headlines ARE the design.
- * ========================================================== */
-.t-hero {
-  font-family: var(--font-serif);
-  font-weight: 400;
-  font-size: clamp(2.6rem, 7.4vw, 6.3rem);
-  line-height: 0.96;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-}
-.t-section {
-  font-family: var(--font-serif);
-  font-weight: 400;
-  font-size: clamp(2.2rem, 5.6vw, 4.6rem);
-  line-height: 1.02;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-}
-.t-eyebrow {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-.t-lead {
-  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
-  line-height: 1.6;
-  color: var(--text-muted);
-}
-/* eyebrow accent dot */
-.t-eyebrow .dot,
-.eyebrow-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-/* Marquee ticker (sources). Duration scales with track width: each half is now
-   REPEAT (5) copies of the list, so the -50% loop travels 5× the old distance —
-   160s keeps the original ~32s-per-copy pace (slower, smooth). */
-@keyframes bb-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-.bb-marquee-track {
-  display: inline-flex;
-  white-space: nowrap;
-  animation: bb-marquee 160s linear infinite;
-  will-change: transform;
-}
-.bb-marquee:hover .bb-marquee-track { animation-play-state: paused; }
-
-/* Lenis smooth scroll. */
-html.lenis, html.lenis body { height: auto; }
-.lenis.lenis-smooth { scroll-behavior: auto !important; }
-.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
-.lenis.lenis-stopped { overflow: hidden; }
-
-/* ============================================================
- * Mobile foundation — sin scroll horizontal, sin solapamientos.
- * Los componentes del dashboard usan estilos inline con grids/anchos
- * fijos; estos helpers (con !important) los colapsan en pantallas chicas.
- * Aplicá .bb-collapse a grids multi-columna, .bb-row a flex rows que
- * deben apilarse, .bb-scroll-x a tablas/lienzos anchos, .bb-hide-sm a lo
- * que se oculta en mobile.
- * ========================================================== */
-html, body { overflow-x: hidden; max-width: 100%; }
-img, video, canvas { max-width: 100%; }
-* { min-width: 0; }
-
-.bb-only-sm { display: none; }
-
-@media (max-width: 860px) {
-  .bb-collapse { grid-template-columns: 1fr !important; }
-  .bb-bento { grid-template-columns: 1fr !important; }
-  .bb-bento > * { grid-column: auto !important; grid-row: auto !important; }
-  .bb-row { flex-direction: column !important; align-items: stretch !important; }
-  .bb-scroll-x { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
-  .bb-hide-sm { display: none !important; }
-  .bb-sidebar { display: none !important; }
-  .bb-only-sm { display: inline-flex !important; }
-  .bb-shell-content { padding: 14px !important; }
-  .bb-shell-header { padding: 0 12px !important; gap: 8px !important; }
-  .bb-editor { grid-template-columns: 1fr !important; height: auto !important; }
-  .bb-editor > * { overflow: visible !important; height: auto !important; }
-}
-
-/* Report comparison: side-by-side table on desktop screen AND always in print
-   (the PDF must keep the table); stacked cards only on the mobile SCREEN. The
-   `screen` query keeps print unaffected; the print query forces the table. */
-.bb-rep-cards { display: none; }
-@media screen and (max-width: 860px) {
-  .bb-rep-table { display: none; }
-  .bb-rep-cards { display: block; }
-}
-@media print {
-  .bb-rep-table { display: block !important; }
-  .bb-rep-cards { display: none !important; }
-}
-
-/* Accessible focus ring. */
-:where(a, button, input, textarea, select, [tabindex]):focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-/* Spinner (wizard / loading buttons). */
-@keyframes bb-spin { to { transform: rotate(360deg); } }
-.bb-spin { animation: bb-spin 0.8s linear infinite; }
-
-/* Panel rows (timeline / quick-access / account runs) — hover affordance. */
-.bb-tl, .bb-qa, .bb-runrow { transition: background 0.14s ease, border-color 0.14s ease, transform 0.12s ease; }
-.bb-tl:hover, .bb-qa:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
-.bb-runrow:hover { border-color: var(--accent) !important; transform: translateX(2px); }
-
-/* Ambient aurora for the home — immersive light field (CSS only, GPU-friendly).
- * A drifting field of accent/plum radial glows behind the (transparent) sections. */
-@keyframes bb-aurora {
-  0%   { transform: translate3d(-5%, -3%, 0) scale(1); }
-  50%  { transform: translate3d(5%, 3%, 0) scale(1.18); }
-  100% { transform: translate3d(-5%, -3%, 0) scale(1); }
-}
-.bb-aurora {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(38% 44% at 22% 18%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 72%),
-    radial-gradient(36% 42% at 82% 8%, color-mix(in srgb, #8a2a5f 30%, transparent), transparent 72%),
-    radial-gradient(34% 40% at 65% 62%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 72%);
-  filter: blur(36px);
-  opacity: 0.6;
-  animation: bb-aurora 20s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) { .bb-aurora { animation: none; } }
-
-/* Skeleton shimmer (HANDOFF §3.1) */
-@keyframes bb-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-.bb-shimmer {
-  background-image: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%);
-  background-size: 200% 100%;
-  animation: bb-shimmer 1.4s ease-in-out infinite;
-}
-
-/* Respect reduced motion globally (HANDOFF §6.4). */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  }
+  .press:active {
+    transform: none;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   Print — el PDF se genera aparte, pero la vista de detalle
+   debe imprimir decente desde el navegador.
+   ════════════════════════════════════════════════════════════ */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
   }
 }
