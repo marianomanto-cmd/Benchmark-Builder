@@ -192,16 +192,23 @@ export default async function ArancelesPage(props: PageProps<'/biblioteca/arance
         .order('vigente_desde', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(LIMITE_HISTORICO + 1),
-      supabase.from('presupuesto_items').select('arancel_id'),
+      // Una fila por arancel, no una por ítem: PostgREST corta en
+      // `max_rows` (1000 por defecto) y, pasado ese punto, traer
+      // `presupuesto_items` entero devolvía conteos de más abajo de los
+      // reales. De ese conteo depende el sello «no editable», así que
+      // mentir hacia abajo dejaría editable una vigencia ya usada.
+      supabase.from('aranceles_usos').select('arancel_id, usos'),
     ])
 
     const crudos = (arancelesRes.data ?? []) as ArancelBase[]
     historicoTruncado = crudos.length > LIMITE_HISTORICO
 
     const usos = new Map<string, number>()
-    for (const item of (itemsRes.data ?? []) as { arancel_id: string | null }[]) {
-      if (!item.arancel_id) continue
-      usos.set(item.arancel_id, (usos.get(item.arancel_id) ?? 0) + 1)
+    for (const fila of (itemsRes.data ?? []) as {
+      arancel_id: string
+      usos: number | string
+    }[]) {
+      usos.set(fila.arancel_id, Number(fila.usos ?? 0))
     }
 
     const nombrePrestacion = new Map(prestaciones.map((p) => [p.id, p] as const))

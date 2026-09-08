@@ -90,6 +90,7 @@ Migraciones en `supabase/migrations/`, en este orden:
 | `20260101001000_paridad_redondeo.sql` | Redondeo idéntico al del cliente |
 | `20260101001100_alta_historial.sql` | Historial honesto y cuotas validadas |
 | `20260101001200_aumento_exacto.sql` | El aumento masivo escribe lo que promete |
+| `20260101001300_duplicado_afiliado.sql` | Duplicado coherente y conteo de usos agregado |
 
 ### Tablas
 
@@ -143,6 +144,9 @@ Migraciones en `supabase/migrations/`, en este orden:
   pantalla 10 y la base del banner de precio desactualizado.
 - `aranceles_programados` — aumentos ya cargados que todavía no arrancaron.
   Sin esta vista, arreglar la anterior los haría desaparecer de la pantalla.
+- `aranceles_usos` — cuántos presupuestos emitidos usan cada arancel. Es una
+  fila por arancel: contar sobre `presupuesto_items` se corta en el `max_rows`
+  de PostgREST, y de ese número depende el sello «no editable».
 - `presupuestos_listado` — agrega `prestacion_principal`, `items_count` y
   `dias_en_estado` para Home y pipeline.
 
@@ -296,6 +300,8 @@ antes de aceptarlo. Los que resultaron reales:
 | Cerrar sesión dejaba el borrador —con nombre del paciente— en el navegador compartido | El logout lo borra en los dos lugares donde se cierra sesión |
 | Un `?prof=` que no era uuid dejaba la home y el pipeline trabados | Los filtros descartan lo que no es uuid |
 | `esBorrador` validaba 6 de 16 campos: un borrador viejo rompía el wizard | Valida también la forma de cada ítem y cada cuota |
+| El duplicado mezclaba la obra social del original con el afiliado actual del paciente | El afiliado sólo se refresca si la ficha sigue en la misma obra social |
+| El conteo de usos del histórico se cortaba en las 1000 filas de PostgREST, y de él depende el sello «no editable» | Vista `aranceles_usos`: una fila por arancel en vez de una por ítem |
 
 ### Pendiente
 
