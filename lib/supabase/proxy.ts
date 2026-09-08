@@ -1,8 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-/** Rutas que no exigen sesión. */
-const PUBLICAS = ['/login', '/auth']
+/**
+ * Rutas que no exigen sesión.
+ *
+ * `/api/cron` se autentica sola con `CRON_SECRET`: la llama Vercel Cron,
+ * que manda `Authorization: Bearer …` y ninguna cookie. Si el proxy la
+ * mandara al login, el pase de `enviado → pendiente` no correría nunca.
+ */
+const PUBLICAS = ['/login', '/auth', '/api/cron']
 
 /**
  * Refresca la sesión en cada request y redirige al login si no hay.
