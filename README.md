@@ -1,82 +1,122 @@
-# Benchmark Builder
+# Smile Lab · Presupuestos
 
-Herramienta de research competitivo y social listening asistida por IA. Un operador
-define un cliente, sus competidores y las plataformas a monitorear; la IA scrapea,
-analiza sentimiento, detecta insights y arma material curado para un reporte editorial
-exportable.
+Aplicación interna del consultorio para cargar presupuestos odontológicos,
+calcular lo que queda a cargo del paciente según su obra social, y seguir la
+respuesta comercial hasta que el tratamiento se inicia o se pierde.
 
-> **Caso de demo:** Copa Airlines vs Avianca / LATAM / Wingo / Arajet · ruta Cartagena.
+**Stack:** Next.js 16 (App Router) · Supabase (Postgres, Auth, Storage) · Vercel.
 
-## Stack
+---
 
-| Capa | Tecnología |
+## La regla que gobierna todo el producto
+
+**El presupuesto emitido es un documento, no una consulta a la base.**
+
+Al guardar un presupuesto se **copian** dentro de `presupuesto_items` el nombre
+de la prestación, su descripción, el monto, el tipo y valor de cobertura y la
+diferencia calculada. No se guardan referencias que después se resuelvan por
+join para mostrar precios.
+
+1. `aranceles` es **append-only**. Un cambio de precio inserta una fila nueva y
+   cierra la anterior. Nunca un `UPDATE` de monto o cobertura.
+2. Un arancel ya usado en un presupuesto **no se puede editar** (bloqueado en la
+   UI y por trigger).
+3. Si el arancel vigente hoy difiere del snapshot, el detalle muestra un banner
+   informativo. La única acción ofrecida es **duplicar**.
+4. Los overrides de cobertura viven en el ítem del presupuesto, nunca escriben
+   en `aranceles`.
+
+Si algo de esto se relaja, el consultorio pierde la capacidad de defender un
+presupuesto viejo frente a un paciente. Es el requisito no funcional más
+importante del sistema.
+
+---
+
+## Arranque local
+
+```bash
+npm install
+cp .env.example .env.local     # completá las claves de Supabase
+npm run dev
+```
+
+### Base de datos
+
+Con la [Supabase CLI](https://supabase.com/docs/guides/local-development):
+
+```bash
+supabase start                 # Postgres + Auth + Storage + Studio
+supabase db reset              # aplica migrations/ y seed.sql
+```
+
+Contra un proyecto remoto:
+
+```bash
+supabase link --project-ref <ref>
+supabase db push
+psql "$DATABASE_URL" -f supabase/seed.sql
+```
+
+### Configuración de Supabase Auth
+
+- Habilitar **sólo Email / magic link**. Sin password.
+- **Deshabilitar signups abiertos** y restringir por dominio `@smilelab.com.ar`.
+- Agregar `NEXT_PUBLIC_SITE_URL` y las preview URLs de Vercel a **Redirect URLs**.
+
+### Storage
+
+Bucket **privado** `presupuestos`, acceso por signed URL de 7 días. Lo crea la
+migración `…_storage.sql`.
+
+---
+
+## Scripts
+
+| Comando | Qué hace |
 |---|---|
-| Framework | Next.js 16 (App Router, Turbopack) |
-| Lenguaje | TypeScript estricto |
-| Estilos | Tailwind CSS v4 + design tokens (`app/globals.css`) |
-| Fuentes | Geist · JetBrains Mono · Newsreader (`next/font`) |
-| Backend | Supabase (Postgres + Auth + Realtime + Storage) |
-| Deploy | Vercel (env vars inyectadas por la integración Supabase↔Vercel) |
+| `npm run dev` | Servidor de desarrollo (Turbopack) |
+| `npm run build` | Build de producción |
+| `npm run start` | Sirve el build |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
+
+---
 
 ## Estructura
 
 ```
-app/                  Rutas (una por pantalla) + layout + tokens globales
-  page.tsx            01 · Overview            /
-  live-feed/          02 · Live feed           /live-feed
-  comparativa/        03 · Comparativa         /comparativa
-  galeria/            04 · Galería org/ad      /galeria
-  research-plan/      05 · Plan de research    /research-plan
-  editor/             06 · Editor de reporte   /editor
-  reporte/            07 · Reporte PDF         /reporte
+app/
+  (auth)/login/            Pantalla 01 · magic link
+  (auth)/auth/callback/    Intercambio de code por sesión
+  (app)/layout.tsx         Shell: topbar desktop / tabbar+FAB mobile
+  (app)/page.tsx           Pantallas 02-03 · Home (con datos / vacía)
+  (app)/pipeline/          Pantalla 12 · Kanban (desktop)
+  (app)/presupuestos/[id]/ Pantalla 11 · Detalle
+  (app)/biblioteca/        Pantalla 09 · tabs de entidades
+  (app)/biblioteca/aranceles/  Pantalla 10 · grilla + drawer de vigencias
+  (app)/cuenta/            Perfil, cerrar sesión
+  api/presupuestos/[id]/pdf/   Pantalla 13 · @react-pdf/renderer
+  api/cron/pendientes/     enviado → pendiente a los 7 días
+  actions/                 Server Actions
 components/
-  ui/                 Primitivos (Btn, KPI, Field, Toast…) + íconos + charts
-  domain.tsx          Componentes de dominio (MentionCard, CompetitorCard…)
-  shell/              ScreenShell (sidebar + topbar)
-  screens/            Las 7 pantallas
+  wizard/                  Pantallas 04-08 · pasos 1-2-3, comboboxes, mini-forms
+  presupuesto/             Detalle y pantalla 14 · sheet de WhatsApp
+  home/ biblioteca/ pipeline/ shell/
+  ui/                      Button, Pill, EstadoBadge, Field, Combobox, Sheet, Drawer…
 lib/
-  platforms.ts        Registro de plataformas + tipos
-  format.ts           Formateo de numerales es-AR (2.418 · 41,3 % · USD 1,84)
-  supabase/           Clientes browser / server / proxy
-proxy.ts              Refresco de sesión Supabase (Next 16 `proxy` convention)
-design/               Contrato visual: HANDOFF.md, tokens.css, mocks HTML/JSX
+  calculo.ts               cobertura y a-cargo — única fuente de verdad
+  formato.ts               moneda, fechas y números es-AR
+  estados.ts               máquina de estados y paleta de badges
+  supabase/                clientes de browser, server y admin
+  pdf/                     documento A4
+supabase/migrations/       Esquema, guardas, RPC, RLS y Storage
+docs/STATUS.md             Estado del proyecto — fuente de verdad
 ```
 
-El **contrato visual** vive en [`design/HANDOFF.md`](design/HANDOFF.md). Los componentes
-portan 1:1 los mocks de `design/_shared/*.jsx`.
+---
 
-## Setup local
+## Documentación
 
-```bash
-cp .env.example .env.local   # ya apunta al proyecto Supabase "Benchmark Builder"
-npm install
-npm run dev                  # http://localhost:3000
-```
-
-### Variables de entorno
-
-Ver [`.env.example`](.env.example). Las de Supabase (`NEXT_PUBLIC_*`) se inyectan solas
-en Vercel. Para correr benchmarks reales hacen falta además: `SUPABASE_SERVICE_ROLE_KEY`
-(escritura del runner), `XAI_API_KEY` (Grok), `APIFY_TOKEN` y `META_AD_LIBRARY_TOKEN`.
-
-## Pipeline de ingesta
-
-`POST /api/runs { slug?, platforms? }` dispara un run (`lib/runner.ts`): scrapea las
-fuentes, puntúa sentimiento con Grok, hace upsert de menciones, recalcula agregados de
-competidores, regenera insights y registra costo. Adaptadores en `lib/sources/`:
-
-| Fuente | Proveedor |
-|---|---|
-| Reddit · Mastodon · Bluesky | API pública (sin token) |
-| Instagram · TikTok · X · YouTube · Facebook · Web | Apify (`APIFY_TOKEN`) |
-| Meta Ad Library | API oficial (`META_AD_LIBRARY_TOKEN`) |
-| Sentimiento + insights | xAI Grok (`XAI_API_KEY`) |
-
-Sin credenciales, cada fuente se marca `skipped` y la UI sigue mostrando el caso demo.
-
-## Estado
-
-7 pantallas con el design system completo. Schema + seed en Supabase. Overview y Live
-feed leen datos reales (con fallback a demo). Pipeline de ingesta completo y cableado al
-botón "Aprobar y ejecutar" — listo para enchufar tokens. Decisiones abiertas en
-`design/HANDOFF.md` §10 (billing, modelo de auth).
+- **[`docs/STATUS.md`](docs/STATUS.md)** — estado del proyecto: modelo de datos,
+  pipeline, pantallas, variables de entorno y qué está hecho vs pendiente.
+- **[`AGENTS.md`](AGENTS.md)** — reglas para quien (o lo que) escriba código acá.
