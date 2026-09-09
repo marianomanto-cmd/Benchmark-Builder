@@ -65,7 +65,8 @@ psql "$DATABASE_URL" -f supabase/seed.sql
 ### Configuración de Supabase Auth
 
 - Habilitar **sólo Email / magic link**. Sin password.
-- **Deshabilitar signups abiertos** y restringir por dominio `@smilelab.com.ar`.
+- **Deshabilitar signups abiertos**: las altas del equipo se hacen a mano
+  desde el dashboard. No hay filtro de dominio en el cliente.
 - Agregar `NEXT_PUBLIC_SITE_URL` y las preview URLs de Vercel a **Redirect URLs**.
 
 ### Storage

@@ -21,6 +21,7 @@ import {
   obtenerLinkPdf,
   registrarEnvioWhatsapp,
 } from '@/app/actions/seguimiento'
+import { datosConsultorio } from '@/lib/pdf/consultorio'
 import { fechaLarga, telefonoWhatsApp, vigenciaTexto } from '@/lib/formato'
 import { createClient } from '@/lib/supabase/client'
 import type { EstadoPresupuesto } from '@/lib/types'
@@ -63,7 +64,7 @@ interface DatosEnvio {
   yaSeEnvio: boolean
 }
 
-const CONSULTORIO = process.env.NEXT_PUBLIC_CONSULTORIO_NOMBRE ?? null
+const CONSULTORIO = datosConsultorio().nombre
 
 async function traerDatos(presupuestoId: string): Promise<DatosEnvio | null> {
   const supabase = createClient()

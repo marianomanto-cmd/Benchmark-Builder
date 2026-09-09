@@ -13,10 +13,8 @@ type Estado = 'idle' | 'enviando' | 'enviado' | 'error'
  * un mensaje entendible antes de gastar un mail; la restricción que manda
  * es la de Supabase Auth, esto es sólo cortesía.
  */
-const DOMINIO = (process.env.NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN ?? '').trim().toLowerCase()
 
 /** Segundos de espera antes de habilitar el reenvío. */
-const ESPERA_REENVIO = 45
 
 /** Errores que puede devolver el callback en `?error=`. */
 const MENSAJES_CALLBACK: Record<string, string> = {
@@ -33,9 +31,9 @@ function validarMail(valor: string): string | null {
   const mail = valor.trim().toLowerCase()
   if (!mail) return 'Escribí tu mail para continuar.'
   if (!RE_MAIL.test(mail)) return 'Ese mail no parece válido. Revisalo y probá de nuevo.'
-  if (DOMINIO && !mail.endsWith(`@${DOMINIO}`)) {
-    return `Sólo se entra con un mail @${DOMINIO}. Si el tuyo es otro, pedile el alta al consultorio.`
-  }
+  // Acá no se filtra por dominio: quién puede entrar lo decide Supabase,
+  // con los signups cerrados y las altas hechas a mano. Un chequeo en el
+  // cliente sólo daría la ilusión de control, y se saltea con F12.
   return null
 }
 
@@ -77,18 +75,9 @@ export function LoginForm({
     errorInicial ? (MENSAJES_CALLBACK[errorInicial] ?? MENSAJES_CALLBACK.enlace_invalido) : null,
   )
   const [errorCampo, setErrorCampo] = React.useState<string | null>(null)
-  const [restante, setRestante] = React.useState(0)
   // El reenvío es su propio flag: mientras corre, la pantalla sigue siendo
   // «Revisá tu correo», no vuelve al formulario.
   const [reenviando, setReenviando] = React.useState(false)
-
-  // Cuenta regresiva del reenvío: evita que se pidan cinco enlaces
-  // seguidos y que después llegue el más viejo primero.
-  React.useEffect(() => {
-    if (restante <= 0) return
-    const id = window.setTimeout(() => setRestante((n) => n - 1), 1000)
-    return () => window.clearTimeout(id)
-  }, [restante])
 
   async function enviar(mailDestino: string, esReenvio = false) {
     if (esReenvio) setReenviando(true)
@@ -109,7 +98,6 @@ export function LoginForm({
 
     if (esReenvio) setReenviando(false)
     setEstado('enviado')
-    setRestante(ESPERA_REENVIO)
   }
 
   function onSubmit(evento: React.FormEvent<HTMLFormElement>) {
@@ -157,14 +145,13 @@ export function LoginForm({
             size="touch"
             full
             loading={reenviando}
-            disabled={restante > 0}
             onClick={() => void enviar(mail.trim().toLowerCase(), true)}
           >
-            {reenviando
-              ? 'Mandando de nuevo…'
-              : restante > 0
-                ? `Reenviar enlace en ${restante} s`
-                : 'Reenviar enlace'}
+            {/* Sin cuenta regresiva: si alguien pide demasiados enlaces
+                seguidos, Supabase responde 429 y ese mensaje ya está
+                traducido. Hacer esperar 45 segundos por las dudas es
+                castigar al que no llegó el mail. */}
+            {reenviando ? 'Mandando de nuevo…' : 'Reenviar enlace'}
           </Button>
 
           <Button
@@ -176,7 +163,6 @@ export function LoginForm({
               setEstado('idle')
               setMensajeError(null)
               setErrorCampo(null)
-              setRestante(0)
             }}
           >
             <ArrowLeft aria-hidden />
@@ -210,9 +196,7 @@ export function LoginForm({
           label="Mail"
           htmlFor="mail"
           error={errorCampo}
-          helper={
-            DOMINIO ? `Usá tu casilla @${DOMINIO}.` : 'La casilla que usás en el consultorio.'
-          }
+          helper="La casilla que usás en el consultorio."
         >
           <Input
             id="mail"
@@ -222,7 +206,7 @@ export function LoginForm({
             autoComplete="email"
             autoFocus
             enterKeyHint="send"
-            placeholder={DOMINIO ? `nombre@${DOMINIO}` : 'nombre@consultorio.com'}
+            placeholder="nombre@consultorio.com"
             className="h-12 text-[16px]"
             invalido={Boolean(errorCampo)}
             value={mail}

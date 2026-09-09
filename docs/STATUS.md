@@ -187,7 +187,7 @@ borrador → realizado → enviado → pendiente → interesado → aceptado →
 
 | # | Ruta | Estado |
 |---|---|---|
-| 01 | `/login` | Magic link, un solo campo, restricción por dominio |
+| 01 | `/login` | Magic link, un solo campo |
 | 02 | `/` | Home con datos: 4 KPIs + tabla desktop / cards mobile |
 | 03 | `/` (vacía) | KPIs en `—` punteado + dos salidas |
 | 04-06 | `/?nuevo=1` | Wizard 3 pasos, modal sobre la ruta actual |
@@ -235,13 +235,19 @@ Ver `.env.example`. Resumen:
 | `NEXT_PUBLIC_SUPABASE_URL` | cliente + server | Proyecto de Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | cliente + server | Clave pública; la RLS autoriza |
 | `SUPABASE_SERVICE_ROLE_KEY` | **sólo server** | Route del PDF (firma URLs) y cron |
-| `NEXT_PUBLIC_SITE_URL` | cliente | Redirect del magic link |
-| `NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN` | cliente | Dominio del consultorio en el login |
+| `NEXT_PUBLIC_SITE_URL` | cliente | Redirect del magic link. En Vercel, **sólo en Production** |
 | `CRON_SECRET` | server | Valida `/api/cron/pendientes` |
-| `NEXT_PUBLIC_CONSULTORIO_*` | cliente + PDF | Encabezado y pie del documento |
 
-En **Supabase Auth**: sólo Email / magic link, signups abiertos deshabilitados,
-restricción por dominio `@smilelab.com.ar`, y `NEXT_PUBLIC_SITE_URL` + las
+Los datos del consultorio que salen en el PDF **no son variables de entorno**:
+son constantes en `lib/pdf/consultorio.ts`. El consultorio es uno solo y no
+cambian entre entornos; tenerlos en Vercel obligaba a cargar cuatro variables
+en tres entornos para un dato que se escribe una vez.
+
+Tampoco hay filtro de dominio en el login: quién entra lo decide Supabase con
+los signups cerrados. Un chequeo en el cliente sólo daba la ilusión de control.
+
+En **Supabase Auth**: sólo Email / magic link, signups abiertos deshabilitados
+(las altas se hacen a mano desde el dashboard) y `NEXT_PUBLIC_SITE_URL` + las
 preview URLs de Vercel en Redirect URLs.
 
 En **Storage**: bucket privado `presupuestos`, signed URL de 7 días.

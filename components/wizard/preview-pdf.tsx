@@ -16,14 +16,12 @@ import * as React from 'react'
 import { calcularItem, calcularTotales, repartirCuotas } from '@/lib/calculo'
 import { fechaCorta, fechaLarga, money, porcentaje as fmtPorcentaje } from '@/lib/formato'
 import type { BorradorPresupuesto, Paciente } from '@/lib/types'
+import { datosConsultorio } from '@/lib/pdf/consultorio'
 import { cn } from '@/lib/utils'
 
-const CONSULTORIO = {
-  nombre: process.env.NEXT_PUBLIC_CONSULTORIO_NOMBRE || 'Smile Lab',
-  direccion: process.env.NEXT_PUBLIC_CONSULTORIO_DIRECCION || '',
-  telefono: process.env.NEXT_PUBLIC_CONSULTORIO_TELEFONO || '',
-  email: process.env.NEXT_PUBLIC_CONSULTORIO_EMAIL || '',
-}
+// La misma constante que imprime el PDF: el preview del paso 3 tiene que
+// mostrar exactamente lo que va a salir en el documento.
+const CONSULTORIO = datosConsultorio()
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: React.ReactNode }) {
   return (
