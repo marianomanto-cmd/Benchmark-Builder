@@ -91,6 +91,7 @@ Migraciones en `supabase/migrations/`, en este orden:
 | `20260101001100_alta_historial.sql` | Historial honesto y cuotas validadas |
 | `20260101001200_aumento_exacto.sql` | El aumento masivo escribe lo que promete |
 | `20260101001300_duplicado_afiliado.sql` | Duplicado coherente y conteo de usos agregado |
+| `20260101001400_admin.sql` | `es_admin` en `profesionales` + guarda de escalada |
 
 **Sin la CLI**: `supabase/instalar.sql` e `instalar-storage.sql` son las mismas
 migraciones concatenadas en orden, para pegar en el SQL Editor de Supabase. Se
@@ -187,7 +188,7 @@ borrador → realizado → enviado → pendiente → interesado → aceptado →
 
 | # | Ruta | Estado |
 |---|---|---|
-| 01 | `/login` | Magic link, un solo campo |
+| 01 | `/login` | Usuario + contraseña |
 | 02 | `/` | Home con datos: 4 KPIs + tabla desktop / cards mobile |
 | 03 | `/` (vacía) | KPIs en `—` punteado + dos salidas |
 | 04-06 | `/?nuevo=1` | Wizard 3 pasos, modal sobre la ruta actual |
@@ -234,8 +235,7 @@ Ver `.env.example`. Resumen:
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | cliente + server | Proyecto de Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | cliente + server | Clave pública; la RLS autoriza |
-| `SUPABASE_SERVICE_ROLE_KEY` | **sólo server** | Route del PDF (firma URLs) y cron |
-| `NEXT_PUBLIC_SITE_URL` | cliente | Redirect del magic link. En Vercel, **sólo en Production** |
+| `SUPABASE_SERVICE_ROLE_KEY` | **sólo server** | Alta de usuarios, route del PDF y cron |
 | `CRON_SECRET` | server | Valida `/api/cron/pendientes` |
 
 Los datos del consultorio que salen en el PDF **no son variables de entorno**:
@@ -243,12 +243,26 @@ son constantes en `lib/pdf/consultorio.ts`. El consultorio es uno solo y no
 cambian entre entornos; tenerlos en Vercel obligaba a cargar cuatro variables
 en tres entornos para un dato que se escribe una vez.
 
-Tampoco hay filtro de dominio en el login: quién entra lo decide Supabase con
-los signups cerrados. Un chequeo en el cliente sólo daba la ilusión de control.
+## Acceso
 
-En **Supabase Auth**: sólo Email / magic link, signups abiertos deshabilitados
-(las altas se hacen a mano desde el dashboard) y `NEXT_PUBLIC_SITE_URL` + las
-preview URLs de Vercel en Redirect URLs.
+Usuario + contraseña, sin mail de por medio. Supabase Auth exige un mail para
+el login con contraseña, así que se deriva uno interno del usuario
+(`admin` → `admin@smilelab.com.ar`); ese mail no se muestra nunca y no recibe
+correo.
+
+La primera vez que se abre `/login`, si el consultorio todavía no tiene ningún
+administrador se crea **`admin` / `smilelab`** y se avisa en pantalla. Es
+idempotente: a partir del segundo arranque no hace nada.
+
+Un admin da de alta al resto desde **Equipo y accesos** (`/equipo`): crea el
+acceso y la ficha del profesional de una sola vez, cambia contraseñas y da de
+baja. `es_admin` vive en `profesionales`, y un trigger impide que alguien que
+no administra se dé permisos a sí mismo — la RLS deja escribir a todo el
+equipo, así que sin esa guarda alcanzaba un UPDATE directo.
+
+En **Supabase Auth**: proveedor **Email** activado con contraseña, **«Confirm
+email» apagado** y signups abiertos deshabilitados. No hace falta configurar
+Redirect URLs: no hay magic link.
 
 En **Storage**: bucket privado `presupuestos`, signed URL de 7 días.
 

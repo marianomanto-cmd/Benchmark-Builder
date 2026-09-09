@@ -8,14 +8,16 @@ import { Button } from '@/components/ui'
 import { useWizard } from '@/components/wizard/use-wizard'
 import { cn } from '@/lib/utils'
 import { Logo } from './logo'
-import { MenuUsuario, type UsuarioShell } from './menu-usuario'
+import type { Perfil } from '@/lib/supabase/server'
+
+import { MenuUsuario } from './menu-usuario'
 import { DESTINOS_DESKTOP, esRutaActiva } from './navegacion'
 
 /**
  * Topbar de desktop (>= 768px). En mobile no existe: ahí manda la tabbar
  * inferior y cada pantalla pone su propio encabezado.
  */
-export function Topbar({ usuario }: { usuario: UsuarioShell }) {
+export function Topbar({ perfil }: { perfil: Perfil }) {
   const pathname = usePathname()
   const { abrir } = useWizard()
 
@@ -58,12 +60,12 @@ export function Topbar({ usuario }: { usuario: UsuarioShell }) {
           </ul>
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-3">
           <Button variant="primary" size="lg" onClick={abrir}>
             <Plus aria-hidden />
             Nuevo presupuesto
           </Button>
-          <MenuUsuario usuario={usuario} />
+          <MenuUsuario perfil={perfil} />
         </div>
       </div>
     </header>

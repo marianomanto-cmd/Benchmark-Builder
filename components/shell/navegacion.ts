@@ -1,4 +1,4 @@
-import { BookMarked, House, Kanban, UserRound, type LucideIcon } from 'lucide-react'
+import { BookMarked, House, Kanban, ShieldCheck, type LucideIcon } from 'lucide-react'
 
 /**
  * Destinos del shell. Desktop y mobile NO comparten la lista a propósito:
@@ -6,7 +6,8 @@ import { BookMarked, House, Kanban, UserRound, type LucideIcon } from 'lucide-re
  * - En desktop el Pipeline es una pantalla propia (kanban de columnas).
  * - En mobile no hay kanban usable, así que Pipeline **no es destino**:
  *   es el filtro de estado que vive arriba de Home. En su lugar la tabbar
- *   ofrece Cuenta, que en desktop está dentro del menú de usuario.
+ *   ofrece Equipo a quien administra: en mobile no hay menú de usuario,
+ *   así que sin esto un admin no tendría cómo llegar.
  */
 
 export interface Destino {
@@ -24,7 +25,6 @@ export const DESTINOS_DESKTOP: Destino[] = [
 export const DESTINOS_MOBILE: Destino[] = [
   { href: '/', etiqueta: 'Home', icono: House },
   { href: '/biblioteca', etiqueta: 'Biblioteca', icono: BookMarked },
-  { href: '/cuenta', etiqueta: 'Cuenta', icono: UserRound },
 ]
 
 /**
@@ -47,4 +47,10 @@ export function iniciales(nombre: string): string {
   if (partes.length === 0) return '?'
   if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase()
   return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase()
+}
+
+/** Los destinos de mobile, con Equipo si quien mira lo administra. */
+export function destinosMobile(esAdmin: boolean): Destino[] {
+  if (!esAdmin) return DESTINOS_MOBILE
+  return [...DESTINOS_MOBILE, { href: '/equipo', etiqueta: 'Equipo', icono: ShieldCheck }]
 }

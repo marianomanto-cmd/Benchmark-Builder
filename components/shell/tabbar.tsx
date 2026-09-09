@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 
 import { useWizard } from '@/components/wizard/use-wizard'
 import { cn } from '@/lib/utils'
-import { DESTINOS_MOBILE, esRutaActiva } from './navegacion'
+import { destinosMobile, esRutaActiva } from './navegacion'
 
 /**
  * Tabbar inferior de mobile (< 768px) + FAB de 56px.
@@ -17,9 +17,10 @@ import { DESTINOS_MOBILE, esRutaActiva } from './navegacion'
  * iPhone. El FAB va sobre la barra, a la derecha, para no taparse con el
  * pulgar cuando se navega.
  */
-export function Tabbar() {
+export function Tabbar({ esAdmin }: { esAdmin: boolean }) {
   const pathname = usePathname()
   const { abrir } = useWizard()
+  const destinos = destinosMobile(esAdmin)
 
   return (
     <>
@@ -39,7 +40,7 @@ export function Tabbar() {
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
         <ul className="flex items-stretch">
-          {DESTINOS_MOBILE.map((destino) => {
+          {destinos.map((destino) => {
             const activo = esRutaActiva(pathname, destino.href)
             return (
               <li key={destino.href} className="flex-1">

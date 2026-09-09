@@ -64,10 +64,14 @@ psql "$DATABASE_URL" -f supabase/seed.sql
 
 ### Configuración de Supabase Auth
 
-- Habilitar **sólo Email / magic link**. Sin password.
-- **Deshabilitar signups abiertos**: las altas del equipo se hacen a mano
-  desde el dashboard. No hay filtro de dominio en el cliente.
-- Agregar `NEXT_PUBLIC_SITE_URL` y las preview URLs de Vercel a **Redirect URLs**.
+- Habilitar el proveedor **Email** con contraseña.
+- **Apagar «Confirm email»**: las altas las hace un admin desde la app y el
+  usuario tiene que poder entrar en el momento.
+- **Deshabilitar signups abiertos.**
+
+La primera vez que se abre `/login` se crea el administrador **`admin` /
+`smilelab`** si el consultorio no tiene ninguno. Cambiá esa contraseña apenas
+entres, desde *Mi contraseña*.
 
 ### Storage
 
@@ -95,15 +99,14 @@ migración `…_storage.sql`.
 
 ```
 app/
-  (auth)/login/            Pantalla 01 · magic link
-  (auth)/auth/callback/    Intercambio de code por sesión
+  (auth)/login/            Pantalla 01 · usuario + contraseña
   (app)/layout.tsx         Shell: topbar desktop / tabbar+FAB mobile
   (app)/page.tsx           Pantallas 02-03 · Home (con datos / vacía)
   (app)/pipeline/          Pantalla 12 · Kanban (desktop)
   (app)/presupuestos/[id]/ Pantalla 11 · Detalle
   (app)/biblioteca/        Pantalla 09 · tabs de entidades
   (app)/biblioteca/aranceles/  Pantalla 10 · grilla + drawer de vigencias
-  (app)/cuenta/            Perfil, cerrar sesión
+  (app)/equipo/            Equipo y accesos (admin) · Mi contraseña
   api/presupuestos/[id]/pdf/   Pantalla 13 · @react-pdf/renderer
   api/cron/pendientes/     enviado → pendiente a los 7 días
   actions/                 Server Actions

@@ -1,232 +1,174 @@
 'use client'
 
-import { ArrowLeft, MailCheck, TriangleAlert } from 'lucide-react'
+import { KeyRound, LogIn, TriangleAlert, User } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import * as React from 'react'
 
-import { Banner, Button, Field, Input } from '@/components/ui'
+import { Banner, Button, Card, CardBody, Field, Input } from '@/components/ui'
+import { mailDeUsuario, normalizarUsuario } from '@/lib/auth/usuarios'
 import { createClient } from '@/lib/supabase/client'
 
-type Estado = 'idle' | 'enviando' | 'enviado' | 'error'
-
-/**
- * Dominio permitido para el equipo del consultorio. Se valida acá para dar
- * un mensaje entendible antes de gastar un mail; la restricción que manda
- * es la de Supabase Auth, esto es sólo cortesía.
- */
-
-/** Segundos de espera antes de habilitar el reenvío. */
-
-/** Errores que puede devolver el callback en `?error=`. */
-const MENSAJES_CALLBACK: Record<string, string> = {
-  expirado: 'El enlace venció. Pedí uno nuevo, dura una hora.',
-  usado: 'Ese enlace ya se usó. Pedí uno nuevo desde acá.',
-  sin_codigo: 'El enlace llegó incompleto. Pedí uno nuevo desde acá.',
-  enlace_invalido: 'El enlace no funcionó. Puede haber vencido o ya haberse usado.',
-  acceso_denegado: 'Ese mail no tiene acceso al consultorio.',
+const MENSAJES: Record<string, string> = {
+  sesion_expirada: 'Se cerró la sesión por inactividad. Volvé a entrar.',
 }
 
-const RE_MAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-
-function validarMail(valor: string): string | null {
-  const mail = valor.trim().toLowerCase()
-  if (!mail) return 'Escribí tu mail para continuar.'
-  if (!RE_MAIL.test(mail)) return 'Ese mail no parece válido. Revisalo y probá de nuevo.'
-  // Acá no se filtra por dominio: quién puede entrar lo decide Supabase,
-  // con los signups cerrados y las altas hechas a mano. Un chequeo en el
-  // cliente sólo daría la ilusión de control, y se saltea con F12.
-  return null
-}
-
-/**
- * URL a la que vuelve el magic link. `desde` se propaga para devolver al
- * profesional exactamente a la pantalla que quiso abrir; el callback la
- * vuelve a validar antes de redirigir.
- */
-function urlDeVuelta(desde: string | null): string {
-  const base = (process.env.NEXT_PUBLIC_SITE_URL || window.location.origin).replace(/\/+$/, '')
-  const esInterna = Boolean(desde) && desde!.startsWith('/') && !desde!.startsWith('//')
-  const cola = esInterna ? `?${new URLSearchParams({ desde: desde! }).toString()}` : ''
-  return `${base}/auth/callback${cola}`
-}
-
-function mensajeDeSupabase(error: { message?: string; status?: number }): string {
+/** Traduce lo que devuelve Supabase a algo que se entienda en el mostrador. */
+function mensajeDeError(error: { message?: string; status?: number }): string {
   const texto = (error.message ?? '').toLowerCase()
+
+  if (texto.includes('invalid login credentials')) {
+    return 'Usuario o contraseña incorrectos.'
+  }
   if (error.status === 429 || texto.includes('rate limit') || texto.includes('too many')) {
-    return 'Pediste varios enlaces seguidos. Esperá un minuto y volvé a intentar.'
+    return 'Demasiados intentos seguidos. Esperá un minuto y probá de nuevo.'
   }
-  if (texto.includes('not allowed') || texto.includes('signups not allowed')) {
-    return 'Ese mail no tiene acceso al consultorio. Pedí el alta y volvé a intentar.'
+  if (texto.includes('email logins are disabled') || texto.includes('not enabled')) {
+    return 'El login con contraseña está apagado en Supabase. Activá Authentication → Providers → Email.'
   }
-  return 'No pudimos mandar el enlace. Revisá la conexión y probá de nuevo.'
+  return 'No se pudo entrar. Probá de nuevo en un momento.'
+}
+
+/** Sólo rutas internas: `//evil.com` sería un dominio externo. */
+function destinoSeguro(desde: string | null): string {
+  if (!desde || !desde.startsWith('/') || desde.startsWith('//') || desde.startsWith('/\\')) {
+    return '/'
+  }
+  return desde
 }
 
 export function LoginForm({
-  desde,
   errorInicial,
+  adminReciénCreado,
 }: {
-  desde: string | null
   errorInicial: string | null
+  adminReciénCreado: boolean
 }) {
-  const supabase = React.useMemo(() => createClient(), [])
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-  const [mail, setMail] = React.useState('')
-  const [estado, setEstado] = React.useState<Estado>('idle')
-  const [mensajeError, setMensajeError] = React.useState<string | null>(
-    errorInicial ? (MENSAJES_CALLBACK[errorInicial] ?? MENSAJES_CALLBACK.enlace_invalido) : null,
+  const [usuario, setUsuario] = React.useState('')
+  const [contrasena, setContrasena] = React.useState('')
+  const [entrando, setEntrando] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(
+    errorInicial ? (MENSAJES[errorInicial] ?? null) : null,
   )
-  const [errorCampo, setErrorCampo] = React.useState<string | null>(null)
-  // El reenvío es su propio flag: mientras corre, la pantalla sigue siendo
-  // «Revisá tu correo», no vuelve al formulario.
-  const [reenviando, setReenviando] = React.useState(false)
 
-  async function enviar(mailDestino: string, esReenvio = false) {
-    if (esReenvio) setReenviando(true)
-    else setEstado('enviando')
-    setMensajeError(null)
+  async function onSubmit(evento: React.FormEvent<HTMLFormElement>) {
+    evento.preventDefault()
+    setError(null)
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email: mailDestino,
-      options: { emailRedirectTo: urlDeVuelta(desde) },
-    })
-
-    if (error) {
-      setMensajeError(mensajeDeSupabase(error))
-      if (esReenvio) setReenviando(false)
-      else setEstado('error')
+    const nombre = normalizarUsuario(usuario)
+    if (!nombre || !contrasena) {
+      setError('Completá usuario y contraseña.')
       return
     }
 
-    if (esReenvio) setReenviando(false)
-    setEstado('enviado')
+    setEntrando(true)
+    try {
+      const supabase = createClient()
+      const { error: errorEntrada } = await supabase.auth.signInWithPassword({
+        email: mailDeUsuario(nombre),
+        password: contrasena,
+      })
+
+      if (errorEntrada) {
+        setError(mensajeDeError(errorEntrada))
+        return
+      }
+
+      // `refresh` para que el server vea la cookie nueva antes de navegar.
+      router.replace(destinoSeguro(searchParams.get('desde')))
+      router.refresh()
+    } catch {
+      setError('No se pudo conectar. Fijate la conexión y probá de nuevo.')
+    } finally {
+      setEntrando(false)
+    }
   }
 
-  function onSubmit(evento: React.FormEvent<HTMLFormElement>) {
-    evento.preventDefault()
-    const problema = validarMail(mail)
-    setErrorCampo(problema)
-    if (problema) return
-    void enviar(mail.trim().toLowerCase())
-  }
-
-  /* ── Estado enviado ─────────────────────────────────────── */
-
-  if (estado === 'enviado') {
-    return (
-      <div className="animate-enter text-center">
-        <div className="mx-auto mb-4 grid size-14 place-items-center rounded-pill bg-tint">
-          <MailCheck className="size-7 stroke-[1.6] text-primary" aria-hidden />
-        </div>
-
-        <h1 className="t-h2">Revisá tu correo</h1>
-        <p className="mt-2 t-body">
-          Te mandamos un enlace de acceso a{' '}
-          <strong className="font-semibold text-ink">{mail.trim().toLowerCase()}</strong>. Abrilo
-          desde este mismo teléfono o computadora.
-        </p>
-        <p className="mt-2 t-helper">
-          El enlace dura una hora. Después de entrar, la sesión queda abierta en este dispositivo:
-          no vas a tener que repetirlo entre paciente y paciente.
+  return (
+    <Card className="animate-enter">
+      <CardBody className="pt-6">
+        <h1 className="t-h2">Ingresar</h1>
+        <p className="mt-1.5 text-[14px] leading-relaxed text-muted">
+          Entrá con el usuario y la contraseña del consultorio.
         </p>
 
-        {mensajeError && (
+        {adminReciénCreado && (
           <Banner
-            className="mt-5 text-left"
-            tono="warm"
-            icono={<TriangleAlert className="size-4" />}
-            titulo="No se pudo reenviar"
+            className="mt-5"
+            tono="info"
+            titulo="Se creó el usuario administrador"
           >
-            {mensajeError}
+            Usuario <strong className="font-semibold">admin</strong>, contraseña{' '}
+            <strong className="font-semibold">smilelab</strong>. Cambiala desde Equipo apenas
+            entres.
           </Banner>
         )}
 
-        <div className="mt-6 flex flex-col gap-2">
-          <Button
-            variant="secondary"
-            size="touch"
-            full
-            loading={reenviando}
-            onClick={() => void enviar(mail.trim().toLowerCase(), true)}
+        {error && (
+          <Banner
+            className="mt-5"
+            tono="warm"
+            icono={<TriangleAlert className="size-4" />}
+            titulo="No se pudo entrar"
           >
-            {/* Sin cuenta regresiva: si alguien pide demasiados enlaces
-                seguidos, Supabase responde 429 y ese mensaje ya está
-                traducido. Hacer esperar 45 segundos por las dudas es
-                castigar al que no llegó el mail. */}
-            {reenviando ? 'Mandando de nuevo…' : 'Reenviar enlace'}
+            {error}
+          </Banner>
+        )}
+
+        <form className="mt-5 flex flex-col gap-4" onSubmit={onSubmit} noValidate>
+          <Field label="Usuario" htmlFor="usuario">
+            <div className="relative">
+              <User
+                aria-hidden
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint"
+              />
+              <Input
+                id="usuario"
+                name="username"
+                autoComplete="username"
+                autoFocus
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="admin"
+                className="h-12 pl-9 text-[16px]"
+                value={usuario}
+                onChange={(e) => setUsuario(e.target.value)}
+              />
+            </div>
+          </Field>
+
+          <Field label="Contraseña" htmlFor="contrasena">
+            <div className="relative">
+              <KeyRound
+                aria-hidden
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint"
+              />
+              <Input
+                id="contrasena"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                className="h-12 pl-9 text-[16px]"
+                value={contrasena}
+                onChange={(e) => setContrasena(e.target.value)}
+              />
+            </div>
+          </Field>
+
+          <Button type="submit" variant="primary" size="touch" full loading={entrando}>
+            {!entrando && <LogIn aria-hidden />}
+            {entrando ? 'Entrando…' : 'Entrar'}
           </Button>
+        </form>
 
-          <Button
-            variant="ghost"
-            size="touch"
-            full
-            disabled={reenviando}
-            onClick={() => {
-              setEstado('idle')
-              setMensajeError(null)
-              setErrorCampo(null)
-            }}
-          >
-            <ArrowLeft aria-hidden />
-            Usar otro mail
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  /* ── Estados idle / enviando / error ────────────────────── */
-
-  return (
-    <div className="animate-enter">
-      <h1 className="t-h2">Ingresar</h1>
-      <p className="mt-2 t-body">Ingresá con tu mail y te mandamos un enlace de acceso.</p>
-
-      {mensajeError && (
-        <Banner
-          className="mt-5"
-          tono="warm"
-          icono={<TriangleAlert className="size-4" />}
-          titulo="No pudimos entrar"
-        >
-          {mensajeError}
-        </Banner>
-      )}
-
-      <form className="mt-6 flex flex-col gap-4" onSubmit={onSubmit} noValidate>
-        <Field
-          label="Mail"
-          htmlFor="mail"
-          error={errorCampo}
-          helper="La casilla que usás en el consultorio."
-        >
-          <Input
-            id="mail"
-            name="email"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            autoFocus
-            enterKeyHint="send"
-            placeholder="nombre@consultorio.com"
-            className="h-12 text-[16px]"
-            invalido={Boolean(errorCampo)}
-            value={mail}
-            disabled={estado === 'enviando'}
-            onChange={(evento) => {
-              setMail(evento.target.value)
-              if (errorCampo) setErrorCampo(null)
-            }}
-          />
-        </Field>
-
-        <Button type="submit" variant="primary" size="touch" full loading={estado === 'enviando'}>
-          {estado === 'enviando' ? 'Mandando el enlace…' : 'Mandame el enlace'}
-        </Button>
-      </form>
-
-      <p className="mt-5 t-helper">
-        No hay contraseña: cada vez que entrás por primera vez en un dispositivo pedís un enlace
-        nuevo.
-      </p>
-    </div>
+        <p className="mt-4 t-helper">
+          ¿No tenés usuario? Pediselo a quien administra el consultorio.
+        </p>
+      </CardBody>
+    </Card>
   )
 }

@@ -3,6 +3,8 @@ import 'server-only'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+import { usuarioDeMail } from '@/lib/auth/usuarios'
+
 import { credencialesSupabase } from './env'
 
 /**
@@ -57,22 +59,45 @@ export async function getUsuario() {
   return user
 }
 
+/** Ficha del profesional logueado, o `null` si todavía no tiene. */
+export interface Perfil {
+  userId: string
+  /** Lo que se tipea para entrar. El mail interno no se muestra nunca. */
+  usuario: string
+  profesionalId: string | null
+  nombre: string
+  matricula: string | null
+  esAdmin: boolean
+}
+
 /**
- * Usuario + su ficha de profesional. El paso 1 del wizard usa esto
- * como default del campo Profesional.
+ * Quién está usando la app.
+ *
+ * El nombre sale de la ficha en `profesionales`; si el usuario todavía
+ * no la tiene, cae a la parte local del mail para no mostrar un hueco.
+ * `esAdmin` decide si ve la pantalla de Equipo.
  */
-export async function getSesion() {
+export async function getPerfil(): Promise<Perfil | null> {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return { user: null, profesional: null }
+  if (!user) return null
 
   const { data: profesional } = await supabase
     .from('profesionales')
-    .select('*')
+    .select('id, nombre, matricula, es_admin')
     .eq('user_id', user.id)
     .maybeSingle()
 
-  return { user, profesional }
+  const usuario = usuarioDeMail(user.email)
+
+  return {
+    userId: user.id,
+    usuario,
+    profesionalId: profesional?.id ?? null,
+    nombre: profesional?.nombre?.trim() || usuario || 'Sin nombre',
+    matricula: profesional?.matricula ?? null,
+    esAdmin: Boolean(profesional?.es_admin),
+  }
 }

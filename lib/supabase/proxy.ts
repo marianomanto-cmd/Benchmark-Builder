@@ -3,41 +3,39 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { credencialesSupabase } from './env'
 
-/**
- * Rutas que no exigen sesión.
- *
- * `/api/cron` se autentica sola con `CRON_SECRET`: la llama Vercel Cron,
- * que manda `Authorization: Bearer …` y ninguna cookie. Si el proxy la
- * mandara al login, el pase de `enviado → pendiente` no correría nunca.
- */
-const PUBLICAS = ['/login', '/auth', '/api/cron']
+/** Rutas que no exigen sesión. */
+const PUBLICAS = [
+  '/login',
+  // Se autentica sola con `CRON_SECRET`: la llama Vercel Cron, que
+  // manda `Authorization: Bearer …` y ninguna cookie.
+  '/api/cron',
+]
 
 /**
- * Refresca la sesión en cada request y redirige al login si no hay.
+ * Refresca la sesión en cada request y manda al login si no hay.
  * Es un chequeo optimista: la autorización real es la RLS de Supabase.
  */
 export async function actualizarSesion(request: NextRequest) {
   let response = NextResponse.next({ request })
 
-  const { url: urlSupabase, anonKey } = credencialesSupabase()
+  const { url, anonKey } = credencialesSupabase()
 
-  const supabase = createServerClient(urlSupabase, anonKey, {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          for (const { name, value } of cookiesToSet) {
-            request.cookies.set(name, value)
-          }
-          response = NextResponse.next({ request })
-          for (const { name, value, options } of cookiesToSet) {
-            response.cookies.set(name, value, options)
-          }
-        },
+  const supabase = createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll()
+      },
+      setAll(cookiesToSet) {
+        for (const { name, value } of cookiesToSet) {
+          request.cookies.set(name, value)
+        }
+        response = NextResponse.next({ request })
+        for (const { name, value, options } of cookiesToSet) {
+          response.cookies.set(name, value, options)
+        }
       },
     },
-  )
+  })
 
   const {
     data: { user },
@@ -47,19 +45,19 @@ export async function actualizarSesion(request: NextRequest) {
   const esPublica = PUBLICAS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 
   if (!user && !esPublica) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.search = ''
+    const destino = request.nextUrl.clone()
+    destino.pathname = '/login'
+    destino.search = ''
     // Volver a donde estaba después de entrar.
-    if (pathname !== '/') url.searchParams.set('desde', pathname)
-    return NextResponse.redirect(url)
+    if (pathname !== '/') destino.searchParams.set('desde', pathname)
+    return NextResponse.redirect(destino)
   }
 
   if (user && pathname === '/login') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    url.search = ''
-    return NextResponse.redirect(url)
+    const destino = request.nextUrl.clone()
+    destino.pathname = '/'
+    destino.search = ''
+    return NextResponse.redirect(destino)
   }
 
   return response
