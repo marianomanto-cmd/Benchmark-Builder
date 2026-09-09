@@ -30,6 +30,77 @@ const idempotente = (sql) =>
       `drop policy if exists ${nombre} on ${tabla};\ncreate policy ${nombre} on ${tabla}`,
   )
 
+/**
+ * Parte el SQL en bloques: cada `create or replace function` o
+ * `create view` queda identificado por el objeto que define.
+ *
+ * Las migraciones son incrementales, así que varias redefinen lo que ya
+ * había: `duplicar_presupuesto` se escribe cuatro veces y sólo la
+ * última cuenta. Pegar las cuatro en el SQL Editor funciona, pero son
+ * 50 KB de versiones muertas que alguien va a leer creyendo que rigen.
+ */
+function bloques(sql) {
+  const salida = []
+  // `$$` delimita el cuerpo de las funciones: hay que saltearlo entero
+  // para no cortar en un `;` que está adentro.
+  const re = /(create or replace function\s+(\w+)|(?:drop view if exists\s+\w+\s*;\s*)?create view\s+(\w+))/g
+  let ultimo = 0
+  let m
+  while ((m = re.exec(sql)) !== null) {
+    const objeto = m[2] ?? m[3]
+    const desdeInicio = m.index
+    // Fin del bloque: `$$;` para funciones, `;` para vistas.
+    const esFuncion = Boolean(m[2])
+    let fin
+    if (esFuncion) {
+      const cierre = sql.indexOf('$$;', desdeInicio)
+      fin = cierre === -1 ? sql.length : cierre + 3
+    } else {
+      // Una vista termina en el primer `;` fuera de paréntesis.
+      let i = desdeInicio
+      let nivel = 0
+      for (; i < sql.length; i++) {
+        if (sql[i] === '(') nivel++
+        else if (sql[i] === ')') nivel--
+        else if (sql[i] === ';' && nivel === 0) break
+      }
+      fin = Math.min(i + 1, sql.length)
+    }
+    if (desdeInicio > ultimo) salida.push({ objeto: null, texto: sql.slice(ultimo, desdeInicio) })
+    salida.push({ objeto, texto: sql.slice(desdeInicio, fin) })
+    ultimo = fin
+    re.lastIndex = fin
+  }
+  if (ultimo < sql.length) salida.push({ objeto: null, texto: sql.slice(ultimo) })
+  return salida
+}
+
+/**
+ * Deja una sola definición por objeto: la última que se escribió,
+ * puesta donde aparecía la primera.
+ *
+ * La posición importa: `create trigger ... execute function
+ * guard_arancel_inmutable()` exige que la función exista en ESE punto.
+ * Si la definición final se emitiera al final, el trigger no la
+ * encontraría.
+ */
+function soloDefinicionesFinales(archivos) {
+  const todos = archivos.flatMap((a) => bloques(a.sql).map((b) => ({ ...b, archivo: a.nombre })))
+
+  const ultimaVersion = new Map()
+  for (const b of todos) if (b.objeto) ultimaVersion.set(b.objeto, b.texto)
+
+  const yaEmitido = new Set()
+  return todos
+    .map((b) => {
+      if (!b.objeto) return b
+      if (yaEmitido.has(b.objeto)) return null // redefinición posterior: se descarta
+      yaEmitido.add(b.objeto)
+      return { ...b, texto: ultimaVersion.get(b.objeto) }
+    })
+    .filter(Boolean)
+}
+
 const CABECERA_1 = `-- ════════════════════════════════════════════════════════════════════
 --  SMILE LAB · PRESUPUESTOS — INSTALACIÓN  ·  PARTE 1 de 3
 --  Esquema, guardas, RPC, vistas y RLS.
@@ -74,13 +145,58 @@ const CABECERA_2 = `-- ═══════════════════
 -- ════════════════════════════════════════════════════════════════════
 `
 
+/**
+ * Saca el banner de encabezado de una migración.
+ *
+ * Cada migración arranca con un bloque que cuenta QUÉ BUG ARREGLA. Eso
+ * es historia del proyecto y pertenece a `supabase/migrations/` y a
+ * git, no a un script que instala una base vacía: ahí no hubo ningún
+ * bug que arreglar. Además, al quedarse una sola definición de cada
+ * función, esos banners quedaban huérfanos — cuarenta líneas
+ * explicando un arreglo, seguidas de dos `grant`.
+ *
+ * Los comentarios de adentro del código SÍ se conservan: explican por
+ * qué existe cada guarda, y eso sigue valiendo en una base nueva.
+ */
+function sinBanner(sql) {
+  return sql.replace(/^\s*-- ═{10,}[\s\S]*?-- ═{10,}\n/, '')
+}
+
+/** ¿El bloque aporta SQL, o son sólo comentarios y espacios? */
+function tieneSql(texto) {
+  return texto
+    .split('\n')
+    .some((l) => l.trim() !== '' && !l.trim().startsWith('--'))
+}
+
 function armar(cabecera, archivos) {
+  const fuente = archivos.map((nombre) => ({
+    nombre,
+    sql: sinBanner(idempotente(readFileSync(join(dirMigraciones, nombre), 'utf8'))),
+  }))
+
+  const bloques = soloDefinicionesFinales(fuente)
+
+  // Las secciones que se quedaron sin SQL (porque su definición se
+  // emitió antes) no llevan encabezado: sería un título sin contenido.
+  const conSql = new Set(
+    bloques.filter((b) => tieneSql(b.texto)).map((b) => b.archivo),
+  )
+
   const partes = [cabecera]
-  for (const f of archivos) {
-    partes.push(`\n-- ═══ ${f} ═══\n`)
-    partes.push(idempotente(readFileSync(join(dirMigraciones, f), 'utf8')))
+  let archivoActual = null
+  for (const b of bloques) {
+    if (!conSql.has(b.archivo)) continue
+    if (b.archivo !== archivoActual) {
+      archivoActual = b.archivo
+      const etiqueta = archivoActual.replace(/^\d+_/, '').replace(/\.sql$/, '').replace(/_/g, ' ')
+      partes.push(`\n-- ─── ${etiqueta} ───────────────────────────────────────\n`)
+    }
+    partes.push(b.texto)
   }
-  return partes.join('\n')
+
+  // Tres líneas en blanco seguidas son ruido de la concatenación.
+  return partes.join('\n').replace(/\n{4,}/g, '\n\n\n')
 }
 
 const esStorage = (f) => f.includes('storage')

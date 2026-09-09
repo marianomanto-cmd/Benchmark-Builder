@@ -9,16 +9,8 @@
 -- ════════════════════════════════════════════════════════════════════
 
 
--- ═══ 20260101000400_storage.sql ═══
+-- ─── storage ───────────────────────────────────────
 
--- ════════════════════════════════════════════════════════════════════
--- Smile Lab · Presupuestos — 05 · Storage
---
--- Bucket privado `presupuestos`. El PDF se cachea acá y el mismo
--- archivo se adjunta al WhatsApp y se sirve en "Ver PDF": el documento
--- del paciente y el del consultorio son el mismo byte.
--- Acceso por signed URL de 7 días.
--- ════════════════════════════════════════════════════════════════════
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('presupuestos', 'presupuestos', false, 10485760, array['application/pdf'])
