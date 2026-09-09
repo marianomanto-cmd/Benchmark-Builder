@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { credencialesSupabase } from './env'
+
 /**
  * Rutas que no exigen sesión.
  *
@@ -17,10 +19,9 @@ const PUBLICAS = ['/login', '/auth', '/api/cron']
 export async function actualizarSesion(request: NextRequest) {
   let response = NextResponse.next({ request })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+  const { url: urlSupabase, anonKey } = credencialesSupabase()
+
+  const supabase = createServerClient(urlSupabase, anonKey, {
       cookies: {
         getAll() {
           return request.cookies.getAll()
