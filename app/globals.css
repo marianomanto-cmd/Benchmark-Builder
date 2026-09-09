@@ -268,6 +268,91 @@
   }
 }
 
+
+/* ════════════════════════════════════════════════════════════
+   View transitions — continuidad entre pantallas
+   ════════════════════════════════════════════════════════════ */
+
+@layer utilities {
+  /*
+   * El presupuesto es el objeto que el consultorio sigue con la vista:
+   * de la fila del listado a la pantalla de detalle es LA MISMA cosa,
+   * no dos que se reemplazan. Morphearlo evita tener que releer la
+   * cabecera para confirmar que se abrió el que se tocó.
+   */
+  ::view-transition-group(.morph) {
+    animation-duration: 320ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  ::view-transition-old(.morph),
+  ::view-transition-new(.morph) {
+    /* El contenido cambia de forma: que no se estire. */
+    height: 100%;
+    object-fit: none;
+    overflow: clip;
+  }
+
+  /* Cruce suave del resto de la página. */
+  ::view-transition-old(root) {
+    animation: salida-suave 180ms ease-in both;
+  }
+  ::view-transition-new(root) {
+    animation: enter-up 260ms var(--ease-out-soft) both;
+  }
+
+  @keyframes salida-suave {
+    to {
+      opacity: 0;
+    }
+  }
+
+  /*
+   * Entrada escalonada de listas. El retraso se corta en el ítem 12:
+   * más allá, esperar deja de leerse como orden y empieza a leerse
+   * como lentitud.
+   */
+  .stagger > * {
+    animation: enter-up 320ms var(--ease-out-soft) both;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger > *:nth-child(2) { animation-delay: 28ms; }
+  .stagger > *:nth-child(3) { animation-delay: 56ms; }
+  .stagger > *:nth-child(4) { animation-delay: 84ms; }
+  .stagger > *:nth-child(5) { animation-delay: 112ms; }
+  .stagger > *:nth-child(6) { animation-delay: 140ms; }
+  .stagger > *:nth-child(7) { animation-delay: 168ms; }
+  .stagger > *:nth-child(8) { animation-delay: 196ms; }
+  .stagger > *:nth-child(9) { animation-delay: 224ms; }
+  .stagger > *:nth-child(10) { animation-delay: 252ms; }
+  .stagger > *:nth-child(11) { animation-delay: 280ms; }
+  .stagger > *:nth-child(n + 12) { animation-delay: 300ms; }
+
+  /* Brillo de carga: dice «viene algo» mejor que un bloque quieto. */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.65),
+      transparent
+    );
+    animation: barrido 1.4s infinite;
+  }
+  @keyframes barrido {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -278,6 +363,15 @@
   }
   .press:active {
     transform: none;
+  }
+  .shimmer::after {
+    display: none;
+  }
+  /* Sin esto el morph sigue corriendo: no lo alcanza la regla de arriba. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
 
