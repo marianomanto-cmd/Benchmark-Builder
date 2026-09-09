@@ -49,6 +49,11 @@ supabase start                 # Postgres + Auth + Storage + Studio
 supabase db reset              # aplica migrations/ y seed.sql
 ```
 
+**Sin la CLI**, pegando en el SQL Editor de Supabase: corré
+`supabase/instalar.sql`, después `supabase/instalar-storage.sql` y, si querés
+datos de arranque, `supabase/seed.sql`. Los dos primeros se generan desde las
+migraciones con `npm run sql:instalar`.
+
 Contra un proyecto remoto:
 
 ```bash
@@ -81,6 +86,7 @@ migración `…_storage.sql`.
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Tests del núcleo de cálculo, formato y estados |
 | `npm run test:paridad` | Verifica que `lib/calculo.ts` y `calcular_cobertura()` den el mismo número (necesita `DATABASE_URL`) |
+| `npm run sql:instalar` | Regenera los scripts del SQL Editor desde `supabase/migrations/` |
 
 ---
 

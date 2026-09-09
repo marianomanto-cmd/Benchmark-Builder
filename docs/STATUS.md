@@ -92,6 +92,12 @@ Migraciones en `supabase/migrations/`, en este orden:
 | `20260101001200_aumento_exacto.sql` | El aumento masivo escribe lo que promete |
 | `20260101001300_duplicado_afiliado.sql` | Duplicado coherente y conteo de usos agregado |
 
+**Sin la CLI**: `supabase/instalar.sql` e `instalar-storage.sql` son las mismas
+migraciones concatenadas en orden, para pegar en el SQL Editor de Supabase. Se
+generan con `npm run sql:instalar` y **no se editan a mano**: la fuente de
+verdad son las migraciones, y los dos archivos se regeneran en el mismo commit
+que las toca.
+
 ### Tablas
 
 | Tabla | Rol |
@@ -332,6 +338,8 @@ antes de aceptarlo. Los que resultaron reales:
 
 - `npm run build` · `npm run typecheck` · `npm run lint` — sin errores.
 - `npm test` — 45 casos sobre `lib/calculo.ts`, `lib/formato.ts` y `lib/estados.ts`.
+- `npm run sql:instalar` — regenera los scripts del SQL Editor desde las
+  migraciones. Correr después de tocar cualquier migración.
 - `npm run test:paridad` — 220 casos comparando `calcularItem` contra
   `calcular_cobertura()` en una base real. **Es el que hay que correr después
   de tocar cualquiera de los dos.**
