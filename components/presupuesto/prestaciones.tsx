@@ -50,7 +50,9 @@ export function Prestaciones({
       </div>
 
       {/* ── Desktop ─────────────────────────────────────── */}
-      <div className="hidden border-t border-hairline md:block">
+      {/* `prestaciones-tabla` la vuelve a encender al imprimir: a 190 mm
+          el `md:` no llega a activarse y el papel salía con las cards. */}
+      <div className="prestaciones-tabla hidden border-t border-hairline md:block">
         <Tabla>
           <Thead>
             <tr>
@@ -71,7 +73,11 @@ export function Prestaciones({
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-ink">{item.nombre}</span>
                       {item.codigo && <MicroBadge>{item.codigo}</MicroBadge>}
-                      {item.editado && <MicroBadge tono="warm">editado</MicroBadge>}
+                      {item.editado && (
+                        <MicroBadge tono="warm" className="no-print">
+                          editado
+                        </MicroBadge>
+                      )}
                     </div>
                     {item.detalle && <p className="t-helper mt-0.5">{item.detalle}</p>}
                     {item.descripcion && (
@@ -88,9 +94,10 @@ export function Prestaciones({
                     <p className="t-helper mt-0.5">
                       {textoCobertura(item.cobertura_tipo, item.cobertura_valor)}
                     </p>
-                    {original && <p className="t-helper text-warm-ink">{original}</p>}
+                    {/* Overrides: internos. Fuera del PDF y fuera del papel. */}
+                    {original && <p className="no-print t-helper text-warm-ink">{original}</p>}
                     {item.motivo_override && (
-                      <p className="t-helper text-warm-ink">{item.motivo_override}</p>
+                      <p className="no-print t-helper text-warm-ink">{item.motivo_override}</p>
                     )}
                   </Td>
 
@@ -105,7 +112,7 @@ export function Prestaciones({
       </div>
 
       {/* ── Mobile: card por ítem ───────────────────────── */}
-      <ul className="divide-y divide-hairline border-t border-hairline md:hidden">
+      <ul className="prestaciones-cards divide-y divide-hairline border-t border-hairline md:hidden">
         {items.map((item) => {
           const original = textoOriginal(item)
           return (
@@ -116,7 +123,11 @@ export function Prestaciones({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-sans text-[14px] font-medium text-ink">{item.nombre}</span>
                 {item.codigo && <MicroBadge>{item.codigo}</MicroBadge>}
-                {item.editado && <MicroBadge tono="warm">editado</MicroBadge>}
+                {item.editado && (
+                  <MicroBadge tono="warm" className="no-print">
+                    editado
+                  </MicroBadge>
+                )}
               </div>
               {item.detalle && <p className="t-helper mt-0.5">{item.detalle}</p>}
 
@@ -147,7 +158,7 @@ export function Prestaciones({
               </dl>
 
               {(original || item.motivo_override) && (
-                <p className="t-helper mt-2 text-warm-ink">
+                <p className="no-print t-helper mt-2 text-warm-ink">
                   {[original, item.motivo_override].filter(Boolean).join(' · ')}
                 </p>
               )}

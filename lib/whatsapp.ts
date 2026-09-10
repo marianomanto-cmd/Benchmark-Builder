@@ -12,7 +12,14 @@
 // La extensión `.ts` es explícita a propósito: el runner nativo de Node
 // (type stripping) no resuelve especificadores relativos sin extensión,
 // y estas plantillas tienen que poder testearse sin bundler.
-import { diasHasta, fechaLarga, money, nombreDePila, telefonoWhatsApp } from './formato.ts'
+import {
+  diasHasta,
+  fechaLarga,
+  matricula as matriculaTexto,
+  money,
+  nombreDePila,
+  telefonoWhatsApp,
+} from './formato.ts'
 
 export type PlantillaWhatsApp = 'primer_envio' | 'recordatorio' | 'actualizacion'
 
@@ -62,8 +69,8 @@ export function firmaProfesional(
   matricula: string | null | undefined,
 ): string {
   const limpio = nombre.trim()
-  const mp = matricula?.trim()
-  return mp ? `${limpio} · MP ${mp}` : limpio
+  const mp = matriculaTexto(matricula)
+  return mp ? `${limpio} · ${mp}` : limpio
 }
 
 /**
@@ -160,14 +167,32 @@ export function nombreArchivoPdf(numero: string): string {
 }
 
 /**
+ * Cómo viajó el presupuesto: adjunto de verdad, como link firmado, o
+ * nada. No es lo mismo para el que después lee el historial y quiere
+ * saber si el paciente llegó a ver el documento.
+ */
+export type ModoAdjunto = 'adjunto' | 'link' | 'sin'
+
+const TEXTO_ADJUNTO: Record<ModoAdjunto, string> = {
+  adjunto: ' con el PDF adjunto',
+  link: ' con el link al PDF',
+  sin: ' sin adjunto',
+}
+
+/**
  * Texto del evento que queda en el historial. El timeline tiene que
  * poder contar qué plantilla se usó sin abrir el PDF.
+ *
+ * El modo NO se deduce de tener el archivo preparado: un navegador que
+ * no comparte archivos manda el link, y uno sin link manda el texto
+ * pelado. Decir "con el PDF adjunto" en esos casos era escribir en un
+ * historial append-only algo que no pasó.
  */
 export function descripcionEnvio(
   plantilla: PlantillaWhatsApp,
-  conPdf: boolean,
+  adjunto: ModoAdjunto,
 ): string {
   const etiqueta =
     PLANTILLAS.find((p) => p.id === plantilla)?.etiqueta ?? 'Mensaje'
-  return `Enviado por WhatsApp · plantilla "${etiqueta}"${conPdf ? ' con el PDF adjunto' : ' sin adjunto'}`
+  return `Enviado por WhatsApp · plantilla "${etiqueta}"${TEXTO_ADJUNTO[adjunto]}`
 }

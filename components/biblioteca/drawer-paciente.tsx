@@ -4,6 +4,7 @@ import * as React from 'react'
 import { toast } from 'sonner'
 
 import { actualizarPaciente, crearPaciente } from '@/app/actions/catalogo'
+import type { Paciente } from '@/lib/types'
 import {
   Field,
   Input,
@@ -31,16 +32,20 @@ const PARTICULAR = 'particular'
 export function DrawerPaciente({
   paciente,
   obrasSociales,
+  nombreSugerido,
   onCerrar,
   onGuardado,
 }: {
   /** `null` = alta. */
   paciente: FilaPaciente | null
   obrasSociales: OpcionObraSocial[]
+  /** Lo que se estaba buscando cuando no apareció nadie. */
+  nombreSugerido?: string
   onCerrar: () => void
-  onGuardado: () => void
+  /** Devuelve la ficha guardada: la lista la parchea sin recargarse. */
+  onGuardado: (paciente: Paciente) => void
 }) {
-  const [nombre, setNombre] = React.useState(paciente?.nombre ?? '')
+  const [nombre, setNombre] = React.useState(paciente?.nombre ?? nombreSugerido ?? '')
   const [dni, setDni] = React.useState(paciente?.dni ?? '')
   const [telefono, setTelefono] = React.useState(paciente?.telefono ?? '')
   const [tieneWhatsapp, setTieneWhatsapp] = React.useState(paciente?.tiene_whatsapp ?? true)
@@ -86,7 +91,7 @@ export function DrawerPaciente({
       }
 
       toast.success(paciente ? 'Paciente actualizado' : 'Paciente creado')
-      onGuardado()
+      onGuardado(resultado.data)
       onCerrar()
     })
   }

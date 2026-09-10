@@ -1,6 +1,15 @@
 'use client'
 
-import { CalendarDays, Check, ChevronDown, LayoutGrid, List, Search, X } from 'lucide-react'
+import {
+  CalendarDays,
+  Check,
+  ChevronDown,
+  LayoutGrid,
+  List,
+  Search,
+  SlidersHorizontal,
+  X,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
@@ -9,19 +18,34 @@ import {
   Button,
   EstadoBadge,
   Input,
+  Kbd,
   Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  useEsDesktop,
 } from '@/components/ui'
 import { ESTADOS, ETIQUETA_ESTADO } from '@/lib/estados'
 import { fechaCorta } from '@/lib/formato'
 import type { EstadoPresupuesto } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-import { construirUrl, contarFiltros, FILTROS_VACIOS, hayFiltrosActivos } from './filtros-url'
+import { ID_BUSQUEDA } from './atajos-home'
+import {
+  construirUrl,
+  contarFiltros,
+  contarFiltrosAvanzados,
+  FILTROS_VACIOS,
+  hayFiltrosActivos,
+} from './filtros-url'
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from './popover'
 import { OBRA_SOCIAL_PARTICULAR, type FiltrosHome, type OpcionFiltro } from './tipos'
 
@@ -31,27 +55,85 @@ const TODOS = 'todos'
 const RETARDO_BUSQUEDA = 350
 
 /**
- * Barra de filtros sticky.
+ * Barra de filtros sticky, con el listado adentro.
  *
  * Todo lo que se elige acá termina en la URL: el back del navegador
  * deshace un filtro y el link se puede compartir por chat tal cual.
  * La búsqueda usa `replace` (no ensucia el historial con cada tecla);
  * el resto usa `push`, que es lo que hace que "atrás" funcione.
+ *
+ * El listado llega como `children` (RSC ya renderizado) para que la
+ * barra pueda atenuarlo mientras una navegación está en vuelo: lo que
+ * se está mirando es de los filtros anteriores y tiene que verse así.
  */
 export function BarraFiltros({
   filtros,
   profesionales,
   obrasSociales,
+  children,
 }: {
   filtros: FiltrosHome
   profesionales: OpcionFiltro[]
   obrasSociales: OpcionFiltro[]
+  children: React.ReactNode
 }) {
   const router = useRouter()
   const [pendiente, iniciarTransicion] = React.useTransition()
   const [texto, setTexto] = React.useState(filtros.q)
+  const [sheetPedido, setSheetPedido] = React.useState(false)
+
+  // El sheet de filtros es sólo de mobile. Si la ventana se agranda con
+  // el sheet abierto (tablet que se gira, ventana que se estira), el
+  // contenido se esconde por CSS pero el overlay queda tapando la
+  // pantalla. Se deriva en render en vez de cerrarlo desde un efecto:
+  // un `setState` en efecto encadena un render de más.
+  const esDesktop = useEsDesktop()
+  const sheetAbierto = sheetPedido && !esDesktop
+
   /** Último término que mandamos nosotros a la URL. */
   const enviado = React.useRef(filtros.q)
+
+  /**
+   * Lo que la barra muestra: los filtros que ya pedimos, aunque la
+   * navegación siga en vuelo.
+   *
+   * `filtros` es lo que contestó el servidor la última vez, así que
+   * durante los cientos de milisegundos que tarda una navegación RSC
+   * está atrasado. Armar el filtro siguiente sobre él perdía el
+   * anterior: elegir profesional y enseguida obra social dejaba sólo la
+   * obra social, y tocar dos chips de estado seguidos en el celular
+   * dejaba sólo el segundo. Los controles quedan vivos mientras se
+   * navega a propósito —apagarlos se lee como «se rompió»—, así que
+   * encadenar dos elecciones es lo normal, no el caso raro.
+   *
+   * Además el control responde en el acto: el chip se prende cuando se
+   * lo toca y no cuando vuelve el servidor.
+   */
+  const urlVigente = construirUrl(filtros)
+  const [vista, setVista] = React.useState(filtros)
+  const [urlVista, setUrlVista] = React.useState(urlVigente)
+  if (!pendiente && urlVista !== urlVigente) {
+    // Aterrizó una navegación que no estábamos esperando —«atrás», un
+    // link pegado—: la barra vuelve a mostrar lo que dice la URL.
+    setUrlVista(urlVigente)
+    setVista(filtros)
+  }
+
+  /** Lo pedido con lo tipeado encima: la base de la próxima URL. */
+  const actual = React.useMemo<FiltrosHome>(() => ({ ...vista, q: texto }), [vista, texto])
+
+  /** Leído desde callbacks que se disparan tarde (el debounce). */
+  const actualRef = React.useRef(actual)
+  React.useEffect(() => {
+    actualRef.current = actual
+  })
+
+  const temporizador = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancelarDebounce = React.useCallback(() => {
+    if (temporizador.current === null) return
+    clearTimeout(temporizador.current)
+    temporizador.current = null
+  }, [])
 
   React.useEffect(() => {
     // Si la URL cambió por afuera (back, link pegado), el input acompaña.
@@ -62,251 +144,420 @@ export function BarraFiltros({
     setTexto(filtros.q)
   }, [filtros.q])
 
-  React.useEffect(() => {
-    if (texto === filtros.q) return
-    const t = setTimeout(() => {
-      enviado.current = texto
+  /**
+   * Único camino a la URL. Deja lo pedido a la vista sin esperar al
+   * servidor y cancela la búsqueda en vuelo: si no, el `replace`
+   * atrasado pisaba el filtro recién elegido con la URL anterior.
+   *
+   * Siempre vuelve a la página 1: cambiar de filtro estando en la 4
+   * dejaba una lista vacía que se leía como "no hay resultados".
+   */
+  const mandar = React.useCallback(
+    (proximos: FiltrosHome, modo: 'push' | 'replace') => {
+      cancelarDebounce()
+      const url = construirUrl(proximos)
+      setVista(proximos)
+      setUrlVista(url)
+      enviado.current = proximos.q
       iniciarTransicion(() => {
-        router.replace(construirUrl({ ...filtros, q: texto }), { scroll: false })
-      })
-    }, RETARDO_BUSQUEDA)
-    return () => clearTimeout(t)
-  }, [texto, filtros, router])
-
-  const aplicar = React.useCallback(
-    (parcial: Partial<FiltrosHome>) => {
-      iniciarTransicion(() => {
-        router.push(construirUrl({ ...filtros, ...parcial }), { scroll: false })
+        if (modo === 'push') router.push(url, { scroll: false })
+        else router.replace(url, { scroll: false })
       })
     },
-    [filtros, router],
+    [cancelarDebounce, router],
   )
 
+  React.useEffect(() => {
+    // Se compara contra lo último que mandamos nosotros, no contra
+    // `filtros.q`: así una navegación por otro filtro no re-arma el
+    // temporizador ni dispara una segunda navegación por la búsqueda.
+    if (texto === enviado.current) return
+    cancelarDebounce()
+    temporizador.current = setTimeout(() => {
+      temporizador.current = null
+      mandar({ ...actualRef.current, q: texto }, 'replace')
+    }, RETARDO_BUSQUEDA)
+    return cancelarDebounce
+  }, [texto, cancelarDebounce, mandar])
+
+  /** Aplica un cambio de filtro ya, arrastrando lo tipeado. */
+  const aplicar = React.useCallback(
+    (parcial: Partial<FiltrosHome>) => {
+      mandar({ ...actualRef.current, ...parcial }, 'push')
+    },
+    [mandar],
+  )
+
+  /** Enter en la búsqueda: no esperar los 350 ms. */
+  const buscarYa = React.useCallback(() => {
+    cancelarDebounce()
+    if (actualRef.current.q === enviado.current) return
+    mandar(actualRef.current, 'replace')
+  }, [cancelarDebounce, mandar])
+
+  const limpiarTodo = React.useCallback(() => {
+    setTexto('')
+    mandar(FILTROS_VACIOS, 'push')
+  }, [mandar])
+
   function alternarEstado(estado: EstadoPresupuesto) {
-    const activo = filtros.estados.includes(estado)
+    // En el orden canónico de la máquina de estados, que es el que
+    // devuelve `parseFiltros`: así la URL que pedimos es igual a la que
+    // el servidor confirma y la barra no tiene que re-acomodarse.
     aplicar({
-      estados: activo
-        ? filtros.estados.filter((e) => e !== estado)
-        : [...filtros.estados, estado],
+      estados: actual.estados.includes(estado)
+        ? actual.estados.filter((e) => e !== estado)
+        : ESTADOS.filter((e) => e === estado || actual.estados.includes(e)),
     })
   }
 
-  const activos = hayFiltrosActivos(filtros)
-  const cantidad = contarFiltros(filtros)
+  const activos = hayFiltrosActivos(actual)
+  const cantidad = contarFiltros(actual)
+  const avanzados = contarFiltrosAvanzados(actual)
 
   const etiquetaEstados =
-    filtros.estados.length === 0
+    actual.estados.length === 0
       ? 'Estado'
-      : filtros.estados.length === 1
-        ? ETIQUETA_ESTADO[filtros.estados[0]]
-        : `${filtros.estados.length} estados`
+      : actual.estados.length === 1
+        ? ETIQUETA_ESTADO[actual.estados[0]]
+        : `${actual.estados.length} estados`
 
   const etiquetaFechas =
-    filtros.desde && filtros.hasta
-      ? `${fechaCorta(filtros.desde)} – ${fechaCorta(filtros.hasta)}`
-      : filtros.desde
-        ? `Desde ${fechaCorta(filtros.desde)}`
-        : filtros.hasta
-          ? `Hasta ${fechaCorta(filtros.hasta)}`
+    actual.desde && actual.hasta
+      ? `${fechaCorta(actual.desde)} – ${fechaCorta(actual.hasta)}`
+      : actual.desde
+        ? `Desde ${fechaCorta(actual.desde)}`
+        : actual.hasta
+          ? `Hasta ${fechaCorta(actual.hasta)}`
           : 'Fechas'
 
-  return (
-    <div
-      className={cn(
-        // Sangra hasta los bordes del `<main>` del layout (px-4 / md:px-8) y
-        // se pega debajo de la topbar de 64px, que en mobile no existe.
-        'sticky top-0 z-20 -mx-4 border-b border-hairline/70 bg-page/85 px-4 py-3 backdrop-blur-md',
-        'md:top-16 md:-mx-8 md:px-8',
-        'transition-opacity duration-200',
-        pendiente && 'opacity-70',
-      )}
+  const selectProfesional = (
+    <Select
+      value={actual.profesional || TODOS}
+      onValueChange={(v) => aplicar({ profesional: v === TODOS ? '' : v })}
     >
-      {/* ── Mobile: búsqueda + chips de estado ─────────────────── */}
-      <div className="md:hidden">
-        <CampoBusqueda
-          valor={texto}
-          onChange={setTexto}
-          onLimpiar={() => setTexto('')}
-          alto="h-11"
-        />
+      <SelectTrigger
+        aria-label="Filtrar por profesional"
+        className={cn('w-full md:w-[180px]', actual.profesional && 'border-primary/40 bg-tint')}
+      >
+        <SelectValue placeholder="Profesional" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={TODOS}>Todos los profesionales</SelectItem>
+        {profesionales.map((p) => (
+          <SelectItem key={p.value} value={p.value}>
+            {p.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
 
-        <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar">
-          <Chip
-            activo={filtros.estados.length === 0}
-            onClick={() => aplicar({ estados: [] })}
-          >
-            Todos
-          </Chip>
-          {ESTADOS.map((estado) => (
-            <Chip
-              key={estado}
-              activo={filtros.estados.includes(estado)}
-              onClick={() => alternarEstado(estado)}
-            >
-              {ETIQUETA_ESTADO[estado]}
-            </Chip>
-          ))}
-        </div>
-      </div>
+  const selectObraSocial = (
+    <Select
+      value={actual.obraSocial || TODOS}
+      onValueChange={(v) => aplicar({ obraSocial: v === TODOS ? '' : v })}
+    >
+      <SelectTrigger
+        aria-label="Filtrar por obra social"
+        className={cn('w-full md:w-[180px]', actual.obraSocial && 'border-primary/40 bg-tint')}
+      >
+        <SelectValue placeholder="Obra social" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={TODOS}>Todas las obras sociales</SelectItem>
+        <SelectItem value={OBRA_SOCIAL_PARTICULAR}>Particular</SelectItem>
+        {obrasSociales.map((o) => (
+          <SelectItem key={o.value} value={o.value}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
 
-      {/* ── Desktop: la barra completa ─────────────────────────── */}
-      <div className="hidden items-center gap-2 md:flex md:flex-wrap">
-        <div className="min-w-[240px] flex-1">
-          <CampoBusqueda valor={texto} onChange={setTexto} onLimpiar={() => setTexto('')} />
-        </div>
+  return (
+    <>
+      <div
+        className={cn(
+          // Sangra hasta los bordes del `<main>` del layout (px-4 / md:px-8) y
+          // se pega debajo de la topbar de 64px, que en mobile no existe.
+          'sticky top-0 z-20 -mx-4 border-b border-hairline/70 bg-page/85 px-4 py-3 backdrop-blur-md',
+          'md:top-16 md:-mx-8 md:px-8',
+        )}
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-2">
+          {/* Una sola instancia del campo: dos (una por breakpoint)
+              duplicaban el `id`, y el atajo no sabía cuál enfocar. */}
+          <div className="md:min-w-[240px] md:flex-1">
+            <CampoBusqueda
+              valor={texto}
+              onChange={setTexto}
+              onLimpiar={() => setTexto('')}
+              onBuscarYa={buscarYa}
+              buscando={pendiente}
+            />
+          </div>
 
-        {/* Estado: multi-select. */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="secondary" className={cn(filtros.estados.length > 0 && 'border-primary/40 bg-tint')}>
-              {etiquetaEstados}
-              <ChevronDown aria-hidden />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[260px]">
-            <ul className="flex flex-col">
-              {ESTADOS.map((estado) => {
-                const activo = filtros.estados.includes(estado)
-                return (
-                  <li key={estado}>
-                    <button
-                      type="button"
-                      onClick={() => alternarEstado(estado)}
-                      className="flex w-full items-center gap-2.5 rounded-input px-2 py-1.5 text-left transition-colors hover:bg-tint"
-                    >
-                      <Check
-                        aria-hidden
-                        className={cn(
-                          'size-4 shrink-0 text-primary',
-                          activo ? 'opacity-100' : 'opacity-0',
-                        )}
-                      />
-                      <EstadoBadge estado={estado} size="sm" />
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-            {filtros.estados.length > 0 && (
-              <div className="mt-1 border-t border-hairline pt-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  full
-                  onClick={() => aplicar({ estados: [] })}
-                >
-                  Ver todos los estados
-                </Button>
-              </div>
-            )}
-          </PopoverContent>
-        </Popover>
-
-        {/* Profesional. */}
-        <Select
-          value={filtros.profesional || TODOS}
-          onValueChange={(v) => aplicar({ profesional: v === TODOS ? '' : v })}
-        >
-          <SelectTrigger
-            aria-label="Filtrar por profesional"
-            className={cn('w-[180px]', filtros.profesional && 'border-primary/40 bg-tint')}
-          >
-            <SelectValue placeholder="Profesional" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODOS}>Todos los profesionales</SelectItem>
-            {profesionales.map((p) => (
-              <SelectItem key={p.value} value={p.value}>
-                {p.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Obra social. */}
-        <Select
-          value={filtros.obraSocial || TODOS}
-          onValueChange={(v) => aplicar({ obraSocial: v === TODOS ? '' : v })}
-        >
-          <SelectTrigger
-            aria-label="Filtrar por obra social"
-            className={cn('w-[180px]', filtros.obraSocial && 'border-primary/40 bg-tint')}
-          >
-            <SelectValue placeholder="Obra social" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODOS}>Todas las obras sociales</SelectItem>
-            <SelectItem value={OBRA_SOCIAL_PARTICULAR}>Particular</SelectItem>
-            {obrasSociales.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Rango de fechas de emisión. */}
-        <Popover>
-          <PopoverTrigger asChild>
+          {/* ── Mobile: filtros en sheet + chips de estado ────────── */}
+          <div className="flex items-center gap-2 md:hidden">
             <Button
               variant="secondary"
-              className={cn((filtros.desde || filtros.hasta) && 'border-primary/40 bg-tint')}
+              size="touch"
+              className={cn('shrink-0 px-4', avanzados > 0 && 'border-primary/40 bg-tint')}
+              onClick={() => setSheetPedido(true)}
+              aria-haspopup="dialog"
             >
-              <CalendarDays aria-hidden />
-              {etiquetaFechas}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[280px] p-4">
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="filtro-desde">Desde</Label>
-                <Input
-                  id="filtro-desde"
-                  type="date"
-                  value={filtros.desde}
-                  max={filtros.hasta || undefined}
-                  onChange={(e) => aplicar({ desde: e.target.value })}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="filtro-hasta">Hasta</Label>
-                <Input
-                  id="filtro-hasta"
-                  type="date"
-                  value={filtros.hasta}
-                  min={filtros.desde || undefined}
-                  onChange={(e) => aplicar({ hasta: e.target.value })}
-                />
-              </div>
-              {(filtros.desde || filtros.hasta) && (
-                <PopoverClose asChild>
-                  <Button variant="ghost" size="sm" onClick={() => aplicar({ desde: '', hasta: '' })}>
-                    Quitar el rango
-                  </Button>
-                </PopoverClose>
+              <SlidersHorizontal aria-hidden />
+              Filtros
+              {avanzados > 0 && (
+                <span className="ml-0.5 inline-flex size-5 items-center justify-center rounded-pill bg-primary text-[11px] font-semibold text-white tabular-nums">
+                  {avanzados}
+                </span>
               )}
+            </Button>
+
+            <div className="-mr-4 flex gap-2 overflow-x-auto pb-1 pr-4 no-scrollbar">
+              <Chip activo={actual.estados.length === 0} onClick={() => aplicar({ estados: [] })}>
+                Todos
+              </Chip>
+              {ESTADOS.map((estado) => (
+                <Chip
+                  key={estado}
+                  activo={actual.estados.includes(estado)}
+                  onClick={() => alternarEstado(estado)}
+                >
+                  {ETIQUETA_ESTADO[estado]}
+                </Chip>
+              ))}
             </div>
-          </PopoverContent>
-        </Popover>
+          </div>
 
-        {activos && (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setTexto('')
-              enviado.current = ''
-              iniciarTransicion(() => router.push(construirUrl(FILTROS_VACIOS), { scroll: false }))
-            }}
-          >
-            <X aria-hidden />
-            Limpiar {cantidad > 1 ? `(${cantidad})` : ''}
-          </Button>
-        )}
+          {/* ── Desktop: la barra completa ────────────────────────── */}
+          <div className="hidden md:contents">
+            {/* Estado: multi-select. */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="secondary"
+                  className={cn(actual.estados.length > 0 && 'border-primary/40 bg-tint')}
+                >
+                  {etiquetaEstados}
+                  <ChevronDown aria-hidden />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[260px]">
+                <ListaEstados
+                  seleccionados={actual.estados}
+                  onAlternar={alternarEstado}
+                  onLimpiar={() => aplicar({ estados: [] })}
+                />
+              </PopoverContent>
+            </Popover>
 
-        <div className="ml-auto">
-          <VistaToggle />
+            {selectProfesional}
+            {selectObraSocial}
+
+            {/* Rango de fechas de emisión. */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="secondary"
+                  className={cn((actual.desde || actual.hasta) && 'border-primary/40 bg-tint')}
+                >
+                  <CalendarDays aria-hidden />
+                  {etiquetaFechas}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[280px] p-4">
+                <RangoFechas
+                  filtros={actual}
+                  onAplicar={aplicar}
+                  cerrarAlQuitar
+                  idPrefijo="escritorio"
+                />
+              </PopoverContent>
+            </Popover>
+
+            {activos && (
+              <Button variant="ghost" onClick={limpiarTodo}>
+                <X aria-hidden />
+                Limpiar {cantidad > 1 ? `(${cantidad})` : ''}
+              </Button>
+            )}
+
+            <div className="ml-auto">
+              <VistaToggle />
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Sheet de filtros de mobile: sin esto, un link con `?prof=` o
+          `?os=` traía filtros que en el celular no se veían ni se podían
+          sacar, y no había forma de filtrar por obra social o fecha. */}
+      <Sheet open={sheetAbierto} onOpenChange={setSheetPedido}>
+        <SheetContent alto="full" className="md:hidden">
+          <SheetHeader className="flex items-baseline justify-between gap-3">
+            <SheetTitle>Filtros</SheetTitle>
+            {avanzados > 0 && (
+              <span className="t-helper tabular-nums">
+                {avanzados} {avanzados === 1 ? 'aplicado' : 'aplicados'}
+              </span>
+            )}
+          </SheetHeader>
+
+          <SheetBody className="flex flex-col gap-5">
+            <section className="flex flex-col gap-2">
+              <p className="t-label">Estado</p>
+              <ListaEstados
+                seleccionados={actual.estados}
+                onAlternar={alternarEstado}
+                onLimpiar={() => aplicar({ estados: [] })}
+              />
+            </section>
+
+            <section className="flex flex-col gap-2">
+              <p className="t-label">Profesional</p>
+              {selectProfesional}
+            </section>
+
+            <section className="flex flex-col gap-2">
+              <p className="t-label">Obra social</p>
+              {selectObraSocial}
+            </section>
+
+            <section className="flex flex-col gap-2">
+              <p className="t-label">Fecha de emisión</p>
+              <RangoFechas filtros={actual} onAplicar={aplicar} idPrefijo="mobile" />
+            </section>
+          </SheetBody>
+
+          <SheetFooter>
+            <Button variant="primary" size="touch" full onClick={() => setSheetPedido(false)}>
+              Ver los presupuestos
+            </Button>
+            {activos && (
+              <Button
+                variant="ghost"
+                size="touch"
+                full
+                onClick={() => {
+                  limpiarTodo()
+                  setSheetPedido(false)
+                }}
+              >
+                <X aria-hidden />
+                {cantidad === 1 ? 'Limpiar el filtro' : `Limpiar los ${cantidad} filtros`}
+              </Button>
+            )}
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* Lo de abajo es de los filtros anteriores hasta que llegue lo
+          nuevo: se atenúa en vez de fingir que ya está actualizado. */}
+      <div
+        aria-busy={pendiente}
+        className={cn(
+          'flex flex-col gap-5 transition-opacity duration-200',
+          pendiente && 'opacity-55',
+        )}
+      >
+        {children}
+      </div>
+    </>
+  )
+}
+
+/** El multi-select de estados, compartido entre el popover y el sheet. */
+function ListaEstados({
+  seleccionados,
+  onAlternar,
+  onLimpiar,
+}: {
+  seleccionados: EstadoPresupuesto[]
+  onAlternar: (estado: EstadoPresupuesto) => void
+  onLimpiar: () => void
+}) {
+  return (
+    <>
+      <ul className="flex flex-col">
+        {ESTADOS.map((estado) => {
+          const activo = seleccionados.includes(estado)
+          return (
+            <li key={estado}>
+              <button
+                type="button"
+                onClick={() => onAlternar(estado)}
+                aria-pressed={activo}
+                className="flex h-11 w-full items-center gap-2.5 rounded-input px-2 text-left transition-colors hover:bg-tint md:h-auto md:py-1.5"
+              >
+                <Check
+                  aria-hidden
+                  className={cn(
+                    'size-4 shrink-0 text-primary',
+                    activo ? 'opacity-100' : 'opacity-0',
+                  )}
+                />
+                <EstadoBadge estado={estado} size="sm" />
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+      {seleccionados.length > 0 && (
+        <div className="mt-1 border-t border-hairline pt-1">
+          <Button variant="ghost" size="sm" full onClick={onLimpiar}>
+            Ver todos los estados
+          </Button>
+        </div>
+      )}
+    </>
+  )
+}
+
+function RangoFechas({
+  filtros,
+  onAplicar,
+  cerrarAlQuitar,
+  idPrefijo,
+}: {
+  filtros: FiltrosHome
+  onAplicar: (parcial: Partial<FiltrosHome>) => void
+  cerrarAlQuitar?: boolean
+  idPrefijo: string
+}) {
+  const quitar = (
+    <Button variant="ghost" size="sm" onClick={() => onAplicar({ desde: '', hasta: '' })}>
+      Quitar el rango
+    </Button>
+  )
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`filtro-desde-${idPrefijo}`}>Desde</Label>
+        <Input
+          id={`filtro-desde-${idPrefijo}`}
+          type="date"
+          value={filtros.desde}
+          max={filtros.hasta || undefined}
+          onChange={(e) => onAplicar({ desde: e.target.value })}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`filtro-hasta-${idPrefijo}`}>Hasta</Label>
+        <Input
+          id={`filtro-hasta-${idPrefijo}`}
+          type="date"
+          value={filtros.hasta}
+          min={filtros.desde || undefined}
+          onChange={(e) => onAplicar({ hasta: e.target.value })}
+        />
+      </div>
+      {(filtros.desde || filtros.hasta) &&
+        (cerrarAlQuitar ? <PopoverClose asChild>{quitar}</PopoverClose> : quitar)}
     </div>
   )
 }
@@ -315,40 +566,62 @@ function CampoBusqueda({
   valor,
   onChange,
   onLimpiar,
-  alto = 'h-9',
+  onBuscarYa,
+  buscando,
 }: {
   valor: string
   onChange: (v: string) => void
   onLimpiar: () => void
-  alto?: string
+  onBuscarYa: () => void
+  buscando: boolean
 }) {
   return (
-    <div className="relative">
+    <div className="relative" role="search">
       <Search
         aria-hidden
-        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint"
+        className={cn(
+          'pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint',
+          // Un latido mientras el servidor contesta: dice "te escuché"
+          // sin bloquear el campo ni mover nada de lugar.
+          buscando && 'animate-pulse text-primary',
+        )}
       />
       <Input
+        id={ID_BUSQUEDA}
         type="search"
         value={valor}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Buscar paciente, prestación o DNI"
-        aria-label="Buscar paciente, prestación o DNI"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            onBuscarYa()
+          } else if (e.key === 'Escape' && valor) {
+            // Escape con texto limpia la búsqueda en vez de salirse del
+            // campo: es el gesto que se repite todo el día.
+            e.preventDefault()
+            e.stopPropagation()
+            onLimpiar()
+          }
+        }}
+        placeholder="Buscar paciente, prestación, N.º o DNI"
+        aria-label="Buscar paciente, prestación, número o DNI"
         className={cn(
-          'pl-9 [&::-webkit-search-cancel-button]:appearance-none',
-          valor && 'pr-9',
-          alto,
+          'h-11 pl-9 md:h-9 [&::-webkit-search-cancel-button]:appearance-none',
+          // El `Kbd` sólo existe en desktop: en mobile no reserva lugar.
+          valor ? 'pr-9' : 'pr-3 md:pr-10',
         )}
       />
-      {valor && (
+      {valor ? (
         <button
           type="button"
           onClick={onLimpiar}
           aria-label="Limpiar la búsqueda"
-          className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-pill text-faint transition-colors hover:bg-tint hover:text-ink"
+          className="absolute right-1.5 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-pill text-faint transition-colors hover:bg-tint hover:text-ink md:size-6"
         >
           <X aria-hidden className="size-4" />
         </button>
+      ) : (
+        <Kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">/</Kbd>
       )}
     </div>
   )
@@ -369,7 +642,7 @@ function Chip({
       onClick={onClick}
       aria-pressed={activo}
       className={cn(
-        'inline-flex h-11 shrink-0 items-center rounded-pill border px-4 font-sans text-[13px] font-medium transition-colors',
+        'inline-flex h-11 shrink-0 items-center rounded-pill border px-4 font-sans text-[13px] font-medium transition-colors press',
         activo
           ? 'border-primary bg-primary text-white'
           : 'border-hairline bg-card text-muted hover:bg-tint hover:text-ink',

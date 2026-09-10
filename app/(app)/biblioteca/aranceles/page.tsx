@@ -6,6 +6,8 @@ import {
   nombreObraSocial,
   parseVista,
   PARTICULAR,
+  soloFecha,
+  type ArancelProgramado,
   type CeldaVigente,
   type ColumnaObraSocial,
   type FilaHistorico,
@@ -63,6 +65,9 @@ interface ArancelBase {
 export default async function ArancelesPage(props: PageProps<'/biblioteca/aranceles'>) {
   const searchParams = await props.searchParams
   const vista = parseVista(searchParams.vista)
+  // «Faltan 6 OS» en Prestaciones abre la grilla ya filtrada por esa
+  // prestación: la pregunta que sigue siempre es cuáles faltan.
+  const q = (Array.isArray(searchParams.q) ? searchParams.q[0] : searchParams.q) ?? ''
 
   const supabase = await createClient()
 
@@ -76,15 +81,22 @@ export default async function ArancelesPage(props: PageProps<'/biblioteca/arance
     supabase
       .from('aranceles_vigentes')
       .select(
-        'id, prestacion_id, obra_social_id, monto, cobertura_tipo, cobertura_valor, vigente_desde, usos',
+        'id, prestacion_id, obra_social_id, monto, cobertura_tipo, cobertura_valor, vigente_desde, vigente_hasta, usos',
       ),
     // Aumentos ya cargados que todavía no arrancaron. No se cotizan,
     // pero la celda tiene que avisar que existen: si no, alguien que
     // programó el aumento de octubre no lo ve en septiembre y lo carga
     // de nuevo.
+    //
+    // Se traen enteros, no sólo el monto: una vigencia programada es la
+    // vigencia ABIERTA de su celda, y por lo tanto la que van a cerrar
+    // `nueva_vigencia()` y `aumento_masivo()`. El preview del aumento
+    // masivo se arma con estas filas, no con las de hoy.
     supabase
       .from('aranceles_programados')
-      .select('prestacion_id, obra_social_id, monto, vigente_desde')
+      .select(
+        'id, prestacion_id, obra_social_id, monto, cobertura_tipo, cobertura_valor, vigente_desde, vigente_hasta',
+      )
       .order('vigente_desde'),
   ])
 
@@ -121,33 +133,37 @@ export default async function ArancelesPage(props: PageProps<'/biblioteca/arance
     monto: Number(v.monto),
     cobertura_tipo: v.cobertura_tipo,
     cobertura_valor: Number(v.cobertura_valor),
-    vigente_desde: v.vigente_desde,
+    vigente_desde: soloFecha(v.vigente_desde),
+    vigente_hasta: v.vigente_hasta === null ? null : soloFecha(v.vigente_hasta),
     usos: Number(v.usos ?? 0),
   }))
 
-  // El primero por fecha es el que va a arrancar: si hubiera más de uno
-  // programado para la misma celda, el resto llega después.
-  const programados = new Map<string, { monto: number; vigente_desde: string }>()
-  for (const p of (programadosRes.data ?? []) as {
-    prestacion_id: string
-    obra_social_id: string | null
-    monto: number | string
-    vigente_desde: string
-  }[]) {
-    const clave = `${p.prestacion_id}:${p.obra_social_id ?? ''}`
-    if (!programados.has(clave)) {
-      programados.set(clave, { monto: Number(p.monto), vigente_desde: p.vigente_desde })
-    }
-  }
+  // Vienen ordenadas por fecha: la primera de cada celda es la que va a
+  // arrancar, y las demás quedan disponibles para el preview del aumento.
+  const programadas: ArancelProgramado[] = ((programadosRes.data ?? []) as ArancelBase[]).map(
+    (p) => ({
+      id: p.id,
+      prestacion_id: p.prestacion_id,
+      obra_social_id: p.obra_social_id,
+      monto: Number(p.monto),
+      cobertura_tipo: p.cobertura_tipo,
+      cobertura_valor: Number(p.cobertura_valor),
+      vigente_desde: soloFecha(p.vigente_desde),
+      vigente_hasta: p.vigente_hasta === null ? null : soloFecha(p.vigente_hasta),
+    }),
+  )
 
-  for (const celda of vigentes) {
-    celda.programado =
-      programados.get(`${celda.prestacion_id}:${celda.obra_social_id ?? ''}`) ?? null
-  }
-
-  const conVigencia = new Set(vigentes.map((v) => v.prestacion_id))
+  // Una celda cuyo único arancel es futuro no tiene fila en
+  // `aranceles_vigentes`: sin esto, la grilla la mostraría como «sin
+  // cargar» y el aumento masivo no la contaría.
+  const conVigencia = new Set([
+    ...vigentes.map((v) => v.prestacion_id),
+    ...programadas.map((p) => p.prestacion_id),
+  ])
   const osConVigencia = new Set(
-    vigentes.map((v) => v.obra_social_id).filter((id): id is string => Boolean(id)),
+    [...vigentes, ...programadas]
+      .map((v) => v.obra_social_id)
+      .filter((id): id is string => Boolean(id)),
   )
 
   // Una prestación inactiva con arancel abierto tiene que verse igual:
@@ -230,8 +246,8 @@ export default async function ArancelesPage(props: PageProps<'/biblioteca/arance
         monto: Number(a.monto),
         cobertura_tipo: a.cobertura_tipo,
         cobertura_valor: Number(a.cobertura_valor),
-        vigente_desde: a.vigente_desde,
-        vigente_hasta: a.vigente_hasta,
+        vigente_desde: soloFecha(a.vigente_desde),
+        vigente_hasta: a.vigente_hasta === null ? null : soloFecha(a.vigente_hasta),
         usos: usos.get(a.id) ?? 0,
       }
     })
@@ -239,10 +255,14 @@ export default async function ArancelesPage(props: PageProps<'/biblioteca/arance
 
   return (
     <PantallaAranceles
+      // Cambiar el filtro de la URL tiene que reiniciar el de la pantalla.
+      key={q}
       vista={vista}
+      busquedaInicial={q}
       prestaciones={filasGrilla}
       columnas={columnas}
       vigentes={vigentes}
+      programadas={programadas}
       rubros={rubros}
       historico={historico}
       historicoTruncado={historicoTruncado}

@@ -66,6 +66,23 @@ export function idColumna(clave: ClaveColumna): string {
 /** La franja de perdidos del pie es una zona de drop más. */
 export const ID_FRANJA_PERDIDO = 'franja:perdido'
 
+/**
+ * Las zonas donde algo puede caer: las cinco columnas y la franja.
+ *
+ * Las tarjetas también son droppables —el `KeyboardSensor` las necesita
+ * como mapa para moverse con las flechas—, pero NO son destino: la
+ * detección de colisiones se limita a esta lista. Ver `deteccion` en
+ * `tablero.tsx`.
+ */
+const IDS_ZONA: ReadonlySet<string> = new Set<string>([
+  ...CLAVES_COLUMNA.map(idColumna),
+  ID_FRANJA_PERDIDO,
+])
+
+export function esZonaDeDrop(id: string): boolean {
+  return IDS_ZONA.has(id)
+}
+
 /** Lo que cada droppable cuelga en `data` para resolver el destino. */
 export type DatosDrop =
   | { tipo: 'columna'; columna: ClaveColumna }
@@ -108,6 +125,49 @@ export interface ResumenColumna {
   monto: number
 }
 
+/**
+ * Mismo orden que la consulta del servidor: arriba de cada columna, lo
+ * que hace más tiempo que no se mueve —que es a quién hay que llamar—;
+ * a igual espera, lo más nuevo primero.
+ *
+ * POR QUÉ SE REPITE ACÁ. El movimiento es optimista: una tarjeta que
+ * acaba de moverse reinicia su reloj, así que su lugar en la columna
+ * cambia. Sin reordenar en el cliente, la tarjeta se quedaba entre las
+ * de doce días mostrando «hoy» y recién saltaba a su lugar cuando
+ * llegaba la revalidación. El salto se notaba más que el movimiento.
+ */
+export function ordenTablero(a: FilaPipeline, b: FilaPipeline): number {
+  if (a.dias_en_estado !== b.dias_en_estado) return b.dias_en_estado - a.dias_en_estado
+  if (a.fecha_emision !== b.fecha_emision) return a.fecha_emision < b.fecha_emision ? 1 : -1
+  // Desempate estable: sin esto dos tarjetas del mismo día podían
+  // intercambiarse entre renders y la columna parpadeaba sola.
+  return a.numero < b.numero ? 1 : a.numero > b.numero ? -1 : 0
+}
+
+/**
+ * Días en el estado después de mover, tal como los va a dejar la base.
+ *
+ * `enviado → pendiente` **no** reinicia el reloj: el trigger
+ * `touch_estado_desde` lo conserva a propósito, porque ese pase no es
+ * una respuesta del paciente sino el sistema reconociendo que sigue sin
+ * haberla. Pintar 0 ahí apagaba el tinte warm y el conteo de días justo
+ * en la tarjeta que había que ir a buscar, hasta que el servidor lo
+ * desmentía.
+ */
+export function diasTrasMover(
+  desde: EstadoPresupuesto,
+  hacia: EstadoPresupuesto,
+  dias: number,
+): number {
+  return desde === 'enviado' && hacia === 'pendiente' ? dias : 0
+}
+
+/** Dónde entra `fila` en una columna ya ordenada. */
+export function indiceDeInsercion(filas: FilaPipeline[], fila: FilaPipeline): number {
+  const i = filas.findIndex((otra) => ordenTablero(fila, otra) < 0)
+  return i === -1 ? filas.length : i
+}
+
 export function agruparPorColumna(
   filas: FilaPipeline[],
 ): Record<ClaveColumna, FilaPipeline[]> {
@@ -123,6 +183,7 @@ export function agruparPorColumna(
     const clave = columnaDeEstado(fila.estado)
     if (clave) grupos[clave].push(fila)
   }
+  for (const clave of CLAVES_COLUMNA) grupos[clave].sort(ordenTablero)
   return grupos
 }
 

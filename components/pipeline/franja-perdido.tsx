@@ -1,7 +1,7 @@
 'use client'
 
 import { useDroppable } from '@dnd-kit/core'
-import { CircleSlash } from 'lucide-react'
+import { CircleSlash, MoveDown } from 'lucide-react'
 
 import { Monto } from '@/components/ui'
 import { ETIQUETA_MOTIVO } from '@/lib/estados'
@@ -48,13 +48,17 @@ export function FranjaPerdido({
       ref={setNodeRef}
       aria-label="Perdidos"
       className={cn(
-        'flex flex-col gap-2 rounded-card border px-4 py-3 transition-colors duration-150',
+        'flex shrink-0 flex-col gap-2 rounded-card border px-4 py-3 transition-colors duration-150',
         'sm:flex-row sm:items-center sm:gap-5',
         activa
           ? 'border-warm-line border-dashed bg-warm ring-2 ring-warm-line/40'
           : arrastrando && habilitada
             ? 'border-dashed border-warm-line/50 bg-warm-soft'
-            : 'border-hairline bg-card',
+            : // En reposo la franja es sobre todo un resumen, pero el
+              // borde punteado del lado del texto la delata como zona de
+              // soltar antes de que alguien tenga que descubrirlo
+              // arrastrando.
+              'border-dashed border-hairline bg-card',
       )}
     >
       <div className="flex items-center gap-2.5">
@@ -104,10 +108,18 @@ export function FranjaPerdido({
 
       <p
         className={cn(
-          'font-sans text-[12px] leading-snug sm:ml-auto sm:max-w-[220px] sm:text-right',
-          activa ? 'font-semibold text-warm-ink' : 'text-faint',
+          'flex items-center gap-1.5 font-sans text-[12px] leading-snug sm:ml-auto sm:max-w-[230px] sm:justify-end sm:text-right',
+          activa
+            ? 'font-semibold text-warm-ink'
+            : arrastrando && !habilitada
+              ? 'font-medium text-warm-ink'
+              : 'text-muted',
         )}
       >
+        <MoveDown
+          aria-hidden
+          className={cn('size-3.5 shrink-0', arrastrando && !habilitada && 'hidden')}
+        />
         {activa
           ? 'Soltá para elegir el motivo'
           : arrastrando && !habilitada

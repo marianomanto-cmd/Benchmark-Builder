@@ -1,7 +1,11 @@
+'use client'
+
 import { Monto } from '@/components/ui'
 import { estaCerrado } from '@/lib/estados'
 import { porcentaje } from '@/lib/formato'
-import type { EstadoPresupuesto, PresupuestoCuota } from '@/lib/types'
+import type { PresupuestoCuota } from '@/lib/types'
+
+import { useDetalle } from './contexto'
 
 /**
  * Totales congelados + condiciones de pago.
@@ -9,22 +13,26 @@ import type { EstadoPresupuesto, PresupuestoCuota } from '@/lib/types'
  * En `perdido` e `iniciado` el monto va apagado: ya no está en juego —
  * en uno porque se cerró la conversación, en el otro porque el
  * tratamiento arrancó y lo que importa pasó a ser el cobro.
+ *
+ * El estado sale del contexto y no de una prop: en desktop éste es el
+ * único número grande de la pantalla, y si el badge de arriba cambiaba
+ * al toque mientras el monto seguía encendido, la pantalla se
+ * contradecía hasta que volvía el servidor.
  */
 export function Totales({
   subtotal,
   cobertura,
   aCargo,
-  estado,
   cuotas,
   observaciones,
 }: {
   subtotal: number
   cobertura: number
   aCargo: number
-  estado: EstadoPresupuesto
   cuotas: PresupuestoCuota[]
   observaciones: string | null
 }) {
+  const { estado } = useDetalle()
   const cerrado = estaCerrado(estado)
 
   return (

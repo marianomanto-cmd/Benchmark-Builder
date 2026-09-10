@@ -1,6 +1,6 @@
 'use client'
 
-import { CircleSlash, Clock, MoveRight } from 'lucide-react'
+import { CircleSlash, Clock, MessageCircle, MoveRight } from 'lucide-react'
 
 import { Button, Card, CardBody, CardHeader, CardTitle, EstadoBadge } from '@/components/ui'
 import {
@@ -10,7 +10,6 @@ import {
   puedeMarcarsePerdido,
   transicionesSugeridas,
 } from '@/lib/estados'
-import type { EstadoPresupuesto } from '@/lib/types'
 
 import { useDetalle } from './contexto'
 
@@ -21,18 +20,25 @@ import { useDetalle } from './contexto'
  * presupuesto en el pipeline es la acción más frecuente del día y no
  * merece un paso de confirmación. La única que sí lo pide es "perdido",
  * porque necesita el motivo.
+ *
+ * El estado sale del contexto, no de una prop del servidor: el panel
+ * entero (badge, reloj y botones) se reacomoda apenas se toca, sin
+ * esperar el viaje de ida y vuelta.
  */
 export function PanelSeguimiento({
-  estado,
   diasEnEstado,
 }: {
-  estado: EstadoPresupuesto
   /** Calculado en el servidor para que no haya desfasaje al hidratar. */
   diasEnEstado: number
 }) {
-  const { cambiar, abrirEstado, abrirPerdido, aplicando, cambiando } = useDetalle()
+  const { estado, proyectado, cambiar, abrirEstado, abrirPerdido, abrirWhatsApp, aplicando, cambiando } =
+    useDetalle()
+
   const sugeridas = transicionesSugeridas(estado)
-  const frio = estaFrio(estado, diasEnEstado)
+  // Recién cambiado: el reloj arranca de cero, y el aviso de "hace
+  // mucho que no contesta" no puede seguir hablando del estado viejo.
+  const dias = proyectado ? 0 : diasEnEstado
+  const frio = !proyectado && estaFrio(estado, diasEnEstado)
 
   return (
     <Card className="animate-enter">
@@ -44,17 +50,28 @@ export function PanelSeguimiento({
           <EstadoBadge estado={estado} />
           <span className="t-helper flex items-center gap-1">
             <Clock aria-hidden className="size-3.5 text-faint" />
-            {diasEnEstado === 0
-              ? 'desde hoy'
-              : `hace ${diasEnEstado} ${diasEnEstado === 1 ? 'día' : 'días'}`}
+            {dias === 0 ? 'desde hoy' : `hace ${dias} ${dias === 1 ? 'día' : 'días'}`}
           </span>
         </div>
 
         {frio && (
-          <p className="rounded-input border border-warm-line/25 bg-warm-soft px-3 py-2 text-[13px] leading-relaxed text-warm-ink">
-            Pasaron más de {DIAS_SIN_RESPUESTA} días sin novedades. Un mensaje corto suele
-            destrabarlo.
-          </p>
+          <div className="rounded-input border border-warm-line/25 bg-warm-soft px-3 py-2.5">
+            <p className="text-[13px] leading-relaxed text-warm-ink">
+              Pasaron más de {DIAS_SIN_RESPUESTA} días sin novedades. Un mensaje corto suele
+              destrabarlo.
+            </p>
+            {/* La salida, donde aparece el problema: sin esto había que
+                buscar el envío en otra parte de la pantalla. */}
+            <Button
+              variant="warm"
+              size="touch"
+              className="mt-2.5 md:h-[34px]"
+              onClick={abrirWhatsApp}
+            >
+              <MessageCircle aria-hidden />
+              Escribirle por WhatsApp
+            </Button>
+          </div>
         )}
 
         {sugeridas.length > 0 ? (
@@ -86,13 +103,25 @@ export function PanelSeguimiento({
         )}
 
         <div className="flex flex-col gap-2 border-t border-hairline pt-3">
-          <Button variant="ghost" size="touch" className="md:h-[34px]" onClick={abrirEstado}>
+          <Button
+            variant="ghost"
+            size="touch"
+            className="md:h-[34px]"
+            onClick={abrirEstado}
+            disabled={cambiando}
+          >
             Elegir otro estado
           </Button>
 
           {puedeMarcarsePerdido(estado) && (
             /* Nunca un ícono solo en una acción negativa: va con texto. */
-            <Button variant="danger" size="touch" className="md:h-[34px]" onClick={abrirPerdido}>
+            <Button
+              variant="danger"
+              size="touch"
+              className="md:h-[34px]"
+              onClick={abrirPerdido}
+              disabled={cambiando}
+            >
               <CircleSlash aria-hidden />
               Marcar como perdido
             </Button>

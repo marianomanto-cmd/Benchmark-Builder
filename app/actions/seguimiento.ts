@@ -215,7 +215,7 @@ export async function duplicarPresupuesto(
 export async function guardarNotaInterna(
   id: string,
   texto: string,
-): Promise<Resultado<{ texto: string | null }>> {
+): Promise<Resultado<{ texto: string | null; aviso?: string }>> {
   const usuario = await getUsuario()
   if (!usuario) return { ok: false, error: SIN_SESION }
 
@@ -256,9 +256,21 @@ export async function guardarNotaInterna(
     p_tipo: 'nota',
     p_desc: resumen,
   })
-  if (errorEvento) return { ok: false, error: mensajeDeError(errorEvento.message) }
 
   revalidar(datos.id)
+
+  // La nota YA se guardó: son dos escrituras y la primera entró. Decir
+  // «no se pudo guardar» sería mentir —el texto está en la base— y el
+  // consultorio lo escribiría de nuevo. Se reporta lo que falló.
+  if (errorEvento) {
+    console.error('[nota] se guardó la nota pero no el evento', errorEvento)
+    return {
+      ok: true,
+      texto: limpio,
+      aviso: 'La nota quedó guardada, pero no se pudo anotar en el historial.',
+    }
+  }
+
   return { ok: true, texto: limpio }
 }
 
@@ -285,7 +297,7 @@ export async function registrarEnvioWhatsapp(
   id: string,
   marcarEnviado: boolean,
   descripcion?: string | null,
-): Promise<Resultado<{ estado: EstadoPresupuesto | null }>> {
+): Promise<Resultado<{ estado: EstadoPresupuesto | null; aviso?: string }>> {
   const usuario = await getUsuario()
   if (!usuario) return { ok: false, error: SIN_SESION }
 
@@ -323,7 +335,18 @@ export async function registrarEnvioWhatsapp(
       p_motivo: null,
       p_nota: null,
     })
-    if (errorEstado) return { ok: false, error: mensajeDeError(errorEstado.message) }
+    if (errorEstado) {
+      // El evento del envío YA está escrito. Devolver `ok: false` hacía
+      // que el sheet dijera «el envío no se pudo anotar en el historial»
+      // justo cuando sí se anotó: lo que quedó a medias es el estado.
+      console.error('[envío] se anotó el envío pero no el cambio de estado', errorEstado)
+      revalidar(datos.id)
+      return {
+        ok: true,
+        estado: null,
+        aviso: 'El envío quedó en el historial, pero el estado no se pudo mover a Enviado.',
+      }
+    }
     estadoFinal = 'enviado'
   }
 

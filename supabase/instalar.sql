@@ -1403,13 +1403,38 @@ language plpgsql
 set search_path = public
 as $$
 begin
+  -- PostgREST entra con el rol del token: `authenticated` con la anon
+  -- key, `service_role` con la de servicio. `postgres` es el editor SQL
+  -- del dashboard, que es la salida de emergencia del consultorio.
+  if current_user in ('service_role', 'supabase_admin', 'postgres') then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.es_admin and not es_admin() then
+      raise exception 'Sólo un administrador puede dar de alta a otro administrador';
+    end if;
+    return new;
+  end if;
+
   if new.es_admin is distinct from old.es_admin and not es_admin() then
     raise exception 'Sólo un administrador puede cambiar los permisos del equipo';
   end if;
+
   return new;
 end $$;
 
 
 create trigger trg_es_admin
   before update on profesionales
+  for each row execute function guard_es_admin();
+
+
+-- ─── guarda alta admin ───────────────────────────────────────
+
+
+drop trigger if exists trg_es_admin_alta on profesionales;
+
+create trigger trg_es_admin_alta
+  before insert on profesionales
   for each row execute function guard_es_admin();

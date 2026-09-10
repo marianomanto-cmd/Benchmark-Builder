@@ -8,7 +8,12 @@ import { cn } from '@/lib/utils'
  */
 export function Tabla({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-x-auto">
+    // `scroll-sombras` marca con una sombra el lado donde todavía hay
+    // contenido, y `scroll-visible` deja ver la barra: una tabla más
+    // ancha que su caja se cortaba sin avisar, y la última columna
+    // quedaba partida contra el borde sin que nadie supiera que había
+    // más a la derecha.
+    <div className="w-full overflow-x-auto scroll-sombras scroll-visible">
       <table className={cn('w-full border-collapse text-left', className)} {...props} />
     </div>
   )

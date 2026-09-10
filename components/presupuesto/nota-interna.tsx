@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import * as React from 'react'
 import { toast } from 'sonner'
 
-import { Button, Card, CardBody, CardHeader, CardTitle, Textarea } from '@/components/ui'
+import { Button, Card, CardBody, CardHeader, CardTitle, Kbd, Textarea } from '@/components/ui'
 import { guardarNotaInterna } from '@/app/actions/seguimiento'
 
 /**
@@ -28,7 +28,18 @@ export function NotaInterna({
   const router = useRouter()
   const [editando, setEditando] = React.useState(false)
   const [texto, setTexto] = React.useState(nota ?? '')
-  const [guardando, setGuardando] = React.useState(false)
+
+  /**
+   * Lo guardado se ve al toque.
+   *
+   * El texto que se muestra es la prop del servidor, y ésa recién
+   * cambia cuando vuelve el `router.refresh()`. Sin esto, al cerrar el
+   * editor la nota vieja reaparecía por un instante y parecía que el
+   * guardado no había entrado. `useOptimistic` sostiene el valor nuevo
+   * hasta que llega el real —y lo suelta solo si algo falla—.
+   */
+  const [notaVisible, proyectarNota] = React.useOptimistic(nota)
+  const [guardando, iniciarGuardado] = React.useTransition()
 
   /**
    * El textarea se siembra al entrar en edición, no con un efecto que
@@ -45,27 +56,46 @@ export function NotaInterna({
     setEditando(true)
   }
 
-  async function guardar() {
-    setGuardando(true)
-    try {
-      const res = await guardarNotaInterna(presupuestoId, texto)
-      if (!res.ok) {
-        toast.error(res.error)
-        return
+  function guardar() {
+    if (guardando) return
+    const limpio = texto.trim() || null
+
+    iniciarGuardado(async () => {
+      proyectarNota(limpio)
+      try {
+        const res = await guardarNotaInterna(presupuestoId, texto)
+        if (!res.ok) {
+          toast.error(res.error)
+          return
+        }
+        // El aviso es un guardado a medias —la nota entró, el evento
+        // no—: se cuenta como está, no como éxito ni como fracaso.
+        if (res.aviso) toast.error(res.aviso)
+        else toast.success(limpio ? 'Nota guardada.' : 'Nota borrada.')
+        setEditando(false)
+        router.refresh()
+      } catch {
+        toast.error('No se pudo guardar la nota. Fijate la conexión y probá de nuevo.')
       }
-      toast.success('Nota guardada.')
-      setEditando(false)
-      router.refresh()
-    } catch {
-      toast.error('No se pudo guardar la nota. Fijate la conexión y probá de nuevo.')
-    } finally {
-      setGuardando(false)
-    }
+    })
   }
 
   function cancelar() {
     setTexto(nota ?? '')
     setEditando(false)
+  }
+
+  /** ⌘/Ctrl + ⏎ manda, Esc cancela: la misma regla que en el wizard. */
+  function alTeclear(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      guardar()
+      return
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      cancelar()
+    }
   }
 
   return (
@@ -80,6 +110,7 @@ export function NotaInterna({
             <Textarea
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
+              onKeyDown={alTeclear}
               maxLength={4000}
               autoFocus
               placeholder="Prefiere que la llamemos después de las 18. Trabaja cerca del consultorio."
@@ -88,15 +119,18 @@ export function NotaInterna({
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="primary" onClick={guardar} loading={guardando}>
                 Guardar
+                <Kbd className="ml-0.5">⌘⏎</Kbd>
               </Button>
               <Button variant="ghost" onClick={cancelar} disabled={guardando}>
                 Cancelar
               </Button>
             </div>
           </div>
-        ) : nota ? (
+        ) : notaVisible ? (
           <div className="flex flex-col gap-3">
-            <p className="whitespace-pre-line text-[14px] leading-relaxed text-body">{nota}</p>
+            <p className="whitespace-pre-line text-[14px] leading-relaxed text-body">
+              {notaVisible}
+            </p>
             <div>
               <Button variant="ghost" size="touch" className="md:h-[34px]" onClick={editar}>
                 <Pencil aria-hidden />

@@ -1,6 +1,7 @@
 import 'server-only'
 
 import type { CoberturaTipo } from '@/lib/calculo'
+import type { EstadoPresupuesto } from '@/lib/types'
 import type { createClient } from '@/lib/supabase/server'
 
 import { datosConsultorio, type DatosConsultorio } from './consultorio'
@@ -56,14 +57,24 @@ export interface DatosPdf {
   consultorio: DatosConsultorio
 }
 
-/** Lo que devuelve la carga: el documento + lo que decide el cacheo. */
-export interface PresupuestoParaPdf {
+/**
+ * La cabecera: lo que alcanza para decidir si hay que renderizar.
+ *
+ * Se lee sola, en una consulta, porque el 90 % de las visitas al PDF
+ * terminan en el archivo que ya está en Storage. Traer ítems y cuotas
+ * para después no usarlos era pedirle dos consultas de más a un celular
+ * con señal mala.
+ */
+export interface CabeceraPdf {
   id: string
   numero: string
-  /** Última modificación del presupuesto. Contra esto se mide el caché. */
-  actualizadoEn: string
+  estado: EstadoPresupuesto
   /** Ruta del PDF ya cacheado en Storage, si existe. */
   pdfPath: string | null
+}
+
+/** Lo que devuelve la carga completa: cabecera + el documento armado. */
+export interface PresupuestoParaPdf extends CabeceraPdf {
   datos: DatosPdf
 }
 
@@ -83,6 +94,7 @@ function aTexto(valor: unknown): string | null {
 const COLUMNAS_PRESUPUESTO = [
   'id',
   'numero',
+  'estado',
   'fecha_emision',
   'valido_hasta',
   'paciente_nombre',
@@ -96,7 +108,6 @@ const COLUMNAS_PRESUPUESTO = [
   'total_a_cargo',
   'observaciones',
   'pdf_path',
-  'updated_at',
 ].join(', ')
 
 // `editado`, `motivo_override` y `cobertura_original_*` no se piden.
@@ -116,24 +127,48 @@ const COLUMNAS_ITEM = [
 const COLUMNAS_CUOTA = ['orden', 'etiqueta', 'porcentaje', 'monto'].join(', ')
 
 /**
- * Trae presupuesto + ítems + cuotas. La RLS ya filtra por sesión: si
- * el usuario no puede verlo, la consulta vuelve vacía y devolvemos
- * `null` (el llamador responde 404, no 403, para no confirmar que el
- * presupuesto existe).
+ * La fila de `presupuestos`, sin ítems ni cuotas.
+ *
+ * La RLS ya filtra por sesión: si el usuario no puede verlo, la consulta
+ * vuelve vacía y devolvemos `null` (el llamador responde 404, no 403,
+ * para no confirmar que el presupuesto existe).
  */
-export async function cargarDatosPdf(
+export async function cargarCabeceraPdf(
   supabase: ClienteSupabase,
   id: string,
-): Promise<PresupuestoParaPdf | null> {
-  const { data: presupuesto, error } = await supabase
+): Promise<{ cabecera: CabeceraPdf; fila: Record<string, unknown> } | null> {
+  const { data, error } = await supabase
     .from('presupuestos')
     .select(COLUMNAS_PRESUPUESTO)
     .eq('id', id)
     .maybeSingle()
 
-  if (error || !presupuesto) return null
+  if (error || !data) return null
 
-  const fila = presupuesto as unknown as Record<string, unknown>
+  const fila = data as unknown as Record<string, unknown>
+
+  return {
+    fila,
+    cabecera: {
+      id: String(fila.id),
+      numero: String(fila.numero ?? ''),
+      estado: (fila.estado as EstadoPresupuesto) ?? 'borrador',
+      pdfPath: aTexto(fila.pdf_path),
+    },
+  }
+}
+
+/**
+ * Completa el documento con sus ítems y sus condiciones de pago.
+ *
+ * Se llama **sólo cuando hay que renderizar**: las dos consultas van en
+ * paralelo porque no dependen entre sí.
+ */
+export async function cargarDocumentoPdf(
+  supabase: ClienteSupabase,
+  fila: Record<string, unknown>,
+): Promise<DatosPdf> {
+  const id = String(fila.id)
 
   const [{ data: items }, { data: cuotas }] = await Promise.all([
     supabase
@@ -151,7 +186,7 @@ export async function cargarDatosPdf(
   const filasItems = (items ?? []) as unknown as Record<string, unknown>[]
   const filasCuotas = (cuotas ?? []) as unknown as Record<string, unknown>[]
 
-  const datos: DatosPdf = {
+  return {
     numero: String(fila.numero ?? ''),
     fechaEmision: String(fila.fecha_emision ?? ''),
     validoHasta: String(fila.valido_hasta ?? ''),
@@ -188,12 +223,18 @@ export async function cargarDatosPdf(
     observaciones: aTexto(fila.observaciones),
     consultorio: datosConsultorio(),
   }
+}
+
+/** Presupuesto + ítems + cuotas, para cuando hay que renderizar sí o sí. */
+export async function cargarDatosPdf(
+  supabase: ClienteSupabase,
+  id: string,
+): Promise<PresupuestoParaPdf | null> {
+  const encabezado = await cargarCabeceraPdf(supabase, id)
+  if (!encabezado) return null
 
   return {
-    id: String(fila.id),
-    numero: datos.numero,
-    actualizadoEn: String(fila.updated_at ?? ''),
-    pdfPath: aTexto(fila.pdf_path),
-    datos,
+    ...encabezado.cabecera,
+    datos: await cargarDocumentoPdf(supabase, encabezado.fila),
   }
 }

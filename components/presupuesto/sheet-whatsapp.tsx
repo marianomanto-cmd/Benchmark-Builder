@@ -1,7 +1,17 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Download, MessageCircle, Paperclip, Phone, TriangleAlert } from 'lucide-react'
+import {
+  CheckCircle2,
+  Download,
+  Eye,
+  MessageCircle,
+  Paperclip,
+  Pencil,
+  Phone,
+  RotateCw,
+  TriangleAlert,
+} from 'lucide-react'
 import * as React from 'react'
 import { toast } from 'sonner'
 
@@ -22,7 +32,7 @@ import {
   registrarEnvioWhatsapp,
 } from '@/app/actions/seguimiento'
 import { datosConsultorio } from '@/lib/pdf/consultorio'
-import { fechaLarga, telefonoWhatsApp, vigenciaTexto } from '@/lib/formato'
+import { fechaLarga, nombreDePila, telefonoWhatsApp, vigenciaTexto } from '@/lib/formato'
 import { createClient } from '@/lib/supabase/client'
 import type { EstadoPresupuesto } from '@/lib/types'
 import {
@@ -35,6 +45,7 @@ import {
   type PlantillaWhatsApp,
 } from '@/lib/whatsapp'
 
+import { AvisoLinkPendiente, VistaPreviaWhatsApp } from './vista-previa-whatsapp'
 import { monto, texto, textoOpcional, type FilaCruda } from './tipos'
 
 /* ═══════════════════════════════════════════════════════════
@@ -63,6 +74,18 @@ interface DatosEnvio {
   /** Si ya se mandó alguna vez, según el historial append-only. */
   yaSeEnvio: boolean
 }
+
+/**
+ * Por dónde va a salir el mensaje. Se decide ANTES de mandar porque de
+ * eso depende lo que el paciente recibe —y por lo tanto lo que la vista
+ * previa tiene que mostrar—:
+ *
+ *  - `adjunto`   el teléfono puede compartir archivos: va el PDF de verdad.
+ *  - `chat`      se abre el chat del paciente en wa.me, con el link al PDF.
+ *  - `compartir` sin teléfono, pero el equipo puede elegir el contacto.
+ *  - `ninguna`   no hay por dónde: falta el teléfono y no hay para compartir.
+ */
+type Via = 'adjunto' | 'chat' | 'compartir' | 'ninguna'
 
 const CONSULTORIO = datosConsultorio().nombre
 
@@ -114,14 +137,18 @@ async function traerDatos(presupuestoId: string): Promise<DatosEnvio | null> {
   }
 }
 
-/** Plantilla que conviene según dónde está parado el presupuesto. */
+/**
+ * Plantilla que conviene según dónde está parado el presupuesto.
+ *
+ * El historial manda por encima de todo lo demás: si YA se le mandó
+ * este mismo documento, lo que corresponde es un recordatorio. Un
+ * duplicado que ya se envió una vez volvía a proponer «te paso el
+ * presupuesto con los valores de hoy: reemplaza al anterior», que es
+ * exactamente el mensaje que el paciente ya había recibido.
+ */
 function plantillaSugerida(datos: DatosEnvio): PlantillaWhatsApp {
-  if (datos.esDuplicado) return 'actualizacion'
-  // Sólo es recordatorio si de verdad ya se mandó una vez. Mirar el
-  // estado no alcanza: «Guardar y enviar por WhatsApp» deja el
-  // presupuesto en `enviado` y recién ahí abre este sheet, así que el
-  // primer envío llegaba acá proponiendo un recordatorio.
   if (datos.yaSeEnvio) return 'recordatorio'
+  if (datos.esDuplicado) return 'actualizacion'
   return 'primer_envio'
 }
 
@@ -147,12 +174,17 @@ export function SheetWhatsApp({
   const [plantilla, setPlantilla] = React.useState<PlantillaWhatsApp>('primer_envio')
   const [mensaje, setMensaje] = React.useState('')
   const [editado, setEditado] = React.useState(false)
+  const [editando, setEditando] = React.useState(false)
   const [adjuntar, setAdjuntar] = React.useState(true)
   const [marcarEnviado, setMarcarEnviado] = React.useState(true)
   const [telefonoNuevo, setTelefonoNuevo] = React.useState('')
   const [paso, setPaso] = React.useState<'redactar' | 'enviado'>('redactar')
   const [enviando, setEnviando] = React.useState(false)
   const [registrado, setRegistrado] = React.useState(true)
+  /** Por dónde salió, para que la confirmación cuente lo que pasó. */
+  const [viaUsada, setViaUsada] = React.useState<Via>('chat')
+  /** Lo que quedó a medias, si algo quedó a medias. */
+  const [avisoEnvio, setAvisoEnvio] = React.useState<string | null>(null)
   /**
    * Si el estado se movió DE VERDAD, según lo que devolvió el servidor.
    *
@@ -163,6 +195,13 @@ export function SheetWhatsApp({
    * tiene que decir lo que pasó, no lo que se pidió.
    */
   const [estadoCambiado, setEstadoCambiado] = React.useState(false)
+
+  /**
+   * ¿El navegador puede compartir? Se lee con `useSyncExternalStore`:
+   * en el servidor no hay `navigator`, y setear estado dentro de un
+   * efecto dispara los renders en cascada que React 19 desaconseja.
+   */
+  const soporteShare = React.useSyncExternalStore(SIN_CAMBIOS, hayShare, () => false)
 
   /**
    * El PDF se pide apenas se abre el sheet, no al tocar "Enviar".
@@ -220,6 +259,7 @@ export function SheetWhatsApp({
 
     setPaso('redactar')
     setEditado(false)
+    setEditando(false)
     setRegistrado(true)
     const sugerida = plantillaSugerida(datos)
     setPlantilla(sugerida)
@@ -276,23 +316,43 @@ export function SheetWhatsApp({
 
   const hayTelefono = telefonoWhatsApp(datos?.telefono) !== null
 
+  /* ── Qué recibe el paciente ─────────────────────────────── */
+
+  // Con el adjunto apagado, el link tampoco viaja: la consulta puede
+  // tener un valor cacheado de cuando el toggle estaba prendido.
+  const urlPdf = adjuntar ? (link.data ?? null) : null
+
+  const archivo = React.useMemo(() => {
+    if (!adjuntar || !pdf.data || !datos) return null
+    return new File([pdf.data], nombreArchivoPdf(datos.numero), { type: 'application/pdf' })
+  }, [adjuntar, pdf.data, datos])
+
+  const puedeCompartirArchivo = React.useMemo(() => {
+    if (!soporteShare || !archivo || typeof navigator === 'undefined') return false
+    return Boolean(navigator.canShare?.({ files: [archivo] }))
+  }, [soporteShare, archivo])
+
+  const via: Via = puedeCompartirArchivo
+    ? 'adjunto'
+    : hayTelefono
+      ? 'chat'
+      : soporteShare
+        ? 'compartir'
+        : 'ninguna'
+
+  // Lo que se manda de verdad: con el adjunto real no hace falta el
+  // link, sin él el link es lo único que lleva al PDF.
+  const textoConLink = conLinkPdf(mensaje, urlPdf)
+  const textoQueLlega = via === 'adjunto' ? mensaje : textoConLink
+  // «Todavía viene» sólo mientras de verdad viene: si la firma del link
+  // falló, `link` resuelve en `null` y el aviso quedaba prometiendo un
+  // link que no iba a llegar nunca.
+  const preparandoPdf = adjuntar && !pdf.isError && (pdf.isPending || link.isPending)
+  const linkEnCamino = via !== 'adjunto' && !urlPdf && preparandoPdf
+
   async function enviar() {
     if (!datos) return
     setEnviando(true)
-
-    const blob = adjuntar ? (pdf.data ?? null) : null
-    const archivo = blob
-      ? new File([blob], nombreArchivoPdf(datos.numero), { type: 'application/pdf' })
-      : null
-    // Con el adjunto apagado, el link tampoco viaja: la consulta puede
-    // tener un valor cacheado de cuando el toggle estaba prendido.
-    const urlPdf = adjuntar ? (link.data ?? null) : null
-
-    const puedeCompartirArchivo =
-      archivo !== null &&
-      typeof navigator !== 'undefined' &&
-      typeof navigator.share === 'function' &&
-      Boolean(navigator.canShare?.({ files: [archivo] }))
 
     /**
      * El share va PRIMERO y sin `await` previo.
@@ -304,22 +364,45 @@ export function SheetWhatsApp({
      * después de disparar.
      */
     let disparado = false
+    let conPdf = false
+    let viaFinal: Via = via
 
-    if (puedeCompartirArchivo && archivo) {
-      // Sin `await`: el sheet no espera a que WhatsApp devuelva nada.
-      // Un `AbortError` sólo significa que el usuario cerró el selector.
-      navigator.share({ files: [archivo], text: mensaje }).catch(() => {})
+    // 1 · El PDF de verdad, si el teléfono puede compartir archivos.
+    if (via === 'adjunto' && archivo && compartir({ files: [archivo], text: mensaje })) {
       disparado = true
-    } else {
-      const url = linkWhatsApp(datos.telefono, conLinkPdf(mensaje, urlPdf))
+      conPdf = true
+    }
+
+    // 2 · El chat del paciente. También es la red de abajo si el share
+    //     se cayó: `navigator.share` puede tirar sincrónicamente.
+    let bloqueoDeVentana = false
+    if (!disparado && hayTelefono) {
+      const url = linkWhatsApp(datos.telefono, textoConLink)
       if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer')
-        disparado = true
+        const ventana = window.open(url, '_blank', 'noopener,noreferrer')
+        if (ventana) {
+          disparado = true
+          conPdf = urlPdf !== null
+          viaFinal = 'chat'
+        } else {
+          bloqueoDeVentana = true
+        }
       }
     }
 
+    // 3 · Sin teléfono: que elija el contacto desde el selector.
+    if (!disparado && soporteShare && compartir({ text: textoConLink })) {
+      disparado = true
+      conPdf = urlPdf !== null
+      viaFinal = 'compartir'
+    }
+
     if (!disparado) {
-      toast.error('Falta el teléfono del paciente para abrir WhatsApp.')
+      toast.error(
+        bloqueoDeVentana
+          ? 'El navegador bloqueó la ventana de WhatsApp. Permití las ventanas emergentes para este sitio y probá de nuevo.'
+          : 'Falta el teléfono del paciente para abrir WhatsApp.',
+      )
       setEnviando(false)
       return
     }
@@ -338,15 +421,27 @@ export function SheetWhatsApp({
     const registro = await registrarEnvioWhatsapp(
       datos.id,
       marcarEnviado,
-      descripcionEnvio(plantilla, archivo !== null || urlPdf !== null),
+      // Lo que dice el historial tiene que ser lo que salió: antes
+      // anunciaba "con el PDF adjunto" por el sólo hecho de tener el
+      // archivo preparado, aunque el mensaje hubiera salido pelado.
+      descripcionEnvio(plantilla, conPdf ? (viaFinal === 'adjunto' ? 'adjunto' : 'link') : 'sin'),
     )
 
     // El mensaje ya salió: si el registro falla no se puede deshacer
     // nada, así que se avisa y la confirmación lo dice sin mentir.
-    setRegistrado(registro.ok)
-    setEstadoCambiado(registro.ok && registro.estado === 'enviado')
-    if (!registro.ok) toast.error(registro.error)
+    if (registro.ok) {
+      setRegistrado(true)
+      setEstadoCambiado(registro.estado === 'enviado')
+      setAvisoEnvio(registro.aviso ?? null)
+      if (registro.aviso) toast.error(registro.aviso)
+    } else {
+      setRegistrado(false)
+      setEstadoCambiado(false)
+      setAvisoEnvio(null)
+      toast.error(registro.error)
+    }
 
+    setViaUsada(viaFinal)
     setEnviando(false)
     setPaso('enviado')
     queryClient.invalidateQueries({ queryKey: ['presupuesto-envio', presupuestoId] })
@@ -358,37 +453,55 @@ export function SheetWhatsApp({
   let footer: React.ReactNode
 
   if (consulta.isPending) {
+    // El esqueleto calca el layout: resumen, plantillas, mensaje y las
+    // dos opciones. Así no salta nada cuando llegan los datos.
     cuerpo = (
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-12 w-full" />
+      <div className="flex flex-col gap-5" aria-busy="true">
+        <Skeleton className="h-[68px] w-full rounded-card" />
+        <div className="flex flex-col gap-1.5">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-11 w-full rounded-pill" />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-[168px] w-full rounded-card" />
+        </div>
+        <Skeleton className="h-[132px] w-full rounded-card" />
       </div>
     )
     footer = null
   } else if (consulta.isError || !datos) {
     cuerpo = (
-      <p className="text-[14px] text-warm-ink">
-        No se pudieron traer los datos del presupuesto. Cerrá el envío y volvé a intentar en un
-        rato.
-      </p>
+      <div className="flex flex-col gap-3">
+        <p className="text-[14px] leading-relaxed text-warm-ink">
+          No se pudieron traer los datos del presupuesto. Suele ser la conexión: probá de nuevo.
+        </p>
+        <div>
+          <Button variant="secondary" onClick={() => consulta.refetch()} loading={consulta.isFetching}>
+            <RotateCw aria-hidden />
+            Reintentar
+          </Button>
+        </div>
+      </div>
     )
     footer = (
-      <Button variant="secondary" full onClick={() => onOpenChange(false)}>
+      <Button variant="ghost" full onClick={() => onOpenChange(false)}>
         Cerrar
       </Button>
     )
   } else if (paso === 'enviado') {
+    const todoOk = registrado && !avisoEnvio
+
     cuerpo = (
       <div className="flex flex-col gap-4">
         <div
           className={
-            registrado
+            todoOk
               ? 'flex items-start gap-3 rounded-card border border-primary/20 bg-tint p-4'
               : 'flex items-start gap-3 rounded-card border border-warm-line/25 bg-warm-soft p-4'
           }
         >
-          {registrado ? (
+          {todoOk ? (
             <CheckCircle2 aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
           ) : (
             <TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0 text-warm-line" />
@@ -396,23 +509,25 @@ export function SheetWhatsApp({
           <div className="min-w-0">
             <p
               className={
-                registrado
+                todoOk
                   ? 'font-sans text-[13.5px] font-semibold text-ink'
                   : 'font-sans text-[13.5px] font-semibold text-warm-ink'
               }
             >
-              Se abrió WhatsApp con el mensaje
+              {tituloEnvio(viaUsada)}
             </p>
             <p
               className={
-                registrado
+                todoOk
                   ? 'mt-1 text-[13px] leading-relaxed text-body'
                   : 'mt-1 text-[13px] leading-relaxed text-warm-ink/85'
               }
             >
-              {registrado
-                ? `${registroTexto(estadoCambiado)} Quedó anotado en el historial del ${datos.numero} con tu nombre y la fecha.`
-                : `El envío no se pudo anotar en el historial del ${datos.numero}. Si el mensaje salió, cambiá el estado a mano desde el detalle.`}
+              {!registrado
+                ? `El envío no se pudo anotar en el historial del ${datos.numero}. Si el mensaje salió, cambiá el estado a mano desde el detalle.`
+                : avisoEnvio
+                  ? `${avisoEnvio} Si el mensaje salió, movelo a mano desde el detalle.`
+                  : `${registroTexto(estadoCambiado)} Quedó anotado en el historial del ${datos.numero} con tu nombre y la fecha.`}
             </p>
           </div>
         </div>
@@ -469,26 +584,55 @@ export function SheetWhatsApp({
           </div>
         </Field>
 
-        {/* Mensaje editable */}
+        {/* Mensaje: primero como le llega, y a un toque para editarlo.
+            En un teléfono un textarea de 210px se come la pantalla y
+            deja el pie fuera de la vista apenas sube el teclado. */}
         <Field
           label="Mensaje"
-          htmlFor="mensaje-whatsapp"
+          htmlFor={editando ? 'mensaje-whatsapp' : undefined}
           helper={
             datos.validoHasta
               ? `El presupuesto ${vigenciaTexto(datos.validoHasta)} (${fechaLarga(datos.validoHasta)}).`
               : undefined
           }
         >
-          <Textarea
-            id="mensaje-whatsapp"
-            value={mensaje}
-            onChange={(e) => {
-              setMensaje(e.target.value)
-              setEditado(true)
-            }}
-            rows={10}
-            className="min-h-[210px] text-[13.5px]"
-          />
+          {editando ? (
+            <>
+              <Textarea
+                id="mensaje-whatsapp"
+                value={mensaje}
+                onChange={(e) => {
+                  setMensaje(e.target.value)
+                  setEditado(true)
+                }}
+                rows={9}
+                autoFocus
+                className="min-h-[190px] text-[13.5px]"
+              />
+              <div className="mt-2">
+                <Button variant="ghost" size="touch" className="md:h-[34px]" onClick={() => setEditando(false)}>
+                  <Eye aria-hidden />
+                  Ver cómo le llega
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <VistaPreviaWhatsApp
+                texto={textoQueLlega}
+                archivo={via === 'adjunto' && archivo ? archivo.name : null}
+                peso={pdf.data?.size ?? null}
+                destinatario={nombreDePila(datos.pacienteNombre)}
+              />
+              {linkEnCamino && <AvisoLinkPendiente />}
+              <div className="mt-2">
+                <Button variant="ghost" size="touch" className="md:h-[34px]" onClick={() => setEditando(true)}>
+                  <Pencil aria-hidden />
+                  Editar el mensaje
+                </Button>
+              </div>
+            </>
+          )}
         </Field>
 
         {/* Opciones */}
@@ -500,7 +644,7 @@ export function SheetWhatsApp({
                 <span className="block font-sans text-[13.5px] font-medium text-ink">
                   Adjuntar el PDF
                 </span>
-                <span className="t-helper block">{textoAdjunto(adjuntar, pdf, link)}</span>
+                <span className="t-helper block">{textoAdjunto(adjuntar, pdf, link, via)}</span>
               </span>
             </span>
             <Switch checked={adjuntar} onCheckedChange={setAdjuntar} />
@@ -526,7 +670,13 @@ export function SheetWhatsApp({
 
         {/* Paciente sin teléfono: se carga acá mismo */}
         {!hayTelefono && (
-          <div className="flex flex-col gap-3 rounded-card border border-warm-line/25 bg-warm-soft p-4">
+          <form
+            className="flex flex-col gap-3 rounded-card border border-warm-line/25 bg-warm-soft p-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (telefonoNuevo.replace(/\D/g, '').length >= 8) guardarTelefono.mutate()
+            }}
+          >
             <div className="flex items-start gap-2.5">
               <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-warm-line" />
               <div className="min-w-0">
@@ -534,8 +684,9 @@ export function SheetWhatsApp({
                   {datos.pacienteNombre} no tiene teléfono cargado
                 </p>
                 <p className="mt-0.5 text-[13px] leading-relaxed text-warm-ink/85">
-                  Cargalo acá y queda en la ficha para la próxima. Si no lo tenés a mano, podés
-                  bajar el PDF y mandarlo por otro lado.
+                  {via === 'compartir'
+                    ? 'Cargalo acá y queda en la ficha para la próxima. Mientras tanto podés mandarlo eligiendo el contacto desde WhatsApp, o bajar el PDF.'
+                    : 'Cargalo acá y queda en la ficha para la próxima. Si no lo tenés a mano, podés bajar el PDF y mandarlo por otro lado.'}
                 </p>
               </div>
             </div>
@@ -547,13 +698,14 @@ export function SheetWhatsApp({
                   type="tel"
                   inputMode="tel"
                   autoComplete="tel"
+                  enterKeyHint="done"
                   placeholder="351 555-1234"
                   value={telefonoNuevo}
                   onChange={(e) => setTelefonoNuevo(e.target.value)}
                 />
                 <Button
+                  type="submit"
                   variant="secondary"
-                  onClick={() => guardarTelefono.mutate()}
                   loading={guardarTelefono.isPending}
                   disabled={telefonoNuevo.replace(/\D/g, '').length < 8}
                 >
@@ -562,7 +714,7 @@ export function SheetWhatsApp({
                 </Button>
               </div>
             </Field>
-          </div>
+          </form>
         )}
 
         {hayTelefono && !datos.tieneWhatsapp && (
@@ -573,6 +725,8 @@ export function SheetWhatsApp({
         )}
       </div>
     )
+
+    const bloqueado = via === 'ninguna' || mensaje.trim().length === 0
 
     footer = (
       <>
@@ -585,11 +739,12 @@ export function SheetWhatsApp({
         <Button
           variant="primary"
           onClick={enviar}
-          loading={enviando}
-          disabled={!hayTelefono || mensaje.trim().length === 0}
+          loading={enviando || preparandoPdf}
+          disabled={bloqueado}
+          title={bloqueado ? 'Falta el teléfono del paciente' : undefined}
         >
           <MessageCircle aria-hidden />
-          Enviar por WhatsApp
+          {preparandoPdf ? 'Preparando el PDF' : textoBotonEnviar(via)}
         </Button>
       </>
     )
@@ -601,7 +756,7 @@ export function SheetWhatsApp({
       onOpenChange={onOpenChange}
       ancho="md"
       titulo="Enviar por WhatsApp"
-      descripcion="Revisá el mensaje antes de mandarlo: se puede editar."
+      descripcion="Así le llega al paciente. Se puede editar antes de mandarlo."
       footer={footer}
     >
       {cuerpo}
@@ -609,7 +764,41 @@ export function SheetWhatsApp({
   )
 }
 
+/* ── Capacidades del navegador ───────────────────────────── */
+
+/**
+ * Dispara el compartir del sistema. Sin `await`: el sheet no espera a
+ * que WhatsApp devuelva nada, y un `AbortError` sólo significa que el
+ * usuario cerró el selector. Devuelve si llegó a abrirse —`share()`
+ * puede tirar en el acto (contexto no seguro, permiso denegado) y ahí
+ * hay que probar por otro lado, no dar el envío por hecho.
+ */
+function compartir(datos: ShareData): boolean {
+  try {
+    navigator.share(datos).catch(() => {})
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** El soporte de `navigator.share` no cambia mientras la página vive. */
+const SIN_CAMBIOS = () => () => {}
+const hayShare = () =>
+  typeof navigator !== 'undefined' && typeof navigator.share === 'function'
+
 /* ── Textos auxiliares ───────────────────────────────────── */
+
+function textoBotonEnviar(via: Via): string {
+  if (via === 'compartir') return 'Elegir contacto y enviar'
+  return 'Enviar por WhatsApp'
+}
+
+function tituloEnvio(via: Via): string {
+  if (via === 'adjunto') return 'Se abrió WhatsApp con el mensaje y el PDF'
+  if (via === 'compartir') return 'Se abrió el selector para elegir el contacto'
+  return 'Se abrió WhatsApp con el mensaje'
+}
 
 function registroTexto(cambioElEstado: boolean): string {
   return cambioElEstado
@@ -620,13 +809,16 @@ function registroTexto(cambioElEstado: boolean): string {
 function textoAdjunto(
   adjuntar: boolean,
   pdf: { isPending: boolean; isError: boolean; isSuccess: boolean },
-  link: { data?: string | null },
+  link: { isPending: boolean; isSuccess: boolean; data?: string | null },
+  via: Via,
 ): string {
   if (!adjuntar) return 'Se manda sólo el texto, sin el documento.'
   if (pdf.isPending) return 'Preparando el PDF…'
   if (pdf.isError) return 'El PDF no se pudo preparar: se va a mandar sólo el texto.'
-  if (pdf.isSuccess && link.data) {
-    return 'Se adjunta si el teléfono lo permite; si no, va como link.'
+  if (via === 'adjunto') return 'Va adjunto al mensaje, como archivo.'
+  if (link.isPending) return 'Preparando el link al PDF…'
+  if (!link.data) {
+    return 'No se pudo preparar el link: va sólo el texto. Bajá el PDF y mandalo aparte.'
   }
-  return 'Se adjunta si el teléfono lo permite.'
+  return 'Este navegador no adjunta archivos: va como link al final del mensaje.'
 }

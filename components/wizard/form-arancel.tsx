@@ -20,7 +20,7 @@ import { money, porcentaje as fmtPorcentaje } from '@/lib/formato'
 import type { Arancel, Prestacion } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-import { CabeceraCapa, PieCapa } from './capa'
+import { CabeceraCapa, MarcoCapa, PieCapa } from './capa'
 import { useCrearArancel } from './consultas'
 
 export interface ValoresArancel {
@@ -227,7 +227,7 @@ export function FormArancel({
   }
 
   return (
-    <div>
+    <MarcoCapa onEnviar={() => void guardar()}>
       <CabeceraCapa
         titulo={`Arancel de ${prestacion.nombre}`}
         ayuda={
@@ -262,6 +262,6 @@ export function FormArancel({
         guardando={crear.isPending}
         deshabilitado={valores.monto <= 0}
       />
-    </div>
+    </MarcoCapa>
   )
 }

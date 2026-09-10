@@ -10,12 +10,12 @@
  * pantalla que eso es lo que está pasando.
  */
 
-import { Check } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import * as React from 'react'
 import { toast } from 'sonner'
 
-import { Field, Input, MicroBadge, Segmented } from '@/components/ui'
-import { fechaLarga, hora } from '@/lib/formato'
+import { Field, Input, Segmented } from '@/components/ui'
+import { fechaLarga } from '@/lib/formato'
 import type { BorradorPresupuesto, ObraSocial, Paciente, Profesional } from '@/lib/types'
 
 import { calcularValidoHasta, recotizarItem, VIGENCIAS_RAPIDAS } from './borrador'
@@ -49,17 +49,28 @@ const ID = {
 export function PasoQuien({
   borrador,
   parche,
-  guardadoEn,
 }: {
   borrador: BorradorPresupuesto
   parche: (cambios: Partial<BorradorPresupuesto>) => void
-  guardadoEn: string | null
 }) {
   const [capa, setCapa] = React.useState<CapaAbierta>(null)
+  const [recotizando, setRecotizando] = React.useState(false)
 
   const { data: pacientes = [] } = usePacientes()
   const { data: obras = [] } = useObrasSociales()
   const { data: profesionalPropio } = useProfesionalPropio()
+
+  /**
+   * Sólo la última re-cotización manda.
+   *
+   * Cambiar de paciente dos veces seguidas (pasa: alguien se equivoca y
+   * corrige) dispara dos re-cotizaciones contra obras sociales
+   * distintas. Si la primera vuelve última, la cabecera dice una obra
+   * social y los ítems quedan cotizados con la otra — un documento
+   * mintiendo sobre su propia cobertura, que es justo lo que este
+   * producto no puede hacer.
+   */
+  const turno = React.useRef(0)
 
   const paciente = React.useMemo(
     () => pacientes.find((p) => p.id === borrador.paciente_id) ?? null,
@@ -87,10 +98,14 @@ export function PasoQuien({
   async function cambiarCobertura(
     obraSocialId: string | null,
     obraSocialNombre: string | null,
+    /** Turno pedido por quien inició la elección. Ver `turno`. */
+    mio: number = ++turno.current,
   ) {
     const cambio = { obra_social_id: obraSocialId, obra_social_nombre: obraSocialNombre }
+    if (mio !== turno.current) return
 
     if (borrador.obra_social_id === obraSocialId || borrador.items.length === 0) {
+      setRecotizando(false)
       parche(cambio)
       return
     }
@@ -101,6 +116,7 @@ export function PasoQuien({
     let recotizados = 0
     let sinArancel = 0
 
+    setRecotizando(true)
     const nuevos = await Promise.all(
       borrador.items.map(async (item) => {
         if (!item.prestacion_id) return item
@@ -120,6 +136,11 @@ export function PasoQuien({
       }),
     )
 
+    // Llegó tarde: ya hay otra cobertura elegida y otra re-cotización
+    // en curso. Escribir esto pisaría la cobertura correcta.
+    if (mio !== turno.current) return
+
+    setRecotizando(false)
     parche({ ...cambio, items: nuevos })
 
     if (conPrestacion.length === 0) return
@@ -135,12 +156,17 @@ export function PasoQuien({
   }
 
   async function elegirPaciente(p: Paciente) {
+    // El turno se pide acá y no en `cambiarCobertura`: entre medio hay
+    // un `await` para resolver la obra social de la ficha, y sin
+    // reservar el lugar antes, dos elecciones seguidas podían terminar
+    // aplicándose al revés.
+    const mio = ++turno.current
     parche({ paciente_id: p.id, paciente_nombre: p.nombre })
 
     // La obra social viaja con el paciente: en el 90 % de los casos es
     // la correcta y nadie tiene que volver a elegirla.
     if (!p.obra_social_id) {
-      await cambiarCobertura(null, null)
+      await cambiarCobertura(null, null, mio)
       return
     }
 
@@ -150,6 +176,7 @@ export function PasoQuien({
     // sin avisar.
     let osFicha = obras.find((o) => o.id === p.obra_social_id) ?? null
     if (!osFicha) {
+      setRecotizando(true)
       try {
         osFicha = await buscarObraSocial(p.obra_social_id)
       } catch {
@@ -157,15 +184,17 @@ export function PasoQuien({
       }
     }
 
+    if (mio !== turno.current) return
+
     if (!osFicha) {
       toast.error(
         'No se pudo leer la obra social del paciente. Elegila a mano antes de seguir.',
       )
-      await cambiarCobertura(null, null)
+      await cambiarCobertura(null, null, mio)
       return
     }
 
-    await cambiarCobertura(osFicha.id, nombreObraSocial(osFicha))
+    await cambiarCobertura(osFicha.id, nombreObraSocial(osFicha), mio)
   }
 
   function elegirObraSocial(os: ObraSocial | null) {
@@ -262,7 +291,20 @@ export function PasoQuien({
           />
         </Field>
 
-        <Field label="Obra social" htmlFor={ID.obraSocial} helper={ayudaObraSocial}>
+        <Field
+          label="Obra social"
+          htmlFor={ID.obraSocial}
+          helper={
+            recotizando ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                Recalculando las prestaciones ya cargadas con esta cobertura…
+              </span>
+            ) : (
+              ayudaObraSocial
+            )
+          }
+        >
           <PickerObraSocial
             id={ID.obraSocial}
             value={borrador.obra_social_id}
@@ -345,15 +387,12 @@ export function PasoQuien({
           <strong className="font-semibold text-ink">{fechaLarga(borrador.valido_hasta)}</strong>.
         </p>
 
-        {guardadoEn && (
-          <p className="t-helper flex items-center gap-1.5">
-            <MicroBadge tono="primary">
-              <Check className="mr-1 size-3" aria-hidden />
-              Guardado {hora(guardadoEn)}
-            </MicroBadge>
-            <span>El borrador queda en este dispositivo hasta que lo emitas.</span>
-          </p>
-        )}
+        {/* La hora del autoguardado vive en la barra de pasos, a la
+            vista en los tres. Acá queda sólo lo que hay que saber una
+            vez: dónde está el borrador mientras tanto. */}
+        <p className="t-helper">
+          Lo que cargues queda en este dispositivo hasta que emitas el presupuesto.
+        </p>
       </div>
     </>
   )

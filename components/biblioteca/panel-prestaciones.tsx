@@ -1,6 +1,6 @@
 'use client'
 
-import { Plus, Search, Stethoscope } from 'lucide-react'
+import { Plus, Stethoscope } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
@@ -11,7 +11,6 @@ import {
   Button,
   Card,
   EmptyState,
-  Input,
   MicroBadge,
   Monto,
   Pill,
@@ -23,24 +22,31 @@ import {
   Tr,
 } from '@/components/ui'
 import { normalizar, numero } from '@/lib/formato'
+import { useAtajos } from '@/lib/hooks/use-atajos'
 import { cn } from '@/lib/utils'
 
+import { CampoBusqueda } from './campo-busqueda'
 import { DrawerPrestacion } from './drawer-prestacion'
 import { etiquetaCobertura, type FilaPrestacion } from './tipos'
 
 /** Cuántas coberturas se muestran antes de colapsar en `+N`. */
 const PILLS_VISIBLES = 2
 
+const ID_BUSQUEDA = 'busqueda-prestaciones'
+
 /**
  * Tab de prestaciones.
  *
- * Dos decisiones que se leen en la pantalla:
+ * Tres decisiones que se leen en la pantalla:
  *
  * - Las inactivas no desaparecen: se atenúan y muestran su conteo
  *   histórico. Viven dentro de presupuestos emitidos, así que borrarlas
  *   dejaría documentos sin respaldo. Por eso la acción es desactivar.
- * - Cuando faltan aranceles se dice cuántos faltan, en warm, en vez de
- *   mostrar la fila como si estuviera completa.
+ * - Cuando faltan aranceles se dice cuántos faltan, en warm, y el pill
+ *   lleva a la grilla ya filtrada por esa prestación: la pregunta que
+ *   sigue siempre es «¿cuáles?».
+ * - Activar y desactivar se ve al instante y vuelve atrás solo si el
+ *   servidor rechaza: es un interruptor, no un trámite.
  */
 export function PanelPrestaciones({
   filas,
@@ -55,52 +61,91 @@ export function PanelPrestaciones({
   const [busqueda, setBusqueda] = React.useState('')
   const [editando, setEditando] = React.useState<{ fila: FilaPrestacion | null } | null>(null)
   const [tocando, setTocando] = React.useState<string | null>(null)
+  const [recien, setRecien] = React.useState<string | null>(null)
+  // Lo que ya se ve como activo/inactivo antes de que conteste la base.
+  const [optimista, setOptimista] = React.useState<Record<string, boolean>>({})
   const [, iniciar] = React.useTransition()
+
+  useAtajos({
+    '/': () => {
+      const campo = document.getElementById(ID_BUSQUEDA)
+      if (campo instanceof HTMLInputElement) {
+        campo.focus()
+        campo.select()
+      }
+    },
+  })
+
+  const conEstado = React.useMemo(
+    () =>
+      filas.map((f) =>
+        optimista[f.id] === undefined ? f : { ...f, activa: optimista[f.id] },
+      ),
+    [filas, optimista],
+  )
 
   const visibles = React.useMemo(() => {
     const q = normalizar(busqueda)
-    if (!q) return filas
-    return filas.filter((f) =>
+    if (!q) return conEstado
+    return conEstado.filter((f) =>
       normalizar(`${f.nombre} ${f.codigo ?? ''} ${f.rubro ?? ''}`).includes(q),
     )
-  }, [filas, busqueda])
+  }, [conEstado, busqueda])
 
   function alternar(fila: FilaPrestacion) {
+    const objetivo = !fila.activa
+
+    // Optimismo: el interruptor cambia ya. Si el servidor dice que no,
+    // vuelve solo y el toast explica por qué.
+    setOptimista((previos) => ({ ...previos, [fila.id]: objetivo }))
     setTocando(fila.id)
+
     iniciar(async () => {
-      const resultado = await toggleActivaPrestacion(fila.id, !fila.activa)
+      const resultado = await toggleActivaPrestacion(fila.id, objetivo)
       setTocando(null)
 
       if (!resultado.ok) {
+        setOptimista((previos) => {
+          const copia = { ...previos }
+          delete copia[fila.id]
+          return copia
+        })
         toast.error(resultado.error)
         return
       }
 
       toast.success(
-        fila.activa
-          ? `«${fila.nombre}» quedó inactiva. Sigue en los presupuestos ya emitidos.`
-          : `«${fila.nombre}» vuelve a ofrecerse al armar un presupuesto.`,
+        objetivo
+          ? `«${fila.nombre}» vuelve a ofrecerse al armar un presupuesto.`
+          : `«${fila.nombre}» quedó inactiva. Sigue en los presupuestos ya emitidos.`,
       )
       router.refresh()
     })
   }
 
+  /** Guardó: se marca la fila donde está en vez de saltar al principio. */
+  function alGuardar() {
+    setRecien(editando?.fila?.id ?? null)
+    router.refresh()
+  }
+
+  React.useEffect(() => {
+    if (!recien) return
+    const id = setTimeout(() => setRecien(null), 4000)
+    return () => clearTimeout(id)
+  }, [recien])
+
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative sm:max-w-[320px] sm:flex-1">
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint"
-          />
-          <Input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por nombre, código o rubro"
-            aria-label="Buscar prestaciones"
-            className="h-11 pl-9 sm:h-9"
-          />
-        </div>
+        <CampoBusqueda
+          id={ID_BUSQUEDA}
+          valor={busqueda}
+          onCambiar={setBusqueda}
+          placeholder="Buscar por nombre, código o rubro"
+          etiqueta="Buscar prestaciones"
+          className="sm:max-w-[340px] sm:flex-1"
+        />
 
         <Button
           variant="primary"
@@ -126,14 +171,24 @@ export function PanelPrestaciones({
           }
         />
       ) : visibles.length === 0 ? (
-        <p className="t-helper py-8 text-center">
-          Ninguna prestación coincide con «{busqueda}».
-        </p>
+        <div className="py-8 text-center">
+          <p className="t-helper">Ninguna prestación coincide con «{busqueda}».</p>
+          <Button
+            variant="secondary"
+            size="touch"
+            className="mt-3"
+            onClick={() => setEditando({ fila: null })}
+          >
+            <Plus aria-hidden />
+            Crear «{busqueda.trim()}»
+          </Button>
+        </div>
       ) : (
         <>
-          <p className="t-label">
+          <p className="t-label" aria-live="polite">
             {numero(visibles.length)}{' '}
             {visibles.length === 1 ? 'prestación' : 'prestaciones'}
+            {visibles.length !== filas.length && ` de ${numero(filas.length)}`}
             {obrasSocialesActivas > 0 &&
               ` · ${numero(obrasSocialesActivas)} ${
                 obrasSocialesActivas === 1 ? 'obra social activa' : 'obras sociales activas'
@@ -157,11 +212,15 @@ export function PanelPrestaciones({
 
               <Tbody>
                 {visibles.map((fila) => (
-                  <Tr key={fila.id} className={cn(!fila.activa && 'opacity-60')}>
+                  <Tr
+                    key={fila.id}
+                    className={cn(!fila.activa && 'opacity-60', recien === fila.id && 'bg-tint')}
+                  >
                     <Td className="pl-5">
                       <span className="flex items-center gap-2">
                         <span className="font-medium text-ink">{fila.nombre}</span>
                         {!fila.activa && <MicroBadge>Inactiva</MicroBadge>}
+                        {recien === fila.id && <MicroBadge tono="primary">Guardado</MicroBadge>}
                       </span>
                       <span className="block t-helper">
                         {fila.codigo ? `Código ${fila.codigo} · ` : ''}
@@ -186,17 +245,13 @@ export function PanelPrestaciones({
 
                     <Td className="pr-5 text-right">
                       <span className="inline-flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditando({ fila })}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => setEditando({ fila })}>
                           Editar
                         </Button>
                         <Button
                           variant={fila.activa ? 'ghost' : 'secondary'}
                           size="sm"
-                          loading={tocando === fila.id}
+                          disabled={tocando === fila.id}
                           onClick={() => alternar(fila)}
                         >
                           {fila.activa ? 'Desactivar' : 'Activar'}
@@ -213,7 +268,13 @@ export function PanelPrestaciones({
           <ul className="flex flex-col gap-3 md:hidden">
             {visibles.map((fila) => (
               <li key={fila.id}>
-                <Card className={cn('p-4', !fila.activa && 'opacity-60')}>
+                <Card
+                  className={cn(
+                    'p-4',
+                    !fila.activa && 'opacity-60',
+                    recien === fila.id && 'bg-tint',
+                  )}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-sans text-[15px] font-medium text-ink">{fila.nombre}</p>
@@ -233,11 +294,7 @@ export function PanelPrestaciones({
                     <ResumenCoberturas fila={fila} />
                   </div>
 
-                  {!fila.activa && (
-                    <p className="mt-3 t-helper">
-                      Inactiva · {textoUsos(fila.usos)}
-                    </p>
-                  )}
+                  {!fila.activa && <p className="mt-3 t-helper">Inactiva · {textoUsos(fila.usos)}</p>}
 
                   <div className="mt-4 flex gap-2">
                     <Button
@@ -252,7 +309,7 @@ export function PanelPrestaciones({
                       variant={fila.activa ? 'ghost' : 'secondary'}
                       size="touch"
                       full
-                      loading={tocando === fila.id}
+                      disabled={tocando === fila.id}
                       onClick={() => alternar(fila)}
                     >
                       {fila.activa ? 'Desactivar' : 'Activar'}
@@ -275,8 +332,9 @@ export function PanelPrestaciones({
           key={editando.fila?.id ?? 'nueva'}
           prestacion={editando.fila}
           rubros={rubros}
+          nombreSugerido={editando.fila ? undefined : busqueda.trim()}
           onCerrar={() => setEditando(null)}
-          onGuardado={() => router.refresh()}
+          onGuardado={alGuardar}
         />
       )}
     </section>
@@ -293,7 +351,8 @@ function textoUsos(usos: number): string {
 /**
  * Pills de cobertura por obra social. Cuando falta cargar aranceles se
  * dice cuántos faltan en warm: es más honesto que una fila que parece
- * completa porque tiene dos pills.
+ * completa porque tiene dos pills. El pill lleva a la grilla filtrada
+ * por esta prestación, que es donde se ve cuáles faltan.
  */
 function ResumenCoberturas({ fila }: { fila: FilaPrestacion }) {
   const visibles = fila.coberturas.slice(0, PILLS_VISIBLES)
@@ -318,7 +377,11 @@ function ResumenCoberturas({ fila }: { fila: FilaPrestacion }) {
       )}
 
       {fila.faltan > 0 && (
-        <Link href="/biblioteca/aranceles" className="rounded-pill">
+        <Link
+          href={`/biblioteca/aranceles?q=${encodeURIComponent(fila.nombre)}`}
+          className="rounded-pill"
+          aria-label={`Ver en la grilla las ${fila.faltan} obras sociales sin arancel para ${fila.nombre}`}
+        >
           <Pill tono="warm" size="md" className="cursor-pointer hover:bg-warm">
             Faltan {fila.faltan} OS
           </Pill>

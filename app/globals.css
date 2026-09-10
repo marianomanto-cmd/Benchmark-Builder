@@ -328,6 +328,62 @@
   .stagger > *:nth-child(11) { animation-delay: 280ms; }
   .stagger > *:nth-child(n + 12) { animation-delay: 300ms; }
 
+
+  /*
+   * Sombras de scroll horizontal, sin JavaScript.
+   *
+   * Una tabla más ancha que su caja se corta sin avisar: la grilla de
+   * aranceles con seis obras sociales deja la última partida contra el
+   * borde y nadie sabe que hay más a la derecha.
+   *
+   * El truco son cuatro fondos. Los dos `linear-gradient` van con
+   * `background-attachment: local`, así que viajan CON el contenido y
+   * tapan la sombra cuando se llegó al extremo. Los dos `radial` van
+   * con `scroll`: quedan clavados al borde de la caja. Resultado: la
+   * sombra aparece sólo del lado donde todavía hay contenido.
+   */
+  .scroll-sombras {
+    background-image:
+      linear-gradient(to right, var(--color-card) 30%, rgba(255, 255, 255, 0)),
+      linear-gradient(to left, var(--color-card) 30%, rgba(255, 255, 255, 0)),
+      radial-gradient(farthest-side at 0 50%, rgba(21, 58, 68, 0.13), rgba(21, 58, 68, 0)),
+      radial-gradient(farthest-side at 100% 50%, rgba(21, 58, 68, 0.13), rgba(21, 58, 68, 0));
+    background-position:
+      left center,
+      right center,
+      left center,
+      right center;
+    background-repeat: no-repeat;
+    background-size:
+      44px 100%,
+      44px 100%,
+      16px 100%,
+      16px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+
+  /*
+   * Y que la barra se vea: en desktop la sombra dice «hay más», la
+   * barra dice «se arrastra». Las dos cosas, no una.
+   */
+  .scroll-visible {
+    scrollbar-width: thin;
+    scrollbar-color: #bcd7dd transparent;
+  }
+  .scroll-visible::-webkit-scrollbar {
+    height: 10px;
+  }
+  .scroll-visible::-webkit-scrollbar-thumb {
+    background: #bcd7dd;
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  .scroll-visible::-webkit-scrollbar-thumb:hover {
+    background: #9cc3cc;
+    background-clip: content-box;
+  }
+
   /* Brillo de carga: dice «viene algo» mejor que un bloque quieto. */
   .shimmer {
     position: relative;

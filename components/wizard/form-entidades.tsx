@@ -18,7 +18,7 @@ import { toast } from 'sonner'
 import { Field, Input, Switch } from '@/components/ui'
 import type { ObraSocial, Paciente, Profesional } from '@/lib/types'
 
-import { CabeceraCapa, PieCapa } from './capa'
+import { CabeceraCapa, MarcoCapa, PieCapa } from './capa'
 import {
   useCrearObraSocial,
   useCrearPaciente,
@@ -91,7 +91,7 @@ export function FormPaciente({
   }
 
   return (
-    <div>
+    <MarcoCapa onEnviar={() => void guardar()}>
       <CabeceraCapa
         titulo="Nuevo paciente"
         ayuda="Con el nombre alcanza. El resto lo podés completar más adelante."
@@ -186,7 +186,7 @@ export function FormPaciente({
         guardando={crear.isPending}
         deshabilitado={nombre.trim().length < 2}
       />
-    </div>
+    </MarcoCapa>
   )
 }
 
@@ -230,7 +230,7 @@ export function FormProfesional({
   }
 
   return (
-    <div>
+    <MarcoCapa onEnviar={() => void guardar()}>
       <CabeceraCapa
         titulo="Nuevo profesional"
         ayuda="El nombre sale impreso en el presupuesto, así que escribilo como firma."
@@ -280,7 +280,7 @@ export function FormProfesional({
         guardando={crear.isPending}
         deshabilitado={nombre.trim().length < 3}
       />
-    </div>
+    </MarcoCapa>
   )
 }
 
@@ -324,7 +324,7 @@ export function FormObraSocial({
   }
 
   return (
-    <div>
+    <MarcoCapa onEnviar={() => void guardar()}>
       <CabeceraCapa
         titulo="Nueva obra social"
         ayuda="El plan va aparte del nombre: así “OSDE 210” y “OSDE 310” son dos coberturas distintas."
@@ -363,6 +363,6 @@ export function FormObraSocial({
         guardando={crear.isPending}
         deshabilitado={nombre.trim().length < 2}
       />
-    </div>
+    </MarcoCapa>
   )
 }

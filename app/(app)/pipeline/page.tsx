@@ -7,10 +7,11 @@ import { TableroPipeline } from '@/components/pipeline/tablero'
 import {
   COLUMNAS_PIPELINE,
   ESTADOS_TABLERO,
+  urlPipeline,
   type FilaPipeline,
   type OpcionFiltro,
 } from '@/components/pipeline/tipos'
-import { Banner } from '@/components/ui'
+import { Banner, Button } from '@/components/ui'
 import { fechaCorta } from '@/lib/formato'
 import { createClient } from '@/lib/supabase/server'
 import type { EstadoPresupuesto, MotivoPerdida } from '@/lib/types'
@@ -231,8 +232,17 @@ export default async function PipelinePage(props: PageProps<'/pipeline'>) {
           tono="warm"
           icono={<TriangleAlert className="size-5" />}
           titulo="No se pudo traer el pipeline"
+          acciones={
+            // Un `<a>` y no un `<Link>`: lo que hace falta es volver a
+            // pedirle la pantalla al servidor, no una navegación de
+            // cliente contra el mismo RSC que acaba de fallar.
+            <Button asChild variant="secondary" size="touch">
+              <a href={urlPipeline(filtros)}>Reintentar</a>
+            </Button>
+          }
         >
-          La base no respondió. Recargá la página en un rato; ningún presupuesto se movió.
+          La base no respondió. Ningún presupuesto se movió: lo que ves abajo está vacío
+          porque no se pudo leer, no porque no haya trabajo.
         </Banner>
       )}
 

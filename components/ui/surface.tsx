@@ -131,12 +131,71 @@ export function EmptyState({
   )
 }
 
+/**
+ * Hueco de carga.
+ *
+ * Late y además le pasa un brillo: un bloque quieto se lee como algo
+ * roto, uno que respira se lee como algo que viene en camino. Con
+ * `prefers-reduced-motion` el brillo se apaga y queda el bloque.
+ */
 export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('animate-pulse rounded-input bg-[#EDF4F6]', className)}
+      className={cn('shimmer rounded-input bg-[#EDF4F6]', className)}
       aria-hidden
       {...props}
     />
+  )
+}
+
+/**
+ * Filas de esqueleto que calcan una tabla.
+ *
+ * Un esqueleto que no coincide con lo que llega hace saltar el
+ * contenido, y ese salto se nota más que la espera.
+ */
+export function SkeletonTabla({
+  filas = 6,
+  columnas = 5,
+}: {
+  filas?: number
+  columnas?: number
+}) {
+  return (
+    <div className="flex flex-col gap-px" aria-hidden>
+      {Array.from({ length: filas }).map((_, f) => (
+        <div key={f} className="flex items-center gap-4 px-5 py-[15px]">
+          {Array.from({ length: columnas }).map((_, c) => (
+            <Skeleton
+              key={c}
+              className={cn('h-4', c === 0 ? 'flex-[2]' : 'flex-1')}
+              style={{ opacity: 1 - f * 0.09 }}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Esqueleto de las cards de mobile. */
+export function SkeletonCards({ cantidad = 4 }: { cantidad?: number }) {
+  return (
+    <div className="flex flex-col gap-3" aria-hidden>
+      {Array.from({ length: cantidad }).map((_, i) => (
+        <div
+          key={i}
+          className="rounded-card border border-hairline bg-card p-4"
+          style={{ opacity: 1 - i * 0.12 }}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <Skeleton className="h-4 w-2/5" />
+            <Skeleton className="h-6 w-20 rounded-pill" />
+          </div>
+          <Skeleton className="mt-2 h-3 w-3/5" />
+          <Skeleton className="mt-4 h-7 w-28" />
+        </div>
+      ))}
+    </div>
   )
 }

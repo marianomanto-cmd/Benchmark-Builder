@@ -11,6 +11,8 @@
  *   · 200 con el PDF — cuando se acaba de renderizar.
  *   · 302 a una URL firmada de 7 días — cuando el caché sirve.
  *   · 401 sin sesión · 404 si no existe o la RLS no lo deja ver.
+ *   · 502 si el render falló: es un problema del servidor, y quien
+ *     llama tiene que poder distinguirlo de "este presupuesto no existe".
  */
 
 import { NextResponse, type NextRequest } from 'next/server'
@@ -24,6 +26,9 @@ import { nombreArchivoPdf } from '@/lib/whatsapp'
 // prerender estático.
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+// Un presupuesto largo con las fuentes de marca puede pasarse de los
+// 10 s por defecto, y ahí el consultorio ve un error en vez del PDF.
+export const maxDuration = 30
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -33,16 +38,40 @@ export async function GET(
 ) {
   const { id } = await ctx.params
 
-  const usuario = await getUsuario()
-  if (!usuario) {
-    return NextResponse.json({ error: 'Necesitás iniciar sesión.' }, { status: 401 })
-  }
-
+  // Lo barato primero: un id que no es uuid no merece dos viajes de red.
   if (!UUID.test(id)) {
     return NextResponse.json({ error: 'Ese presupuesto no existe.' }, { status: 404 })
   }
 
-  const resultado = await asegurarPdf(id)
+  /*
+   * La sesión y el documento se piden a la vez.
+   *
+   * Confirmar el usuario contra Supabase Auth es un viaje de red
+   * completo, y encadenarlo antes de la consulta le sumaba esa espera a
+   * cada apertura del PDF. No hay riesgo en pedir los dos juntos: la
+   * lectura va con la misma cookie y la autoriza la RLS, así que sin
+   * sesión no devuelve nada igual. La respuesta se decide con el
+   * usuario en la mano.
+   */
+  const [usuario, resultado] = await Promise.all([
+    getUsuario(),
+    asegurarPdf(id).catch((error: unknown) => {
+      console.error('[pdf] falló la generación', error)
+      return 'error' as const
+    }),
+  ])
+
+  if (!usuario) {
+    return NextResponse.json({ error: 'Necesitás iniciar sesión.' }, { status: 401 })
+  }
+
+  if (resultado === 'error') {
+    return NextResponse.json(
+      { error: 'No se pudo generar el PDF. Probá de nuevo en un momento.' },
+      { status: 502 },
+    )
+  }
+
   if (!resultado) {
     return NextResponse.json({ error: 'Ese presupuesto no existe.' }, { status: 404 })
   }
@@ -59,7 +88,7 @@ export async function GET(
   if (!resultado.buffer) {
     return NextResponse.json(
       { error: 'No se pudo generar el PDF. Probá de nuevo en un momento.' },
-      { status: 500 },
+      { status: 502 },
     )
   }
 
@@ -70,7 +99,10 @@ export async function GET(
       // `inline`: el consultorio lo abre en una pestaña y decide si lo
       // descarga. El nombre es el mismo con el que le llega al paciente.
       'Content-Disposition': `inline; filename="${nombreArchivoPdf(resultado.numero)}"`,
-      'Cache-Control': 'private, no-store',
+      // Un presupuesto emitido está congelado: si el consultorio vuelve
+      // a la pestaña en los próximos minutos, el navegador reusa lo que
+      // ya bajó en vez de pedir otro render. Un borrador todavía cambia.
+      'Cache-Control': resultado.congelado ? 'private, max-age=300' : 'private, no-store',
     },
   })
 }

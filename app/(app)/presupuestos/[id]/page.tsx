@@ -6,6 +6,7 @@ import { BarraMobile } from '@/components/presupuesto/barra-mobile'
 import { BloquePerdido } from '@/components/presupuesto/bloque-perdido'
 import { Cabecera } from '@/components/presupuesto/cabecera'
 import { ProveedorDetalle } from '@/components/presupuesto/contexto'
+import { EstilosImpresion } from '@/components/presupuesto/estilos-impresion'
 import { HistorialMobile } from '@/components/presupuesto/historial-mobile'
 import { NotaInterna } from '@/components/presupuesto/nota-interna'
 import { PanelSeguimiento } from '@/components/presupuesto/panel-seguimiento'
@@ -54,7 +55,19 @@ interface DetalleCompleto {
   eventos: PresupuestoEvento[]
 }
 
-async function cargarDetalle(id: string): Promise<DetalleCompleto | null> {
+/**
+ * Que la base no conteste no es lo mismo que el presupuesto no exista.
+ * Devolver `null` para las dos cosas mandaba a un 404 que decía «esto no
+ * existe» cuando en realidad se había caído la conexión, y el que estaba
+ * al mostrador cerraba la pantalla creyendo que había perdido el
+ * documento. La lectura dice cuál de las dos cosas pasó.
+ */
+type Lectura =
+  | ({ estado: 'ok' } & DetalleCompleto)
+  | { estado: 'no-existe' }
+  | { estado: 'error' }
+
+async function cargarDetalle(id: string): Promise<Lectura> {
   const supabase = await createClient()
 
   const [resCabecera, resItems, resCuotas, resEventos] = await Promise.all([
@@ -70,11 +83,12 @@ async function cargarDetalle(id: string): Promise<DetalleCompleto | null> {
 
   if (resCabecera.error) {
     console.error('[detalle] no se pudo leer el presupuesto', resCabecera.error)
-    return null
+    return { estado: 'error' }
   }
-  if (!resCabecera.data) return null
+  if (!resCabecera.data) return { estado: 'no-existe' }
 
   return {
+    estado: 'ok',
     cabecera: aCabecera(resCabecera.data as unknown as FilaCruda),
     items: ((resItems.data ?? []) as FilaCruda[]).map(aItem),
     cuotas: ((resCuotas.data ?? []) as FilaCruda[]).map(aCuota),
@@ -130,10 +144,17 @@ async function calcularHoy(
   const [vigentesRes, citadosRes] = await Promise.all([
     // La vista filtra por fecha en la base: un aumento programado para
     // más adelante no se cotiza todavía.
+    //
+    // El orden importa: `arancel_vigente()` —la que usa el duplicado—
+    // resuelve con `order by vigente_desde desc limit 1`. Si dos filas
+    // se solapan un día, acá gana la última que se escribe en el mapa,
+    // así que se piden en orden ascendente para que ésa sea la misma
+    // que elegiría la base.
     supabase
       .from('aranceles_vigentes')
       .select('id, prestacion_id, obra_social_id, monto, cobertura_tipo, cobertura_valor')
-      .in('prestacion_id', prestacionIds),
+      .in('prestacion_id', prestacionIds)
+      .order('vigente_desde', { ascending: true }),
     arancelIds.length > 0
       ? supabase.from('aranceles').select('id, obra_social_id').in('id', arancelIds)
       : Promise.resolve({ data: [], error: null }),
@@ -174,9 +195,22 @@ async function calcularHoy(
   const lineas = items.map((item) => {
     if (!item.prestacion_id) return snapshot(item)
 
-    const os = item.arancel_id
-      ? (osDelArancel.get(item.arancel_id) ?? cabecera.obra_social_id)
-      : cabecera.obra_social_id
+    /**
+     * Con qué obra social se re-cotiza este ítem.
+     *
+     * `??` no servía: la obra social de un arancel PARTICULAR es `null`,
+     * y el operador la reemplazaba por la del presupuesto. Un ítem
+     * cargado «con valor particular» dentro de un presupuesto con obra
+     * social se comparaba entonces contra el arancel de convenio —otro
+     * arancel, otro id—, así que el banner aparecía sin que nada hubiera
+     * cambiado y prometía un número que `duplicar_presupuesto` no
+     * produce: la RPC re-cotiza cada ítem contra la obra social de SU
+     * arancel. Faltar a eso rompe lo único que el banner ofrece.
+     */
+    const os =
+      item.arancel_id && osDelArancel.has(item.arancel_id)
+        ? (osDelArancel.get(item.arancel_id) as string | null)
+        : cabecera.obra_social_id
 
     const vigente = vigentes.get(clave(item.prestacion_id, os))
     if (!vigente) {
@@ -227,10 +261,16 @@ export default async function DetallePresupuestoPage(
   // "Enviado": el sheet de envío se abre solo.
   const whatsappInicial = searchParams.whatsapp === '1'
 
-  const detalle = await cargarDetalle(id)
-  if (!detalle) notFound()
+  const lectura = await cargarDetalle(id)
+  if (lectura.estado === 'no-existe') notFound()
+  if (lectura.estado === 'error') {
+    // Lo agarra `error.tsx` de esta ruta, que ofrece reintentar y dice
+    // que el presupuesto está entero. Un 404 acá afirmaría que no
+    // existe, que es justo lo que no sabemos.
+    throw new Error('No se pudo leer el presupuesto')
+  }
 
-  const { cabecera, items, cuotas, eventos } = detalle
+  const { cabecera, items, cuotas, eventos } = lectura
 
   const hoy = await calcularHoy(cabecera, items)
   const comparacion = compararConHoy(
@@ -274,27 +314,36 @@ export default async function DetallePresupuestoPage(
       }}
       whatsappInicial={whatsappInicial}
     >
-      <div className="flex flex-col gap-5">
+      <EstilosImpresion />
+
+      <div className="detalle-presupuesto flex flex-col gap-5">
         <Cabecera cabecera={cabecera} />
 
+        {/* El banner y el bloque de perdido son conversación interna
+            del consultorio: en pantalla sí, en el papel del paciente no. */}
         {mostrarBanner && (
-          <BannerPrecio
-            comparacion={comparacion}
-            validoHasta={cabecera.valido_hasta}
-            fechaEmision={cabecera.fecha_emision}
-          />
+          <div className="no-print">
+            <BannerPrecio
+              comparacion={comparacion}
+              validoHasta={cabecera.valido_hasta}
+              fechaEmision={cabecera.fecha_emision}
+              conOverrides={items.some((i) => i.editado)}
+            />
+          </div>
         )}
 
         {cabecera.estado === 'perdido' && (
-          <BloquePerdido
-            motivo={cabecera.motivo_perdida}
-            nota={cabecera.motivo_perdida_nota}
-            autor={eventoPerdida?.autor_nombre ?? null}
-            fecha={eventoPerdida?.created_at ?? null}
-          />
+          <div className="no-print">
+            <BloquePerdido
+              motivo={cabecera.motivo_perdida}
+              nota={cabecera.motivo_perdida_nota}
+              autor={eventoPerdida?.autor_nombre ?? null}
+              fecha={eventoPerdida?.created_at ?? null}
+            />
+          </div>
         )}
 
-        <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_330px]">
+        <div className="detalle-columnas grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_330px]">
           <div className="flex min-w-0 flex-col gap-5">
             <Prestaciones items={items} fechaEmision={cabecera.fecha_emision} />
 
@@ -302,7 +351,6 @@ export default async function DetallePresupuestoPage(
               subtotal={cabecera.subtotal}
               cobertura={cabecera.total_cobertura}
               aCargo={cabecera.total_a_cargo}
-              estado={cabecera.estado}
               cuotas={cuotas}
               observaciones={cabecera.observaciones}
             />
@@ -310,8 +358,8 @@ export default async function DetallePresupuestoPage(
 
           {/* En desktop es la columna derecha; en mobile se apila abajo,
               con el historial resumido en vez del timeline completo. */}
-          <aside className="flex min-w-0 flex-col gap-5">
-            <PanelSeguimiento estado={cabecera.estado} diasEnEstado={diasEnEstado} />
+          <aside className="no-print flex min-w-0 flex-col gap-5">
+            <PanelSeguimiento diasEnEstado={diasEnEstado} />
 
             <HistorialMobile eventos={eventos} className="md:hidden" />
 

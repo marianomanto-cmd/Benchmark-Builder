@@ -8,6 +8,7 @@ import { OBRA_SOCIAL_PARTICULAR, type FiltrosHome } from '@/components/home/tipo
 import {
   Button,
   Input,
+  Kbd,
   Select,
   SelectContent,
   SelectItem,
@@ -20,6 +21,20 @@ import { hayFiltros, urlPipeline, type OpcionFiltro } from './tipos'
 
 /** Sentinela de los `Select`: Radix no acepta `value=""`. */
 const TODOS = 'todos'
+
+/**
+ * Cuánto se espera antes de aplicar un rango de fechas.
+ *
+ * BUG QUE ARREGLA: los dos `<input type="date">` aplicaban en cada
+ * `onChange`. React mapea ese evento al `input` del DOM, y el navegador
+ * lo dispara por CADA dígito tecleado dentro de un segmento: corregir
+ * el año de un rango ya cargado disparaba `0002-…`, `0020-…`, `0202-…`
+ * y recién después `2026-…`. Eran cuatro `router.push`, cuatro consultas
+ * al servidor y un tablero que se vaciaba tres veces antes de mostrar lo
+ * que se pidió. El comentario prometía «se aplica al soltar el campo»;
+ * ahora es verdad.
+ */
+const ESPERA_FECHA = 500
 
 /**
  * Filtros del tablero. Son **los mismos de la home** y viajan en la URL
@@ -53,6 +68,7 @@ export function FiltrosPipeline({
 
   return (
     <div
+      aria-busy={pendiente}
       className={cn(
         'flex flex-wrap items-center gap-2 transition-opacity duration-200',
         pendiente && 'opacity-60',
@@ -102,24 +118,20 @@ export function FiltrosPipeline({
       {/* Rango de emisión. Se aplica al soltar el campo, no a cada tecla. */}
       <div className="flex items-center gap-1.5 rounded-input border border-hairline bg-card px-2.5 py-1">
         <span className="t-label text-[9.5px] tracking-[0.12em] text-muted">Emitido</span>
-        <Input
-          type="date"
-          aria-label="Emitido desde"
-          value={filtros.desde}
+        <CampoFecha
+          etiqueta="Emitido desde"
+          valor={filtros.desde}
           max={filtros.hasta || undefined}
-          onChange={(e) => aplicar({ desde: e.target.value })}
-          className="h-7 w-[132px] border-0 px-1 text-[13px] focus:ring-0"
+          onAplicar={(desde) => aplicar({ desde })}
         />
         <span aria-hidden className="text-faint">
           –
         </span>
-        <Input
-          type="date"
-          aria-label="Emitido hasta"
-          value={filtros.hasta}
+        <CampoFecha
+          etiqueta="Emitido hasta"
+          valor={filtros.hasta}
           min={filtros.desde || undefined}
-          onChange={(e) => aplicar({ hasta: e.target.value })}
-          className="h-7 w-[132px] border-0 px-1 text-[13px] focus:ring-0"
+          onAplicar={(hasta) => aplicar({ hasta })}
         />
       </div>
 
@@ -144,6 +156,81 @@ export function FiltrosPipeline({
           Limpiar filtros
         </Button>
       )}
+
+      {/* El tablero se maneja sin mouse, pero eso no se descubre solo. */}
+      <p className="ml-auto hidden items-center gap-1.5 whitespace-nowrap font-sans text-[12px] text-faint lg:flex">
+        Sin mouse: <Kbd>Tab</Kbd> hasta la tarjeta, <Kbd>Espacio</Kbd> y flechas
+      </p>
     </div>
+  )
+}
+
+/**
+ * Un campo de fecha que aplica cuando el rango terminó de escribirse:
+ * al salir del campo, con Enter, o medio segundo después de la última
+ * tecla. Ver `ESPERA_FECHA`.
+ */
+function CampoFecha({
+  etiqueta,
+  valor,
+  min,
+  max,
+  onAplicar,
+}: {
+  etiqueta: string
+  valor: string
+  min?: string
+  max?: string
+  onAplicar: (valor: string) => void
+}) {
+  const [local, setLocal] = React.useState(valor)
+  const temporizador = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // El servidor es la fuente de verdad: si el filtro cambió desde
+  // afuera (atrás del navegador, «Limpiar filtros»), el campo lo sigue.
+  const [ultimo, setUltimo] = React.useState(valor)
+  if (valor !== ultimo) {
+    setUltimo(valor)
+    setLocal(valor)
+  }
+
+  const cancelar = () => {
+    if (temporizador.current) clearTimeout(temporizador.current)
+    temporizador.current = null
+  }
+
+  // Salir de la pantalla con un cambio a medio escribir no tiene que
+  // disparar una navegación cuando el componente ya no está.
+  React.useEffect(
+    () => () => {
+      if (temporizador.current) clearTimeout(temporizador.current)
+    },
+    [],
+  )
+
+  const aplicarYa = (siguiente: string) => {
+    cancelar()
+    if (siguiente !== valor) onAplicar(siguiente)
+  }
+
+  return (
+    <Input
+      type="date"
+      aria-label={etiqueta}
+      value={local}
+      min={min}
+      max={max}
+      onChange={(e) => {
+        const siguiente = e.target.value
+        setLocal(siguiente)
+        cancelar()
+        temporizador.current = setTimeout(() => aplicarYa(siguiente), ESPERA_FECHA)
+      }}
+      onBlur={() => aplicarYa(local)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') aplicarYa(local)
+      }}
+      className="h-7 w-[132px] border-0 px-1 text-[13px] focus:ring-0"
+    />
   )
 }

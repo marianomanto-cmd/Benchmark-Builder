@@ -5,9 +5,13 @@ import { BookMarked, House, Kanban, ShieldCheck, type LucideIcon } from 'lucide-
  *
  * - En desktop el Pipeline es una pantalla propia (kanban de columnas).
  * - En mobile no hay kanban usable, así que Pipeline **no es destino**:
- *   es el filtro de estado que vive arriba de Home. En su lugar la tabbar
- *   ofrece Equipo a quien administra: en mobile no hay menú de usuario,
- *   así que sin esto un admin no tendría cómo llegar.
+ *   es el filtro de estado que vive arriba de Home.
+ *
+ * - Equipo sigue siendo pestaña para quien administra, pero ya no es
+ *   la única puerta: la hoja de cuenta —que abre la última pestaña,
+ *   para todos— tiene «Mi contraseña» y «Cerrar sesión». Antes esas dos
+ *   vivían sólo en el menú de la topbar, que en mobile no existe: nadie
+ *   podía cerrar sesión desde el celular.
  */
 
 export interface Destino {
@@ -34,19 +38,6 @@ export const DESTINOS_MOBILE: Destino[] = [
 export function esRutaActiva(pathname: string, href: string): boolean {
   if (href === '/') return pathname === '/'
   return pathname === href || pathname.startsWith(`${href}/`)
-}
-
-/** Iniciales para el avatar del menú de usuario: máximo dos letras. */
-export function iniciales(nombre: string): string {
-  const partes = nombre
-    .replace(/[^\p{L}\s]/gu, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-
-  if (partes.length === 0) return '?'
-  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase()
-  return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase()
 }
 
 /** Los destinos de mobile, con Equipo si quien mira lo administra. */

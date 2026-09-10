@@ -22,10 +22,13 @@ export function BannerPrecio({
   comparacion,
   validoHasta,
   fechaEmision,
+  conOverrides,
 }: {
   comparacion: ComparacionPrecio
   validoHasta: string
   fechaEmision: string
+  /** El documento tiene coberturas editadas a mano, que no se heredan. */
+  conOverrides: boolean
 }) {
   const { duplicar, duplicando } = useDetalle()
   const subio = comparacion.diferencia > 0
@@ -52,13 +55,17 @@ export function BannerPrecio({
         Con los aranceles vigentes hoy, las mismas prestaciones quedarían en{' '}
         <Monto valor={comparacion.aCargoHoy} className="font-semibold text-warm-ink" /> a cargo del
         paciente: {money(Math.abs(comparacion.diferencia))} {subio ? 'más' : 'menos'} que este
-        documento.
+        documento. Es exactamente lo que va a decir el duplicado.
+        {conOverrides
+          ? ' Ojo: las coberturas que alguien editó a mano no se heredan, el nuevo sale con las del arancel.'
+          : ''}
       </p>
       <p className="mt-1.5">
         <strong>Este presupuesto mantiene sus valores</strong> —los que se congelaron el{' '}
         {fechaLarga(fechaEmision)}— y sirve hasta el {fechaLarga(validoHasta)} (
-        {vigenciaTexto(validoHasta)}). Si el paciente quiere los números de hoy, se emite uno
-        nuevo: el original queda intacto en el historial.
+        {vigenciaTexto(validoHasta)}). Si el paciente quiere los números de hoy, duplicalo: el
+        nuevo nace en borrador, para revisarlo antes de mandarlo, y éste queda intacto en el
+        historial.
       </p>
     </Banner>
   )

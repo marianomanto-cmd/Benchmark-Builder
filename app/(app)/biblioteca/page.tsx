@@ -98,7 +98,7 @@ interface VigenteBase {
 async function TabPrestaciones() {
   const supabase = await createClient()
 
-  const [prestacionesRes, obrasRes, vigentesRes, itemsRes] = await Promise.all([
+  const [prestacionesRes, obrasRes, vigentesRes] = await Promise.all([
     supabase
       .from('prestaciones')
       .select('id, nombre, codigo, rubro, descripcion, vigencia_dias, activa')
@@ -108,9 +108,6 @@ async function TabPrestaciones() {
     supabase
       .from('aranceles_vigentes')
       .select('prestacion_id, obra_social_id, monto, cobertura_tipo, cobertura_valor'),
-    // Una sola columna: alcanza para contar los usos históricos de cada
-    // prestación, que es lo que justifica no borrar las inactivas.
-    supabase.from('presupuesto_items').select('prestacion_id'),
   ])
 
   if (prestacionesRes.error || obrasRes.error || vigentesRes.error) {
@@ -125,7 +122,6 @@ async function TabPrestaciones() {
     activa: boolean
   }[]
   const vigentes = (vigentesRes.data ?? []) as VigenteBase[]
-  const items = (itemsRes.data ?? []) as { prestacion_id: string | null }[]
 
   const obrasActivas = obras.filter((o) => o.activa)
   const nombrePorOs = new Map(
@@ -133,10 +129,24 @@ async function TabPrestaciones() {
   )
   const idsActivas = new Set(obrasActivas.map((o) => o.id))
 
+  // El conteo de usos sólo se muestra en las inactivas: es la razón por
+  // la que no se borran. Se pide con `count` y sólo para ésas — traerse
+  // `presupuesto_items` entero para contarlo en memoria se cortaba en el
+  // `max_rows` de PostgREST (1000 filas) y devolvía menos usos de los
+  // reales, además de mover toda la tabla por la red en cada visita.
+  const inactivas = prestaciones.filter((p) => !p.activa)
   const usosPorPrestacion = new Map<string, number>()
-  for (const item of items) {
-    if (!item.prestacion_id) continue
-    usosPorPrestacion.set(item.prestacion_id, (usosPorPrestacion.get(item.prestacion_id) ?? 0) + 1)
+
+  if (inactivas.length > 0) {
+    const conteos = await Promise.all(
+      inactivas.map((p) =>
+        supabase
+          .from('presupuesto_items')
+          .select('id', { count: 'exact', head: true })
+          .eq('prestacion_id', p.id),
+      ),
+    )
+    conteos.forEach((res, i) => usosPorPrestacion.set(inactivas[i].id, res.count ?? 0))
   }
 
   const vigentesPorPrestacion = new Map<string, VigenteBase[]>()
@@ -198,15 +208,11 @@ async function TabPrestaciones() {
 async function TabObrasSociales() {
   const supabase = await createClient()
 
-  const [obrasRes, pacientesRes, vigentesRes] = await Promise.all([
-    supabase
-      .from('obras_sociales')
-      .select('id, nombre, plan, activa, notas')
-      .order('activa', { ascending: false })
-      .order('nombre'),
-    supabase.from('pacientes').select('obra_social_id'),
-    supabase.from('aranceles_vigentes').select('obra_social_id'),
-  ])
+  const obrasRes = await supabase
+    .from('obras_sociales')
+    .select('id, nombre, plan, activa, notas')
+    .order('activa', { ascending: false })
+    .order('nombre')
 
   if (obrasRes.error) return <FallaLectura que="las obras sociales" />
 
@@ -217,29 +223,34 @@ async function TabObrasSociales() {
     activa: boolean
     notas: string | null
   }[]
-  const pacientes = (pacientesRes.data ?? []) as { obra_social_id: string | null }[]
-  const vigentes = (vigentesRes.data ?? []) as { obra_social_id: string | null }[]
 
-  const pacientesPorOs = new Map<string, number>()
-  for (const p of pacientes) {
-    if (!p.obra_social_id) continue
-    pacientesPorOs.set(p.obra_social_id, (pacientesPorOs.get(p.obra_social_id) ?? 0) + 1)
-  }
+  // Dos conteos por obra social, con `count` y sin traer una sola fila.
+  // Agrupar en memoria exigía bajarse `pacientes` y `aranceles_vigentes`
+  // enteras, que con el consultorio andando pasan el `max_rows` de
+  // PostgREST: las dos columnas de contexto empezaban a mentir sin avisar.
+  const conteos = await Promise.all(
+    obras.map((o) =>
+      Promise.all([
+        supabase
+          .from('pacientes')
+          .select('id', { count: 'exact', head: true })
+          .eq('obra_social_id', o.id),
+        supabase
+          .from('aranceles_vigentes')
+          .select('id', { count: 'exact', head: true })
+          .eq('obra_social_id', o.id),
+      ]),
+    ),
+  )
 
-  const arancelesPorOs = new Map<string, number>()
-  for (const v of vigentes) {
-    if (!v.obra_social_id) continue
-    arancelesPorOs.set(v.obra_social_id, (arancelesPorOs.get(v.obra_social_id) ?? 0) + 1)
-  }
-
-  const filas: FilaObraSocial[] = obras.map((o) => ({
+  const filas: FilaObraSocial[] = obras.map((o, i) => ({
     id: o.id,
     nombre: o.nombre,
     plan: o.plan,
     activa: o.activa,
     notas: o.notas,
-    pacientes: pacientesPorOs.get(o.id) ?? 0,
-    aranceles: arancelesPorOs.get(o.id) ?? 0,
+    pacientes: conteos[i][0].count ?? 0,
+    aranceles: conteos[i][1].count ?? 0,
   }))
 
   return <PanelObrasSociales filas={filas} />
@@ -257,6 +268,10 @@ async function TabPacientes() {
       .from('pacientes')
       .select(
         'id, nombre, dni, telefono, tiene_whatsapp, email, obra_social_id, nro_afiliado, notas_internas',
+        // El total exacto se pide junto con la página: «los primeros 400»
+        // no dice nada si no se sabe de cuántos. Con el número, el
+        // mostrador entiende por qué tiene que buscar por apellido.
+        { count: 'exact' },
       )
       .order('nombre')
       // Se pide uno más que el límite sólo para saber si quedó gente afuera.
@@ -290,6 +305,7 @@ async function TabPacientes() {
   )
 
   const truncado = crudos.length > LIMITE_PACIENTES
+  const total = pacientesRes.count ?? crudos.length
   const filas: FilaPaciente[] = crudos.slice(0, LIMITE_PACIENTES).map((p) => ({
     ...p,
     obra_social: p.obra_social_id ? (nombrePorOs.get(p.obra_social_id) ?? null) : null,
@@ -307,6 +323,7 @@ async function TabPacientes() {
       obrasSociales={opciones}
       truncado={truncado}
       limite={LIMITE_PACIENTES}
+      total={total}
     />
   )
 }

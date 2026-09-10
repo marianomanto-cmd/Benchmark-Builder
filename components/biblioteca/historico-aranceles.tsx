@@ -1,8 +1,10 @@
 'use client'
 
-import { History } from 'lucide-react'
+import { History, SearchX } from 'lucide-react'
+import * as React from 'react'
 
 import {
+  Button,
   Card,
   EmptyState,
   MicroBadge,
@@ -14,9 +16,13 @@ import {
   Thead,
   Tr,
 } from '@/components/ui'
-import { fechaCorta, numero } from '@/lib/formato'
+import { fechaCorta, normalizar, numero } from '@/lib/formato'
+import { useAtajos } from '@/lib/hooks/use-atajos'
 
+import { CampoBusqueda } from './campo-busqueda'
 import { etiquetaCobertura, type FilaHistorico } from './tipos'
+
+const ID_BUSQUEDA = 'busqueda-historico'
 
 /**
  * Vista «Histórico completo»: todas las vigencias, abiertas y cerradas,
@@ -30,11 +36,34 @@ export function HistoricoAranceles({
   filas,
   truncado,
   limite,
+  busquedaInicial,
 }: {
   filas: FilaHistorico[]
   truncado: boolean
   limite: number
+  /** Lo que se venía buscando en la grilla: cruza de vista con uno. */
+  busquedaInicial?: string
 }) {
+  const [busqueda, setBusqueda] = React.useState(busquedaInicial ?? '')
+
+  useAtajos({
+    '/': () => {
+      const campo = document.getElementById(ID_BUSQUEDA)
+      if (campo instanceof HTMLInputElement) {
+        campo.focus()
+        campo.select()
+      }
+    },
+  })
+
+  const visibles = React.useMemo(() => {
+    const q = normalizar(busqueda)
+    if (!q) return filas
+    return filas.filter((f) =>
+      normalizar(`${f.prestacion} ${f.rubro ?? ''} ${f.obra_social}`).includes(q),
+    )
+  }, [filas, busqueda])
+
   if (filas.length === 0) {
     return (
       <EmptyState
@@ -47,9 +76,52 @@ export function HistoricoAranceles({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="t-label">
+      <CampoBusqueda
+        id={ID_BUSQUEDA}
+        valor={busqueda}
+        onCambiar={setBusqueda}
+        placeholder="Buscar prestación, rubro u obra social"
+        etiqueta="Buscar en el histórico de vigencias"
+        className="sm:max-w-[340px]"
+      />
+
+      {visibles.length === 0 ? (
+        <EmptyState
+          icono={<SearchX className="size-7" aria-hidden />}
+          titulo="Ninguna vigencia coincide"
+          descripcion={`Nada en el histórico cargado responde a «${busqueda}». Puede estar más atrás: se muestran las ${numero(
+            limite,
+          )} más recientes.`}
+          acciones={
+            <Button variant="secondary" size="touch" onClick={() => setBusqueda('')}>
+              Limpiar la búsqueda
+            </Button>
+          }
+        />
+      ) : (
+        <ListaHistorico filas={visibles} totales={filas.length} truncado={truncado} limite={limite} />
+      )}
+    </div>
+  )
+}
+
+function ListaHistorico({
+  filas,
+  totales,
+  truncado,
+  limite,
+}: {
+  filas: FilaHistorico[]
+  totales: number
+  truncado: boolean
+  limite: number
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="t-label" aria-live="polite">
         {numero(filas.length)} {filas.length === 1 ? 'vigencia' : 'vigencias'}
-        {truncado && ` de las últimas ${numero(limite)}`}
+        {filas.length !== totales && ` de ${numero(totales)}`}
+        {truncado && ` · se cargaron las últimas ${numero(limite)}`}
       </p>
 
       {truncado && (

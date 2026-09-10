@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="Smile Lab">
+  <title>Smile Lab</title>
+  <!--
+    La misma marca de public/brand/logo.svg, sin el wordmark: en una
+    pestaña de 16 px las letras se vuelven ruido. Las coordenadas son
+    las del logo (caja de 28 con la marca desde y=2) escaladas ×32/28.
+    Un solo color: el primary del sistema. Si cambia el token, cambiar acá.
+  -->
+  <rect width="32" height="32" rx="10.29" fill="#2FA6B4" />
+  <path
+    d="M9.829 15.314c0 3.657 2.743 6.629 6.171 6.629s6.171-2.971 6.171-6.629"
+    stroke="#FFFFFF"
+    stroke-width="2.971"
+    stroke-linecap="round"
+    fill="none"
+  />
+  <circle cx="12.457" cy="10.629" r="1.771" fill="#FFFFFF" />
+  <circle cx="19.543" cy="10.629" r="1.771" fill="#FFFFFF" />
+</svg>

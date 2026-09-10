@@ -2,10 +2,11 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { Lock } from 'lucide-react'
 import Link from 'next/link'
 import * as React from 'react'
 
-import { EstadoBadge, MicroBadge, Monto } from '@/components/ui'
+import { EstadoBadge, MicroBadge, Monto, TransicionPresupuesto } from '@/components/ui'
 import { estaFrio } from '@/lib/estados'
 import { fechaCorta } from '@/lib/formato'
 import { cn } from '@/lib/utils'
@@ -27,28 +28,60 @@ interface TarjetaProps {
   enVuelo?: boolean
 }
 
+/**
+ * Un tratamiento que ya arrancó no se mueve de un arrastre: el gesto es
+ * demasiado barato para deshacer algo que ya pasó en el sillón, y
+ * corregirlo se hace desde el detalle, donde el cambio es explícito.
+ *
+ * Antes la tarjeta se arrastraba igual y el «no» llegaba recién al
+ * soltar, con un toast: todo el tablero se ofrecía como destino válido
+ * para un gesto que nunca podía terminar bien. Ahora no levanta, y la
+ * tarjeta dice por qué.
+ */
+function bloqueada(fila: FilaPipeline): boolean {
+  return fila.estado === 'iniciado'
+}
+
+/**
+ * Con qué agarrar la tarjeta después de que cambió de columna.
+ *
+ * Mover una tarjeta la saca de una lista y la mete en otra: React
+ * desmonta el nodo y monta uno nuevo, así que el foco del teclado se
+ * cae al `body` y quien venía navegando sin mouse volvía al principio
+ * de la página después de cada movimiento. El tablero lo devuelve al
+ * lugar por id. Ver `devolverFoco` en `tablero.tsx`.
+ */
+export function idTarjeta(id: string): string {
+  return `tarjeta-pipeline-${id}`
+}
+
 export function Tarjeta({ fila, columna, enVuelo = false }: TarjetaProps) {
+  const fija = bloqueada(fila)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: fila.id,
     data: { tipo: 'tarjeta', columna },
-    disabled: enVuelo,
+    disabled: enVuelo || fija,
     attributes: {
       roleDescription: 'tarjeta de presupuesto',
     },
   })
 
   return (
-    <TarjetaBase
-      ref={setNodeRef}
-      fila={fila}
-      enVuelo={enVuelo}
-      /* El original se atenúa y el que sigue al mouse es el `DragOverlay`. */
-      atenuada={isDragging}
-      interactiva
-      style={{ transform: CSS.Translate.toString(transform), transition }}
-      {...attributes}
-      {...listeners}
-    />
+    <TransicionPresupuesto id={fila.id} variante="listado-desktop">
+      <TarjetaBase
+        ref={setNodeRef}
+        id={idTarjeta(fila.id)}
+        fila={fila}
+        enVuelo={enVuelo}
+        fija={fija}
+        /* El original se atenúa y el que sigue al mouse es el `DragOverlay`. */
+        atenuada={isDragging}
+        interactiva={!fija}
+        style={{ transform: CSS.Translate.toString(transform), transition }}
+        {...attributes}
+        {...listeners}
+      />
+    </TransicionPresupuesto>
   )
 }
 
@@ -70,10 +103,12 @@ interface TarjetaBaseProps extends React.HTMLAttributes<HTMLElement> {
   atenuada?: boolean
   levantada?: boolean
   interactiva?: boolean
+  /** El estado no se cambia arrastrando. */
+  fija?: boolean
 }
 
 const TarjetaBase = React.forwardRef<HTMLElement, TarjetaBaseProps>(function TarjetaBase(
-  { fila, enVuelo, atenuada, levantada, interactiva, className, style, ...props },
+  { fila, enVuelo, atenuada, levantada, interactiva, fija, className, style, ...props },
   ref,
 ) {
   // El umbral de 7 días sólo aplica a lo que espera respuesta: una
@@ -90,12 +125,14 @@ const TarjetaBase = React.forwardRef<HTMLElement, TarjetaBaseProps>(function Tar
         'transition-shadow duration-150',
         fria ? 'border-warm-line/25 bg-warm-faint' : 'border-hairline',
         interactiva && 'cursor-grab touch-none select-none hover:shadow-lift active:cursor-grabbing',
+        fija && 'cursor-default select-none',
         atenuada && 'opacity-35',
         levantada && 'rotate-[1.5deg] cursor-grabbing shadow-lift',
         enVuelo && 'pointer-events-none opacity-60',
         className,
       )}
       aria-label={`${fila.paciente_nombre}, ${fila.numero}, ${fila.profesional_nombre}`}
+      title={fija ? 'Ya iniciado: el estado se cambia desde el detalle' : undefined}
       {...props}
     >
       <div className="flex items-start justify-between gap-2">
@@ -130,6 +167,17 @@ const TarjetaBase = React.forwardRef<HTMLElement, TarjetaBaseProps>(function Tar
             todavía no. */}
         {fila.estado === 'iniciado' && <EstadoBadge estado="iniciado" size="sm" />}
 
+        {/* Por qué esta tarjeta no se agarra. Va acá y no en una línea
+            propia porque una línea que aparece al pasar por encima
+            cambia el alto de la tarjeta y empuja a las de abajo. */}
+        {fija && (
+          <Lock
+            aria-hidden
+            className="size-3.5 shrink-0 text-muted"
+            /* El texto completo está en el `sr-only` del pie. */
+          />
+        )}
+
         <span
           title={`En este estado desde hace ${textoDias(fila.dias_en_estado)}`}
           className={cn(
@@ -146,6 +194,7 @@ const TarjetaBase = React.forwardRef<HTMLElement, TarjetaBaseProps>(function Tar
 
       <span className="sr-only">
         Emitido el {fechaCorta(fila.fecha_emision)}. {fila.numero}.
+        {fija && ' Ya iniciado: no se mueve arrastrando, se cambia desde el detalle.'}
       </span>
     </article>
   )

@@ -11,6 +11,7 @@
 
 import { Lock } from 'lucide-react'
 import * as React from 'react'
+import { toast } from 'sonner'
 
 import { Field, Segmented, Textarea } from '@/components/ui'
 import { calcularTotales } from '@/lib/calculo'
@@ -37,6 +38,30 @@ export function PasoCerrar({
   esDesktop: boolean
 }) {
   const totales = calcularTotales(borrador.items)
+  const principal = itemPrincipal(borrador.items)
+  const [trayendo, setTrayendo] = React.useState(false)
+
+  /** Hay una plantilla en vuelo: no se piden dos a la vez. */
+  const heredando = React.useRef(false)
+
+  const aplicarPlantilla = React.useCallback(
+    async (prestacionId: string | null): Promise<void> => {
+      let plantilla: { etiqueta: string; porcentaje: number }[] = []
+      try {
+        plantilla = prestacionId ? await buscarCuotasPlantilla(prestacionId) : []
+      } catch {
+        // Sin plantilla legible, la condición honesta es una sola.
+        plantilla = []
+      }
+      setCuotas(
+        plantilla.length > 0
+          ? plantilla.map((c) => cuotaNueva(c.etiqueta, c.porcentaje))
+          : [cuotaNueva(CUOTA_UNICA, 100)],
+      )
+      parche({ cuotas_heredadas: true })
+    },
+    [setCuotas, parche],
+  )
 
   // Las condiciones se heredan una sola vez: si alguien las borró todas
   // a propósito, no se las volvemos a poner al pasar de paso.
@@ -44,33 +69,38 @@ export function PasoCerrar({
   // La marca vive en el borrador y no en un `useRef`: este paso se
   // desmonta al volver al 2, así que un ref se reiniciaba y la
   // plantilla reaparecía en cuanto se volvía al paso 3.
+  //
+  // Pero se pone **junto con** las cuotas, no antes de pedirlas: si se
+  // marcaba primero y alguien volvía al paso 2 mientras la consulta
+  // viajaba, el borrador quedaba marcado como "ya heredé" con la lista
+  // vacía y el presupuesto salía sin condiciones de pago, sin decir nada.
   React.useEffect(() => {
-    if (borrador.cuotas_heredadas || borrador.cuotas.length > 0) return
-    const principal = itemPrincipal(borrador.items)
-    if (!principal) return
+    if (borrador.cuotas_heredadas || borrador.cuotas.length > 0 || heredando.current) return
+    const mayor = itemPrincipal(borrador.items)
+    if (!mayor) return
 
-    parche({ cuotas_heredadas: true })
-    let vigente = true
-
-    async function heredar(prestacionId: string | null) {
-      const plantilla = prestacionId ? await buscarCuotasPlantilla(prestacionId) : []
-      if (!vigente) return
-      setCuotas(
-        plantilla.length > 0
-          ? plantilla.map((c) => cuotaNueva(c.etiqueta, c.porcentaje))
-          : // Sin plantilla, la condición honesta es una sola: se paga todo.
-            [cuotaNueva(CUOTA_UNICA, 100)],
-      )
-    }
-
-    void heredar(principal.prestacion_id).catch(() => {
-      if (vigente) setCuotas([cuotaNueva(CUOTA_UNICA, 100)])
-    })
+    heredando.current = true
+    // No se cancela al desmontar: las cuotas viven en el borrador, no
+    // en este paso. Si la consulta llega con el wizard ya en el paso 2,
+    // lo correcto es que las condiciones queden puestas igual.
+    void aplicarPlantilla(mayor.prestacion_id)
 
     return () => {
-      vigente = false
+      heredando.current = false
     }
-  }, [borrador.cuotas_heredadas, borrador.cuotas.length, borrador.items, setCuotas, parche])
+  }, [borrador.cuotas_heredadas, borrador.cuotas.length, borrador.items, aplicarPlantilla])
+
+  /** Re-trae la plantilla de la prestación principal de ahora. */
+  async function traerPlantilla() {
+    if (!principal || trayendo) return
+    setTrayendo(true)
+    try {
+      await aplicarPlantilla(principal.prestacion_id)
+      toast.success(`Condiciones de ${principal.nombre} aplicadas`)
+    } finally {
+      setTrayendo(false)
+    }
+  }
 
   const formulario = (
     <div className="flex flex-col gap-5">
@@ -89,14 +119,23 @@ export function PasoCerrar({
 
       <div>
         <p className="t-label mb-2">Condiciones de pago</p>
+        {/* Antes decía "Vienen de X" nombrando a la prestación más cara
+            de ahora, que no es necesariamente de la que salieron:
+            volver al paso 2 y agregar una más cara cambiaba el nombre
+            sin cambiar las condiciones. Ahora el nombre está donde sí
+            es cierto — en el botón que las trae. */}
         <p className="t-helper mb-3">
-          Vienen de{' '}
-          <strong className="font-semibold text-ink">
-            {itemPrincipal(borrador.items)?.nombre ?? 'la prestación principal'}
-          </strong>
-          . Editalas para este presupuesto: tienen que sumar 100 %.
+          Se completaron con la plantilla de la prestación principal. Editalas para este
+          presupuesto: tienen que sumar 100 %.
         </p>
-        <EditorCuotas cuotas={borrador.cuotas} total={totales.aCargo} onChange={setCuotas} />
+        <EditorCuotas
+          cuotas={borrador.cuotas}
+          total={totales.aCargo}
+          onChange={setCuotas}
+          plantillaDe={principal?.nombre ?? null}
+          trayendoPlantilla={trayendo}
+          onPlantilla={principal ? () => void traerPlantilla() : undefined}
+        />
       </div>
 
       <Field

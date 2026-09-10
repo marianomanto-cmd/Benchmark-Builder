@@ -32,8 +32,16 @@ export const ESTADOS_PIPELINE: EstadoPresupuesto[] = [
   'aceptado',
 ]
 
+/**
+ * Las cinco columnas del kanban. Tiparlo como unión y no como `string`
+ * es lo que hace que `ESTADOS_COLUMNA[clave]` no pueda devolver
+ * `undefined`: con `Record<string, …>` un typo compilaba y reventaba
+ * recién en el navegador, con un `.includes` sobre nada.
+ */
+export type ClaveColumna = 'realizado' | 'enviado' | 'pendiente' | 'interesado' | 'aceptado'
+
 /** Aceptado e iniciado comparten columna en el kanban. */
-export const ESTADOS_COLUMNA: Record<string, EstadoPresupuesto[]> = {
+export const ESTADOS_COLUMNA: Record<ClaveColumna, EstadoPresupuesto[]> = {
   realizado: ['realizado'],
   enviado: ['enviado'],
   pendiente: ['pendiente'],
@@ -52,7 +60,7 @@ export const ETIQUETA_ESTADO: Record<EstadoPresupuesto, string> = {
   perdido: 'Perdido',
 }
 
-export const ETIQUETA_COLUMNA: Record<string, string> = {
+export const ETIQUETA_COLUMNA: Record<ClaveColumna, string> = {
   realizado: 'Realizado',
   enviado: 'Enviado',
   pendiente: 'Pendiente',
@@ -145,7 +153,14 @@ export function esEditable(estado: EstadoPresupuesto): boolean {
   return estado === 'borrador'
 }
 
-/** Umbral de "hace mucho que no contesta": 7 días. */
+/**
+ * Umbral de "hace mucho que no contesta": 7 días.
+ *
+ * El mismo número está en `marcar_pendientes()` (`interval '7 days'`),
+ * que es quien mueve `enviado → pendiente`. Si cambia uno, cambia el
+ * otro: si no, el tinte warm del kanban aparece antes o después del
+ * pase automático y el consultorio ve dos verdades.
+ */
 export const DIAS_SIN_RESPUESTA = 7
 
 export function estaFrio(estado: EstadoPresupuesto, diasEnEstado: number): boolean {

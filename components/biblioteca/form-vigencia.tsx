@@ -1,7 +1,7 @@
 'use client'
 
 import { addDays, isAfter, parseISO, subDays } from 'date-fns'
-import { ArrowRight, TriangleAlert } from 'lucide-react'
+import { ArrowRight, CalendarClock, TriangleAlert } from 'lucide-react'
 import * as React from 'react'
 import { toast } from 'sonner'
 
@@ -16,8 +16,8 @@ import {
   ResponsiveModal,
   Segmented,
 } from '@/components/ui'
-import { calcularItem } from '@/lib/calculo'
-import { fechaLarga, isoDate, money, numero } from '@/lib/formato'
+import { calcularItem, montoConAumento } from '@/lib/calculo'
+import { fechaCorta, fechaLarga, isoDate, money, numero } from '@/lib/formato'
 import type { CoberturaTipo } from '@/lib/types'
 
 import { ETIQUETA_TIPO_COBERTURA, type Celda } from './tipos'
@@ -38,6 +38,13 @@ const OPCIONES_TIPO: { value: CoberturaTipo; label: string }[] = [
  * tres consecuencias antes de guardar. Eso es lo que hace que «no se
  * puede editar» se lea como coherencia y no como limitación — el
  * usuario ve que el presupuesto viejo queda intacto a propósito.
+ *
+ * Todo lo que se cierra, se valida y se ofrece como atajo sale de la
+ * vigencia **abierta**, que no siempre es la que se cotiza hoy: si hay
+ * un aumento programado, la de hoy ya quedó cerrada y la abierta es la
+ * futura. `nueva_vigencia()` compara contra ésa, así que mirando la de
+ * hoy el form dejaba elegir una fecha que la base después rechazaba con
+ * un error crudo.
  */
 export function FormVigencia({
   celda,
@@ -48,7 +55,11 @@ export function FormVigencia({
   onCerrar: () => void
   onGuardado: () => void
 }) {
-  const actual = celda.vigente
+  // La que se va a cerrar. Puede ser una programada que todavía no rige.
+  const actual = celda.abierta
+  // La que se cotiza hoy: sólo se usa para explicar el contexto.
+  const hoyRige = celda.vigente
+  const abiertaEsFutura = actual !== null && actual.id !== hoyRige?.id
 
   const [monto, setMonto] = React.useState<number>(actual ? Math.round(actual.monto) : 0)
   const [tipo, setTipo] = React.useState<CoberturaTipo>(
@@ -86,9 +97,13 @@ export function FormVigencia({
     }
     if (fechaTemprana && actual) {
       setError(
-        `La vigencia nueva tiene que arrancar después del ${fechaLarga(
-          actual.vigente_desde,
-        )}, que es cuando empezó la actual.`,
+        abiertaEsFutura
+          ? `La vigencia nueva tiene que arrancar después del ${fechaLarga(
+              actual.vigente_desde,
+            )}: es la fecha desde la que ya hay una vigencia cargada.`
+          : `La vigencia nueva tiene que arrancar después del ${fechaLarga(
+              actual.vigente_desde,
+            )}, que es cuando empezó la actual.`,
       )
       return
     }
@@ -172,9 +187,17 @@ export function FormVigencia({
           requerido
           htmlFor="vigencia-monto"
           helper={
-            actual
-              ? `Hoy está en ${money(actual.monto)}.`
-              : 'Es el valor de lista de la prestación, antes de la cobertura.'
+            abiertaEsFutura && actual
+              ? hoyRige
+                ? `Hoy se cotiza ${money(hoyRige.monto)} y desde el ${fechaCorta(
+                    actual.vigente_desde,
+                  )} pasa a ${money(actual.monto)}.`
+                : `Todavía no se cotiza: el arancel cargado arranca el ${fechaCorta(
+                    actual.vigente_desde,
+                  )} en ${money(actual.monto)}.`
+              : actual
+                ? `Hoy está en ${money(actual.monto)}.`
+                : 'Es el valor de lista de la prestación, antes de la cobertura.'
           }
         >
           <InputMonto id="vigencia-monto" value={monto} onChange={setMonto} autoFocus />
@@ -184,7 +207,8 @@ export function FormVigencia({
           <div className="flex flex-wrap items-center gap-2">
             <span className="t-label">Aumentar</span>
             {ATAJOS.map((pct) => {
-              const nuevo = Math.round(actual.monto * (1 + pct / 100))
+              // Misma cuenta que el aumento masivo y que la RPC.
+              const nuevo = montoConAumento(actual.monto, pct)
               return (
                 <Button
                   key={pct}
@@ -262,9 +286,13 @@ export function FormVigencia({
                 : null
           }
           helper={
-            actual
-              ? 'La vigencia actual se cierra el día anterior a esta fecha.'
-              : 'Desde cuándo se puede cotizar con este arancel.'
+            !actual
+              ? 'Desde cuándo se puede cotizar con este arancel.'
+              : abiertaEsFutura
+                ? `La vigencia cargada para el ${fechaCorta(
+                    actual.vigente_desde,
+                  )} se cierra el día anterior a esta fecha.`
+                : 'La vigencia actual se cierra el día anterior a esta fecha.'
           }
         >
           <Input
@@ -293,8 +321,9 @@ export function FormVigencia({
 
         <QueVaAPasar
           desde={desde}
-          hayActual={Boolean(actual)}
-          usos={actual?.usos ?? 0}
+          desdeActual={actual?.vigente_desde ?? null}
+          esFutura={abiertaEsFutura}
+          usos={hoyRige?.usos ?? 0}
           montoActual={actual?.monto ?? null}
           montoNuevo={monto}
         />
@@ -310,13 +339,17 @@ export function FormVigencia({
  */
 function QueVaAPasar({
   desde,
-  hayActual,
+  desdeActual,
+  esFutura,
   usos,
   montoActual,
   montoNuevo,
 }: {
   desde: string
-  hayActual: boolean
+  /** Desde cuándo rige la vigencia abierta, la que se va a cerrar. */
+  desdeActual: string | null
+  /** La abierta todavía no arrancó: es un aumento programado. */
+  esFutura: boolean
   usos: number
   montoActual: number | null
   montoNuevo: number
@@ -329,12 +362,24 @@ function QueVaAPasar({
     <div className="rounded-card border border-primary/20 bg-tint p-4">
       <p className="t-label">Qué va a pasar</p>
       <ol className="mt-2 space-y-2 text-[13px] leading-relaxed text-body">
-        {hayActual ? (
+        {desdeActual ? (
           <li className="flex gap-2">
             <span aria-hidden className="text-primary">
               1.
             </span>
-            <span>Se cierra la vigencia actual el {cierre}.</span>
+            <span>
+              Se cierra la vigencia actual el {cierre}.
+              {esFutura && (
+                <span className="mt-1 flex items-start gap-1.5 text-warm-ink">
+                  <CalendarClock aria-hidden className="mt-[2px] size-3.5 shrink-0" />
+                  <span>
+                    Ojo: la que se cierra es la que cargaste para el{' '}
+                    {fechaCorta(desdeActual)} y todavía no arrancó. Va a regir sólo hasta el{' '}
+                    {cierre}.
+                  </span>
+                </span>
+              )}
+            </span>
           </li>
         ) : (
           <li className="flex gap-2">
@@ -363,6 +408,16 @@ function QueVaAPasar({
               </>
             )}
             .
+            {/* Lo que más se malinterpreta de un aumento cargado con
+                fecha: hasta que llega, el wizard sigue cotizando lo
+                viejo. Decirlo evita cargarlo dos veces. */}
+            {ES_FECHA.test(desde) && montoActual !== null && (
+              <span className="block t-helper">
+                {desde > isoDate()
+                  ? `Hasta esa fecha el wizard sigue cotizando ${money(montoActual)}.`
+                  : 'Desde el próximo presupuesto se cotiza con este arancel.'}
+              </span>
+            )}
           </span>
         </li>
 

@@ -62,6 +62,25 @@ export const COLUMNAS_LISTADO =
   'fecha_emision, subtotal, total_a_cargo, estado, dias_en_estado'
 
 /**
+ * En qué situación está la pantalla. Los tres casos se ven distinto y
+ * dicen cosas distintas: `vacio` promete ("acá va a aparecer"), `falla`
+ * avisa ("no se pudo leer"). Antes los dos dibujaban la misma raya, y
+ * una lectura caída se leía como consultorio sin presupuestos.
+ */
+export type EstadoDatos = 'ok' | 'vacio' | 'falla'
+
+/** Tramo del listado que se está mirando. */
+export interface Pagina {
+  /** 1-based. */
+  actual: number
+  /** Filas por página. */
+  porPagina: number
+  /** Filas que matchean los filtros, no las de esta página. */
+  total: number
+  paginas: number
+}
+
+/**
  * Los cuatro KPIs de la home. `null` en un porcentaje significa "todavía
  * no hay base para calcularlo" y se dibuja como raya, no como 0 %.
  */

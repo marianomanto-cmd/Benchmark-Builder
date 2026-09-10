@@ -10,7 +10,7 @@
  * mienta un peso.
  */
 
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, RotateCcw, Trash2 } from 'lucide-react'
 import * as React from 'react'
 
 import { Button, Input, Monto } from '@/components/ui'
@@ -21,15 +21,37 @@ import type { CuotaBorrador } from '@/lib/types'
 import { cuotaNueva } from './borrador'
 import { InputPorcentaje } from './form-arancel'
 
+/**
+ * Nombre de arranque de una condición nueva.
+ *
+ * Antes nacían sin nombre, y una etiqueta vacía no la rechaza la
+ * pantalla sino la base: se descubría al apretar "Guardar", con el
+ * presupuesto entero cargado y un mensaje que no decía cuál de las
+ * filas era. Arrancan con el nombre que el consultorio usa siempre y se
+ * sobreescriben tipeando.
+ */
+function etiquetaSugerida(indice: number): string {
+  if (indice === 0) return 'Al iniciar el tratamiento'
+  if (indice === 1) return 'Al terminar el tratamiento'
+  return `Pago ${indice + 1}`
+}
+
 export function EditorCuotas({
   cuotas,
   total,
   onChange,
+  plantillaDe,
+  onPlantilla,
+  trayendoPlantilla,
 }: {
   cuotas: CuotaBorrador[]
   /** Total a cargo del paciente: sobre esto se reparte. */
   total: number
   onChange: (cuotas: CuotaBorrador[]) => void
+  /** Prestación principal de ahora: de ella sale la plantilla. */
+  plantillaDe?: string | null
+  onPlantilla?: () => void
+  trayendoPlantilla?: boolean
 }) {
   const montos = repartirCuotas(
     total,
@@ -64,7 +86,11 @@ export function EditorCuotas({
           key={cuota.key}
           className="flex flex-wrap items-end gap-2 rounded-input border border-hairline bg-card p-3 sm:flex-nowrap"
         >
-          <div className="min-w-0 flex-1">
+          {/* Ancho completo en mobile: con `flex-1` y `min-w-0` en una
+              fila de 390px, flexbox prefería encoger este campo a cero
+              antes que cortar la línea. El input desaparecía y su
+              etiqueta se imprimía encima de «Porcentaje». */}
+          <div className="w-full min-w-0 sm:flex-1">
             <label className="t-label mb-1.5 block" htmlFor={`cuota-${cuota.key}`}>
               Cuándo
             </label>
@@ -72,6 +98,10 @@ export function EditorCuotas({
               id={`cuota-${cuota.key}`}
               value={cuota.etiqueta}
               placeholder="Al iniciar el tratamiento"
+              // Vaciar la etiqueta a mano sí bloquea el guardado: se
+              // marca acá, no al volver del servidor.
+              invalido={!cuota.etiqueta.trim()}
+              aria-label={`Cuándo se paga la condición ${i + 1}`}
               onChange={(e) => cambiar(cuota.key, { etiqueta: e.target.value })}
             />
           </div>
@@ -87,7 +117,7 @@ export function EditorCuotas({
             />
           </div>
 
-          <div className="w-[120px] shrink-0 text-right">
+          <div className="min-w-0 flex-1 text-right sm:w-[120px] sm:flex-none">
             <p className="t-label mb-1.5">Son</p>
             <p className="flex h-9 items-center justify-end">
               <Monto valor={montos[i] ?? 0} jerarquia="fuerte" />
@@ -107,14 +137,39 @@ export function EditorCuotas({
       ))}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => onChange([...cuotas, cuotaNueva('', cierra ? 0 : Math.max(0, diferencia))])}
-        >
-          <Plus aria-hidden />
-          Agregar condición
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              onChange([
+                ...cuotas,
+                cuotaNueva(
+                  etiquetaSugerida(cuotas.length),
+                  cierra ? 0 : Math.max(0, diferencia),
+                ),
+              ])
+            }
+          >
+            <Plus aria-hidden />
+            Agregar condición
+          </Button>
+
+          {/* Cambiar las prestaciones puede cambiar cuál es la
+              principal: esto vuelve a traer sus condiciones sin tener
+              que borrarlas una por una. */}
+          {onPlantilla && plantillaDe && (
+            <Button
+              variant="ghost"
+              size="sm"
+              loading={trayendoPlantilla}
+              onClick={onPlantilla}
+            >
+              <RotateCcw aria-hidden />
+              <span className="max-w-[190px] truncate">Traer las de {plantillaDe}</span>
+            </Button>
+          )}
+        </div>
 
         {cuotas.length > 0 &&
           (cierra ? (

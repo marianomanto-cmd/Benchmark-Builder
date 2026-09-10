@@ -96,41 +96,125 @@ export type PayloadPresupuesto = z.input<typeof payloadSchema>
 export type ItemPayload = z.input<typeof itemSchema>
 export type CuotaPayload = z.input<typeof cuotaSchema>
 
+/** En qué paso del wizard se arregla el problema. */
+export type PasoWizard = 1 | 2 | 3
+
 export type ResultadoCrear =
   | { ok: true; id: string; numero: string }
-  | { ok: false; error: string }
+  | { ok: false; error: string; paso?: PasoWizard }
 
 /* ═══════════════════════════════════════════════════════════
    Traducción de errores de Postgres
    ═══════════════════════════════════════════════════════════ */
 
 /**
- * Los `raise exception` de la RPC ya vienen en castellano y son para
- * mostrar. El resto (violaciones de constraint, timeouts) se traduce a
- * algo accionable: nadie en el consultorio sabe qué es un check
- * constraint.
+ * Qué paso del wizard toca el campo que falló la validación. El wizard
+ * ofrece "Ir al paso N": sin esto, un error de un campo del paso 1 se
+ * lee parado en el paso 3 y hay que salir a buscarlo a mano.
  */
-function mensajeDeError(crudo: string): string {
+function pasoDelCampo(path: PropertyKey[]): PasoWizard | undefined {
+  const campo = String(path[0] ?? '')
+  if (['paciente_id', 'profesional_id', 'obra_social_id', 'fecha_emision', 'valido_hasta'].includes(campo)) {
+    return 1
+  }
+  if (campo === 'items') return 2
+  if (['cuotas', 'observaciones', 'nota_interna', 'estado'].includes(campo)) return 3
+  return undefined
+}
+
+/**
+ * ¿El texto es un error interno de Postgres o de red?
+ *
+ * Los `raise exception` de la RPC están escritos en castellano y para
+ * mostrar. El resto no: "new row for relation … violates check
+ * constraint" no le dice nada a quien está atendiendo, y encima lo
+ * asusta. Ante la duda, mostramos algo accionable y dejamos el crudo en
+ * el log del servidor.
+ */
+function esJerga(crudo: string): boolean {
+  const m = crudo.toLowerCase()
+  return [
+    'violates',
+    'constraint',
+    'relation',
+    'column',
+    'invalid input syntax',
+    'duplicate key',
+    'null value',
+    'function',
+    'operator',
+    'syntax error',
+    'fetch failed',
+    'econnrefused',
+    'etimedout',
+    'network',
+    'timeout',
+    'canceling statement',
+  ].some((pista) => m.includes(pista))
+}
+
+interface ErrorTraducido {
+  mensaje: string
+  paso?: PasoWizard
+}
+
+function traducirError(crudo: string): ErrorTraducido {
   const m = crudo.toLowerCase()
   if (m.includes('presupuesto_items_cobertura_en_rango')) {
-    return 'Hay una cobertura mayor al monto de la prestación. Revisá los valores editados a mano.'
+    return {
+      mensaje:
+        'Hay una cobertura mayor al monto de la prestación. Revisá los valores editados a mano.',
+      paso: 2,
+    }
   }
   if (m.includes('presupuesto_items_porcentaje_valido')) {
-    return 'Hay una cobertura por porcentaje mayor a 100 %. Revisá los valores editados a mano.'
+    return {
+      mensaje:
+        'Hay una cobertura por porcentaje mayor a 100 %. Revisá los valores editados a mano.',
+      paso: 2,
+    }
   }
   if (m.includes('no autenticado') || m.includes('jwt')) {
-    return 'Se cerró la sesión. Volvé a entrar y guardá de nuevo: el borrador quedó en este dispositivo.'
+    return {
+      mensaje:
+        'Se cerró la sesión. Volvé a entrar en otra pestaña y guardá de nuevo: lo cargado sigue acá.',
+    }
   }
   if (m.includes('violates row-level security') || m.includes('permission denied')) {
-    return 'Tu usuario no tiene permiso para emitir presupuestos. Avisale al consultorio.'
+    return {
+      mensaje: 'Tu usuario no tiene permiso para emitir presupuestos. Avisale al consultorio.',
+    }
   }
   if (m.includes('paciente inexistente')) {
-    return 'El paciente ya no existe. Elegilo de nuevo en el paso 1.'
+    return { mensaje: 'El paciente ya no existe. Elegilo de nuevo en el paso 1.', paso: 1 }
   }
   if (m.includes('profesional inexistente')) {
-    return 'El profesional ya no existe. Elegilo de nuevo en el paso 1.'
+    return { mensaje: 'El profesional ya no existe. Elegilo de nuevo en el paso 1.', paso: 1 }
   }
-  return crudo
+  if (m.includes('cuotas') && m.includes('100')) {
+    return { mensaje: 'Las condiciones de pago tienen que sumar 100 %.', paso: 3 }
+  }
+  // Postgres se quedó sin tiempo o el enlace se cortó: no se perdió
+  // nada, hay que volver a intentar.
+  if (
+    m.includes('canceling statement') ||
+    m.includes('timeout') ||
+    m.includes('etimedout') ||
+    m.includes('fetch failed') ||
+    m.includes('network')
+  ) {
+    return {
+      mensaje:
+        'No hubo respuesta del servidor. Probá "Reintentar": lo cargado sigue acá y no se emitió nada.',
+    }
+  }
+  if (esJerga(crudo)) {
+    return {
+      mensaje:
+        'El servidor rechazó el presupuesto. Revisá montos y coberturas, y si sigue igual avisale al consultorio.',
+    }
+  }
+  return { mensaje: crudo }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -157,19 +241,42 @@ export async function crearPresupuesto(
   const parseado = payloadSchema.safeParse(payload)
   if (!parseado.success) {
     const primero = parseado.error.issues[0]
-    return { ok: false, error: primero?.message ?? 'Faltan datos para emitir el presupuesto.' }
+    return {
+      ok: false,
+      error: primero?.message ?? 'Faltan datos para emitir el presupuesto.',
+      paso: primero ? pasoDelCampo(primero.path) : undefined,
+    }
   }
 
   const datos = parseado.data
   const supabase = await createClient()
 
-  const { data: id, error } = await supabase.rpc('crear_presupuesto', {
-    p_payload: datos,
-  })
-
-  if (error) {
-    return { ok: false, error: mensajeDeError(error.message) }
+  /**
+   * `rpc()` devuelve el error de Postgres en `error`, pero **tira** si
+   * se cae la red o Supabase no responde. Sin este `catch`, esa caída
+   * llegaba al cliente como el error genérico de una server action y el
+   * wizard mostraba "An unexpected response was received from the
+   * server" arriba de un presupuesto entero cargado.
+   */
+  let id: unknown
+  try {
+    const respuesta = await supabase.rpc('crear_presupuesto', { p_payload: datos })
+    if (respuesta.error) {
+      // El crudo queda del lado del servidor: en pantalla va lo accionable.
+      console.error('[crear_presupuesto]', respuesta.error.message)
+      const traducido = traducirError(respuesta.error.message)
+      return { ok: false, error: traducido.mensaje, paso: traducido.paso }
+    }
+    id = respuesta.data
+  } catch (e) {
+    console.error('[crear_presupuesto] excepción', e)
+    return {
+      ok: false,
+      error:
+        'No se pudo hablar con el servidor. Probá "Reintentar": lo cargado sigue acá y no se emitió nada.',
+    }
   }
+
   if (typeof id !== 'string') {
     return { ok: false, error: 'El presupuesto no se pudo crear. Probá de nuevo en un momento.' }
   }

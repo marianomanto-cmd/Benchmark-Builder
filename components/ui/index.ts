@@ -6,7 +6,10 @@ export { Button, buttonVariants, type ButtonProps } from './button'
 export { Pill, MicroBadge } from './pill'
 export { EstadoBadge } from './estado-badge'
 export { Field, Label, Input, Textarea, InputMonto } from './field'
-export { Card, CardHeader, CardTitle, CardBody, Separator, Banner, EmptyState, Skeleton } from './surface'
+export {
+  Card, CardHeader, CardTitle, CardBody, Separator, Banner, EmptyState,
+  Skeleton, SkeletonTabla, SkeletonCards,
+} from './surface'
 export { Monto } from './monto'
 export { Tabla, Thead, Th, Tbody, Tr, Td } from './tabla'
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs'
@@ -24,3 +27,4 @@ export { Select, SelectValue, SelectTrigger, SelectContent, SelectItem, SelectLa
 export { useEsDesktop, useMediaQuery, BREAKPOINT_DESKTOP } from './use-media'
 export { TransicionPresupuesto } from './transicion'
 export { Kbd } from './kbd'
+export { CopiarBoton } from './copiar'

@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 import { Banner, Checkbox, Field, Input, InputMonto, Textarea } from '@/components/ui'
 import type { Arancel, Prestacion } from '@/lib/types'
 
-import { CabeceraCapa, PieCapa } from './capa'
+import { CabeceraCapa, MarcoCapa, PieCapa } from './capa'
 import { useCrearArancel, useCrearPrestacion } from './consultas'
 import { ARANCEL_VACIO, CamposArancel, type ValoresArancel } from './form-arancel'
 
@@ -133,7 +133,7 @@ export function FormPrestacion({
 
   if (paso === 1) {
     return (
-      <div>
+      <MarcoCapa onEnviar={seguir}>
         <CabeceraCapa
           titulo="Nueva prestación"
           ayuda="Primero qué es. En el paso siguiente, cuánto sale."
@@ -215,12 +215,12 @@ export function FormPrestacion({
           onGuardar={seguir}
           deshabilitado={nombre.trim().length < 3}
         />
-      </div>
+      </MarcoCapa>
     )
   }
 
   return (
-    <div>
+    <MarcoCapa onEnviar={() => void guardar()}>
       <CabeceraCapa
         titulo={`Arancel de ${nombre.trim()}`}
         ayuda={
@@ -298,6 +298,6 @@ export function FormPrestacion({
         guardando={guardando}
         deshabilitado={valores.monto <= 0}
       />
-    </div>
+    </MarcoCapa>
   )
 }

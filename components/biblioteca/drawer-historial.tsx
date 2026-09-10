@@ -9,7 +9,7 @@ import { fechaCorta, fechaLarga, isoDate, numero } from '@/lib/formato'
 import { createClient } from '@/lib/supabase/client'
 import type { CoberturaTipo } from '@/lib/types'
 
-import { etiquetaCoberturaLarga, type Celda } from './tipos'
+import { etiquetaCoberturaLarga, soloFecha, type Celda } from './tipos'
 
 interface Vigencia {
   id: string
@@ -256,9 +256,17 @@ function textoUsos(usos: number): string {
 }
 
 /**
- * Trae todas las vigencias de la combinación y cuenta los usos de cada
- * una. El conteo va en una segunda consulta porque `presupuesto_items`
- * no se puede agrupar desde PostgREST sin una vista propia.
+ * Trae todas las vigencias de la combinación con su conteo de usos.
+ *
+ * El conteo sale de `aranceles_usos`, que devuelve **una fila por
+ * arancel**. Contarlo trayendo `presupuesto_items` y agrupando acá se
+ * cortaba en el `max_rows` de PostgREST (1000 filas por defecto): con
+ * el consultorio andando, las últimas vigencias volvían con menos usos
+ * de los reales o con cero, y de ese número depende el sello «no
+ * editable». Mentir hacia abajo dejaba editable una vigencia ya usada.
+ *
+ * Si el conteo falla, falla el drawer entero: mostrar «0 presupuestos»
+ * cuando no se pudo contar es peor que decir que no se pudo leer.
  */
 async function traerVigencias(
   prestacionId: string,
@@ -281,19 +289,26 @@ async function traerVigencias(
   const filas = (data ?? []) as Omit<Vigencia, 'usos'>[]
   if (filas.length === 0) return []
 
-  const { data: items } = await supabase
-    .from('presupuesto_items')
-    .select('arancel_id')
+  const { data: conteos, error: errorUsos } = await supabase
+    .from('aranceles_usos')
+    .select('arancel_id, usos')
     .in(
       'arancel_id',
       filas.map((f) => f.id),
     )
 
+  if (errorUsos) throw new Error(errorUsos.message)
+
   const usos = new Map<string, number>()
-  for (const item of ((items ?? []) as { arancel_id: string | null }[])) {
-    if (!item.arancel_id) continue
-    usos.set(item.arancel_id, (usos.get(item.arancel_id) ?? 0) + 1)
+  for (const fila of ((conteos ?? []) as { arancel_id: string; usos: number | string }[])) {
+    usos.set(fila.arancel_id, Number(fila.usos ?? 0))
   }
 
-  return filas.map((f) => ({ ...f, usos: usos.get(f.id) ?? 0 }))
+  return filas.map((f) => ({
+    ...f,
+    // Días, no instantes: ver `soloFecha`.
+    vigente_desde: soloFecha(f.vigente_desde),
+    vigente_hasta: f.vigente_hasta === null ? null : soloFecha(f.vigente_hasta),
+    usos: usos.get(f.id) ?? 0,
+  }))
 }

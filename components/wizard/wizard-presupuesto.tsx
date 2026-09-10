@@ -13,24 +13,27 @@
  * del servidor. El cálculo que se ve mientras se carga es preview.
  */
 
-import { Check, FileDown, MessageCircle, Save, X } from 'lucide-react'
+import { Check, CircleAlert, FileDown, Loader2, MessageCircle, Save, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
 import { toast } from 'sonner'
 
-import { crearPresupuesto } from '@/app/actions/presupuestos'
-import { Button, ResponsiveModal, Skeleton, useEsDesktop } from '@/components/ui'
+import { crearPresupuesto, type PasoWizard } from '@/app/actions/presupuestos'
+import { Banner, Button, Kbd, ResponsiveModal, Skeleton, useEsDesktop } from '@/components/ui'
 import { cuotasSuman100 } from '@/lib/calculo'
 import { borrarBorrador, leerBorrador, useAutoguardado } from '@/lib/draft'
 import type { BorradorPresupuesto, CuotaBorrador, ItemBorrador } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
+import { useAtajosWizard } from './atajos'
 import { aPayload, borradorInicial } from './borrador'
 import { ProveedorCapa, useContenedorCapas } from './capa'
 import { usePacientes } from './consultas'
 import { PasoCerrar } from './paso-cerrar'
-import { PasoQue } from './paso-que'
+import { PasoQue, enfocarBuscadorPrestacion } from './paso-que'
 import { PasoQuien } from './paso-quien'
+import { SelloGuardado } from './sello-guardado'
+import { useTecladoVirtual } from './teclado'
 import { useWizard } from './use-wizard'
 
 const PASOS = [
@@ -41,6 +44,13 @@ const PASOS = [
 
 /** Dónde termina el usuario después de guardar. */
 type Destino = 'detalle' | 'pdf' | 'whatsapp'
+
+/** Lo que falló al emitir, con el paso donde se arregla. */
+interface Fallo {
+  mensaje: string
+  paso?: PasoWizard
+  destino: Destino
+}
 
 export function WizardPresupuesto() {
   // `useSearchParams` obliga a un límite de suspense para no arrastrar
@@ -59,6 +69,19 @@ function WizardInterno() {
 
   const [borrador, setBorrador] = React.useState<BorradorPresupuesto | null>(null)
   const [guardando, setGuardando] = React.useState<Destino | null>(null)
+  const [emitido, setEmitido] = React.useState<{ numero: string } | null>(null)
+  const [fallo, setFallo] = React.useState<Fallo | null>(null)
+
+  /**
+   * Guarda dura contra el doble alta.
+   *
+   * El `disabled` del botón y el estado `guardando` dependen de que
+   * React haya vuelto a pintar; un ref se cierra en el mismo tick del
+   * primer click. Con tres botones que llaman a lo mismo (PDF, WhatsApp,
+   * Guardar) y un ⌘⏎ que también dispara, la diferencia es un
+   * presupuesto emitido dos veces, con dos números y dos PDFs.
+   */
+  const enVuelo = React.useRef(false)
 
   const { valor: valorCapa, setContenedor, hayCapa } = useContenedorCapas()
 
@@ -68,12 +91,39 @@ function WizardInterno() {
   const yaSeAutoguardo = React.useRef(false)
 
   /**
+   * Cerrado el modal, el resultado de la vuelta anterior no tiene por
+   * qué sobrevivir a la próxima apertura.
+   *
+   * El reset va en el render y no en un efecto: es el patrón de React
+   * para ajustar estado cuando cambia una entrada. Comparando contra el
+   * valor anterior se corrige en el mismo render, sin llegar a pintar
+   * con el estado viejo. En un `useEffect` era un render en cascada —el
+   * "presupuesto emitido" de la vuelta anterior alcanzaba a aparecer al
+   * reabrir— y es lo que marca `react-hooks/set-state-in-effect`.
+   */
+  const [estabaAbierto, setEstabaAbierto] = React.useState(abierto)
+  if (estabaAbierto !== abierto) {
+    setEstabaAbierto(abierto)
+    // Se limpia al **abrir**, no al cerrar: el modal tarda unos cuadros
+    // en irse y borrar el "Presupuesto 2026-0341 guardado" al principio
+    // de esa animación deja un parpadeo de esqueleto justo cuando la
+    // persona está leyendo el número.
+    if (abierto) {
+      setEmitido(null)
+      setFallo(null)
+    }
+  }
+
+  /**
    * El borrador se resuelve del lado del cliente, nunca en el render
    * del servidor: la fecha de hoy depende de la zona horaria del
    * navegador y calcularla en el server rompería la hidratación.
    */
   React.useEffect(() => {
-    if (!abierto) return
+    if (!abierto) {
+      enVuelo.current = false
+      return
+    }
     const almacenado = leerBorrador()
     setBorrador((actual) => {
       // Lo que está en memoria siempre es igual o más fresco que el
@@ -89,7 +139,9 @@ function WizardInterno() {
     })
   }, [abierto])
 
-  const guardadoEn = useAutoguardado(abierto ? borrador : null)
+  // Emitido el presupuesto, el borrador ya no se autoguarda: es un
+  // documento en la base, no algo a medio cargar.
+  const guardadoEn = useAutoguardado(abierto && !emitido ? borrador : null)
 
   React.useEffect(() => {
     if (guardadoEn) yaSeAutoguardo.current = true
@@ -114,8 +166,14 @@ function WizardInterno() {
 
   const paso = borrador?.paso ?? 1
 
+  // El sheet de mobile no se achica solo cuando sube el teclado.
+  const anclaTeclado = useTecladoVirtual(abierto && !esDesktop)
+
   function irAlPaso(n: 1 | 2 | 3) {
     parche({ paso: n })
+    // Un error del servidor sobre el paso 1 deja de tener sentido apenas
+    // se llega al paso 1 a arreglarlo.
+    if (fallo?.paso === n) setFallo(null)
   }
 
   function siguiente() {
@@ -135,12 +193,16 @@ function WizardInterno() {
       return
     }
     if (borrador.paso === 2) {
+      if (borrador.items.length === 0) {
+        toast.error('Agregá al menos una prestación')
+        return
+      }
       irAlPaso(3)
     }
   }
 
   async function guardar(destino: Destino) {
-    if (!borrador || guardando) return
+    if (!borrador || enVuelo.current) return
 
     // Elegir "enviar por WhatsApp" define el estado: el presupuesto sale
     // del consultorio en ese mismo acto.
@@ -159,29 +221,35 @@ function WizardInterno() {
       toast.error('Las condiciones de pago tienen que sumar 100 %')
       return
     }
+    const sinEtiqueta = aGuardar.cuotas.find((c) => !c.etiqueta.trim())
+    if (sinEtiqueta) {
+      toast.error('Cada condición de pago necesita un nombre')
+      document.getElementById(`cuota-${sinEtiqueta.key}`)?.focus()
+      return
+    }
 
     // La pestaña del PDF se abre ANTES del await: si se abriera después,
     // el navegador la trataría como popup y la bloquearía.
     const pestanaPdf = destino === 'pdf' ? window.open('', '_blank') : null
 
+    enVuelo.current = true
+    setFallo(null)
     setGuardando(destino)
     const resultado = await crearPresupuesto(aPayload(aGuardar))
 
     if (!resultado.ok) {
       pestanaPdf?.close()
       setGuardando(null)
-      toast.error(resultado.error)
+      enVuelo.current = false
+      // El error queda a la vista y con qué hacer al lado: un toast se
+      // va solo y deja al presupuesto entero cargado sin explicación.
+      setFallo({ mensaje: resultado.error, paso: resultado.paso, destino })
       return
     }
 
     borrarBorrador()
     setBorrador(null)
-    setGuardando(null)
-    toast.success(
-      resultado.numero
-        ? `Presupuesto ${resultado.numero} guardado`
-        : 'Presupuesto guardado',
-    )
+    setEmitido({ numero: resultado.numero })
 
     if (pestanaPdf) {
       pestanaPdf.location.href = `/api/presupuestos/${resultado.id}/pdf`
@@ -204,6 +272,11 @@ function WizardInterno() {
    * usuario logueado, pero queda vacío si no tiene ficha en
    * `profesionales`. Sin esto, el error aparecía recién al guardar en
    * el paso 3, con el presupuesto entero ya cargado.
+   *
+   * El paso 3 bloquea por las condiciones de pago, que hasta ahora
+   * viajaban al servidor y volvían como un rechazo: sumar 100 % y
+   * tener nombre son dos cosas que se ven en pantalla, no hacía falta
+   * el viaje.
    */
   const motivoBloqueo: string | null = !borrador
     ? null
@@ -213,11 +286,39 @@ function WizardInterno() {
         ? 'Elegí el profesional que firma el presupuesto.'
         : paso === 2 && borrador.items.length === 0
           ? 'Agregá al menos una prestación para seguir.'
-          : null
+          : paso === 3 &&
+              borrador.cuotas.length > 0 &&
+              !cuotasSuman100(borrador.cuotas.map((c) => c.porcentaje))
+            ? 'Las condiciones de pago tienen que sumar 100 %.'
+            : paso === 3 && borrador.cuotas.some((c) => !c.etiqueta.trim())
+              ? 'Ponele un nombre a cada condición de pago.'
+              : null
 
-  const siguienteDeshabilitado = motivoBloqueo !== null
+  const bloqueado = motivoBloqueo !== null
+  const puedeGuardar = Boolean(borrador) && !bloqueado && !guardando && !emitido
 
-  const footer = !borrador ? null : hayCapa ? null : (
+  // ⌘⏎ hace lo mismo que el botón primario del paso, incluso desde
+  // adentro de un campo de texto. Con un mini-form abierto manda el
+  // mini-form, no el wizard.
+  useAtajosWizard(abierto && !hayCapa && !emitido, {
+    principal: () => {
+      if (guardando) return
+      if (paso < 3) {
+        siguiente()
+        return
+      }
+      // Con el botón deshabilitado el motivo se lee debajo; con el
+      // atajo no hay botón que mirar, así que se dice.
+      if (motivoBloqueo) {
+        toast.error(motivoBloqueo)
+        return
+      }
+      void guardar(borrador?.estado_inicial === 'enviado' ? 'whatsapp' : 'detalle')
+    },
+    buscar: paso === 2 ? enfocarBuscadorPrestacion : undefined,
+  })
+
+  const footer = !borrador || hayCapa || emitido ? null : (
     <div className="flex w-full flex-col gap-2 md:flex-row md:items-center">
       <Button
         variant="ghost"
@@ -237,9 +338,10 @@ function WizardInterno() {
             full
             className="md:h-[34px] md:w-auto"
             onClick={siguiente}
-            disabled={siguienteDeshabilitado}
+            disabled={bloqueado}
           >
             Siguiente
+            <Kbd className="border-white/30 bg-white/15 text-white">⌘⏎</Kbd>
           </Button>
           {motivoBloqueo && (
             <p className="t-helper text-center md:text-right">{motivoBloqueo}</p>
@@ -252,7 +354,7 @@ function WizardInterno() {
             size="touch"
             className="w-full md:h-[34px] md:w-auto"
             loading={guardando === 'pdf'}
-            disabled={Boolean(guardando)}
+            disabled={!puedeGuardar}
             onClick={() => void guardar('pdf')}
           >
             <FileDown aria-hidden />
@@ -264,7 +366,7 @@ function WizardInterno() {
             size="touch"
             className="w-full md:h-[34px] md:w-auto"
             loading={guardando === 'whatsapp'}
-            disabled={Boolean(guardando)}
+            disabled={!puedeGuardar}
             onClick={() => void guardar('whatsapp')}
           >
             <MessageCircle aria-hidden />
@@ -277,12 +379,17 @@ function WizardInterno() {
               size="touch"
               className="w-full md:h-[34px] md:w-auto"
               loading={guardando === 'detalle'}
-              disabled={Boolean(guardando)}
+              disabled={!puedeGuardar}
               onClick={() => void guardar('detalle')}
             >
               <Save aria-hidden />
               Guardar
+              <Kbd className="border-white/30 bg-white/15 text-white">⌘⏎</Kbd>
             </Button>
+          )}
+
+          {motivoBloqueo && (
+            <p className="t-helper w-full text-center md:w-auto md:text-right">{motivoBloqueo}</p>
           )}
         </>
       )}
@@ -293,7 +400,9 @@ function WizardInterno() {
     <ResponsiveModal
       open={abierto}
       onOpenChange={(v) => {
-        if (!v) cerrar()
+        // Mientras la RPC está en vuelo, cerrar dejaría el alta sin
+        // pantalla que reporte el resultado.
+        if (!v && !guardando) cerrar()
       }}
       titulo="Nuevo presupuesto"
       descripcion={PASOS[paso - 1]?.sub}
@@ -302,47 +411,134 @@ function WizardInterno() {
       footer={footer}
     >
       <ProveedorCapa valor={valorCapa}>
-        {/* Contenedor de los mini-forms: tapan el paso sin desmontarlo. */}
-        <div ref={setContenedor} hidden={!hayCapa} />
+        <div ref={anclaTeclado}>
+          {/* Contenedor de los mini-forms: tapan el paso sin desmontarlo. */}
+          <div ref={setContenedor} hidden={!hayCapa} />
 
-        <div hidden={hayCapa}>
-          {borrador ? (
-            <>
-              <BarraPasos
-                paso={paso}
-                itemsCargados={borrador.items.length}
-                pacienteElegido={Boolean(borrador.paciente_id)}
-                profesionalElegido={Boolean(borrador.profesional_id)}
-                onIr={irAlPaso}
-                onCerrar={cerrar}
-              />
-
-              {paso === 1 && (
-                <PasoQuien borrador={borrador} parche={parche} guardadoEn={guardadoEn} />
-              )}
-              {paso === 2 && (
-                <PasoQue borrador={borrador} setItems={setItems} esDesktop={esDesktop} />
-              )}
-              {paso === 3 && (
-                <PasoCerrar
-                  borrador={borrador}
-                  paciente={paciente}
-                  parche={parche}
-                  setCuotas={setCuotas}
-                  esDesktop={esDesktop}
+          <div hidden={hayCapa}>
+            {emitido ? (
+              <Emitido numero={emitido.numero} />
+            ) : borrador ? (
+              <>
+                <BarraPasos
+                  paso={paso}
+                  itemsCargados={borrador.items.length}
+                  pacienteElegido={Boolean(borrador.paciente_id)}
+                  profesionalElegido={Boolean(borrador.profesional_id)}
+                  guardadoEn={guardadoEn}
+                  onIr={irAlPaso}
+                  onCerrar={cerrar}
                 />
-              )}
-            </>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-2/3" />
-              <Skeleton className="h-10 w-1/2" />
-            </div>
-          )}
+
+                {fallo && (
+                  <div className="mb-5">
+                    <Banner
+                      tono="warm"
+                      icono={<CircleAlert className="size-5" />}
+                      titulo="No se pudo emitir el presupuesto"
+                      acciones={
+                        <>
+                          <Button
+                            variant="primary"
+                            size="touch"
+                            className="md:h-[34px]"
+                            loading={Boolean(guardando)}
+                            disabled={bloqueado || Boolean(guardando)}
+                            onClick={() => void guardar(fallo.destino)}
+                          >
+                            Reintentar
+                          </Button>
+                          {fallo.paso !== undefined && fallo.paso !== paso && (
+                            <IrAlPaso paso={fallo.paso} onIr={irAlPaso} />
+                          )}
+                        </>
+                      }
+                    >
+                      {fallo.mensaje} Lo cargado sigue acá y guardado en este dispositivo: no se
+                      perdió nada.
+                    </Banner>
+                  </div>
+                )}
+
+                {paso === 1 && <PasoQuien borrador={borrador} parche={parche} />}
+                {paso === 2 && (
+                  <PasoQue borrador={borrador} setItems={setItems} esDesktop={esDesktop} />
+                )}
+                {paso === 3 && (
+                  <PasoCerrar
+                    borrador={borrador}
+                    paciente={paciente}
+                    parche={parche}
+                    setCuotas={setCuotas}
+                    esDesktop={esDesktop}
+                  />
+                )}
+              </>
+            ) : (
+              <EsqueletoWizard />
+            )}
+          </div>
         </div>
       </ProveedorCapa>
     </ResponsiveModal>
+  )
+}
+
+/** "Ir al paso 1" del banner de error: el campo que falló está allá. */
+function IrAlPaso({ paso, onIr }: { paso: PasoWizard; onIr: (n: 1 | 2 | 3) => void }) {
+  return (
+    <Button
+      variant="secondary"
+      size="touch"
+      className="md:h-[34px]"
+      onClick={() => onIr(paso)}
+    >
+      Ir al paso {paso}
+    </Button>
+  )
+}
+
+/**
+ * Entre el "ok" del servidor y la pantalla del detalle hay una
+ * navegación que puede tardar. Un esqueleto ahí deja la duda de si
+ * guardó; esto dice que sí y con qué número.
+ */
+function Emitido({ numero }: { numero: string }) {
+  return (
+    <div className="flex flex-col items-center gap-3 py-10 text-center" role="status">
+      <span className="grid size-11 place-items-center rounded-full bg-tint text-primary">
+        <Check className="size-6" aria-hidden />
+      </span>
+      <div>
+        <p className="font-sans text-[15px] font-semibold text-ink">
+          {numero ? `Presupuesto ${numero} guardado` : 'Presupuesto guardado'}
+        </p>
+        <p className="t-helper mt-1 flex items-center justify-center gap-1.5">
+          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          Abriendo el detalle…
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/** Calca la forma del paso 1: barra de pasos y tres campos. */
+function EsqueletoWizard() {
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center gap-3">
+        <Skeleton className="size-6 rounded-full" />
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="size-6 rounded-full" />
+        <Skeleton className="h-3 w-12" />
+      </div>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex flex-col gap-1.5">
+          <Skeleton className="h-2.5 w-20" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -355,6 +551,7 @@ function BarraPasos({
   itemsCargados,
   pacienteElegido,
   profesionalElegido,
+  guardadoEn,
   onIr,
   onCerrar,
 }: {
@@ -362,6 +559,7 @@ function BarraPasos({
   itemsCargados: number
   pacienteElegido: boolean
   profesionalElegido: boolean
+  guardadoEn: string | null
   onIr: (n: 1 | 2 | 3) => void
   onCerrar: () => void
 }) {
@@ -400,8 +598,10 @@ function BarraPasos({
                 onClick={() => habilitado && onIr(p.n)}
                 disabled={!habilitado}
                 aria-current={actual ? 'step' : undefined}
+                aria-label={`Paso ${p.n}: ${p.titulo}`}
                 className={cn(
-                  'flex min-w-0 items-center gap-2 rounded-pill py-1 pl-1 pr-2 text-left transition-colors',
+                  // 44px de área táctil en mobile, densidad de escritorio en md.
+                  'flex min-h-11 min-w-0 items-center gap-2 rounded-pill py-1 pl-1 pr-2 text-left transition-colors md:min-h-0',
                   habilitado ? 'hover:bg-tint' : 'cursor-not-allowed opacity-45',
                 )}
               >
@@ -416,6 +616,7 @@ function BarraPasos({
                   {cumplido ? <Check className="size-3.5" aria-hidden /> : p.n}
                 </span>
                 <span
+                  aria-hidden
                   className={cn(
                     'truncate font-sans text-[13px]',
                     actual ? 'font-semibold text-ink' : 'text-muted',
@@ -430,6 +631,8 @@ function BarraPasos({
           )
         })}
       </ol>
+
+      <SelloGuardado guardadoEn={guardadoEn} />
 
       {/* En mobile el sheet no trae botón de cerrar: sólo el gesto. */}
       <Button

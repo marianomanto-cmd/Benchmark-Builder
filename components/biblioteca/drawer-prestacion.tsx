@@ -18,6 +18,7 @@ import { DrawerForm, FilaCampos, FilaSwitch } from './drawer-form'
 export function DrawerPrestacion({
   prestacion,
   rubros,
+  nombreSugerido,
   onCerrar,
   onGuardado,
 }: {
@@ -25,10 +26,12 @@ export function DrawerPrestacion({
   prestacion: FilaPrestacion | null
   /** Rubros ya usados, para autocompletar sin inventar una tabla nueva. */
   rubros: string[]
+  /** Lo que se estaba buscando cuando no apareció ninguna. */
+  nombreSugerido?: string
   onCerrar: () => void
   onGuardado: () => void
 }) {
-  const [nombre, setNombre] = React.useState(prestacion?.nombre ?? '')
+  const [nombre, setNombre] = React.useState(prestacion?.nombre ?? nombreSugerido ?? '')
   const [codigo, setCodigo] = React.useState(prestacion?.codigo ?? '')
   const [rubro, setRubro] = React.useState(prestacion?.rubro ?? '')
   const [descripcion, setDescripcion] = React.useState(prestacion?.descripcion ?? '')

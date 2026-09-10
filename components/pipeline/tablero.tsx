@@ -23,8 +23,7 @@ import { toast } from 'sonner'
 
 import { cambiarEstado } from '@/app/actions/seguimiento'
 import type { FiltrosHome } from '@/components/home/tipos'
-import { useEsDesktop } from '@/components/ui'
-import { ETIQUETA_COLUMNA, puedeMarcarsePerdido } from '@/lib/estados'
+import { ETIQUETA_COLUMNA, ETIQUETA_ESTADO, puedeMarcarsePerdido } from '@/lib/estados'
 import type { EstadoPresupuesto, MotivoPerdida } from '@/lib/types'
 
 import { AvisoMobile } from './aviso-mobile'
@@ -33,12 +32,15 @@ import { Encabezado } from './encabezado'
 import { FiltrosPipeline } from './filtros-pipeline'
 import { FranjaPerdido } from './franja-perdido'
 import { ModalMotivo } from './modal-motivo'
-import { TarjetaFantasma } from './tarjeta'
+import { idTarjeta, TarjetaFantasma } from './tarjeta'
 import {
   agruparPorColumna,
   CLAVES_COLUMNA,
   columnaDeEstado,
+  diasTrasMover,
+  esZonaDeDrop,
   estadoDeColumna,
+  hayFiltros,
   resumir,
   resumirPerdidos,
   type ClaveColumna,
@@ -46,6 +48,7 @@ import {
   type FilaPipeline,
   type OpcionFiltro,
 } from './tipos'
+import { useAltoTablero } from './use-alto-tablero'
 
 /**
  * Pantalla 12 · el tablero.
@@ -91,13 +94,45 @@ export function TableroPipeline({
   obrasSociales: OpcionFiltro[]
   periodoPerdidos: string
 }) {
-  const esDesktop = useEsDesktop()
-
   const [optimistas, setOptimistas] = React.useState<Record<string, Optimista>>({})
   const [enVuelo, setEnVuelo] = React.useState<Record<string, boolean>>({})
   const [activa, setActiva] = React.useState<FilaPipeline | null>(null)
   const [pendientePerdido, setPendientePerdido] = React.useState<FilaPipeline | null>(null)
   const [guardandoPerdido, setGuardandoPerdido] = React.useState(false)
+  const [refZona, altoZona] = useAltoTablero()
+
+  /**
+   * Cuando llega el servidor, los overrides ya vencidos se tiran.
+   *
+   * No es sólo higiene. El override se aplica mientras el servidor siga
+   * mostrando el estado del que salió la tarjeta, así que uno que quedó
+   * dando vueltas REVIVE si el presupuesto vuelve a ese estado por
+   * fuera del tablero —desde el detalle, en otra pestaña, o por el cron
+   * de `enviado → pendiente`—: la tarjeta salta sola a una columna que
+   * nadie pidió y el tablero miente hasta que se recarga la página.
+   *
+   * Se ajusta en render y no en un efecto: un `setState` dentro de un
+   * efecto dispara un render en cascada, y acá alcanza con corregir el
+   * estado en el mismo render en el que cambió la prop.
+   */
+  const [ultimasFilas, setUltimasFilas] = React.useState(filasServidor)
+  if (ultimasFilas !== filasServidor) {
+    setUltimasFilas(filasServidor)
+    setOptimistas((previos) => {
+      const vivos: Record<string, Optimista> = {}
+      let sobra = false
+      for (const [id, cambio] of Object.entries(previos)) {
+        // Lo que todavía está viajando se conserva: su respuesta puede
+        // llegar después de esta revalidación.
+        if (enVuelo[id] || filasServidor.find((f) => f.id === id)?.estado === cambio.desde) {
+          vivos[id] = cambio
+        } else {
+          sobra = true
+        }
+      }
+      return sobra ? vivos : previos
+    })
+  }
 
   const filas = React.useMemo(
     () =>
@@ -107,13 +142,13 @@ export function TableroPipeline({
         // donde salió la tarjeta. Cuando llega la revalidación con el
         // estado nuevo, esta comparación falla y manda el servidor.
         if (!cambio || fila.estado !== cambio.desde) return fila
-        // Un cambio de estado reinicia el reloj de «días en el estado»,
-        // igual que hace el trigger `touch_estado_desde` en la base.
         return {
           ...fila,
           estado: cambio.estado,
           motivo_perdida: cambio.motivo,
-          dias_en_estado: 0,
+          // El reloj de «días en el estado» se pinta como lo va a dejar
+          // el trigger, que NO lo reinicia en `enviado → pendiente`.
+          dias_en_estado: diasTrasMover(cambio.desde, cambio.estado, fila.dias_en_estado),
         }
       }),
     [filasServidor, optimistas],
@@ -122,20 +157,23 @@ export function TableroPipeline({
   const porId = React.useMemo(() => new Map(filas.map((f) => [f.id, f])), [filas])
 
   /**
-   * Estado real de una fila según el servidor, ignorando cualquier
-   * override pintado. Es lo que hay que guardar como `desde`: si se
+   * El servidor, siempre al día y sin depender del render en el que se
+   * creó el callback. Es lo que hay que guardar como `desde`: si se
    * guardara el estado ya overrideado, un segundo arrastre sobre la
    * misma tarjeta antes de que responda el primero nacería vencido.
    */
-  const estadoServidor = React.useCallback(
-    (fila: FilaPipeline): EstadoPresupuesto =>
-      filasServidor.find((f) => f.id === fila.id)?.estado ?? fila.estado,
-    [filasServidor],
-  )
+  const servidorRef = React.useRef(filasServidor)
   const porIdRef = React.useRef(porId)
   React.useEffect(() => {
+    servidorRef.current = filasServidor
     porIdRef.current = porId
-  }, [porId])
+  }, [filasServidor, porId])
+
+  const estadoServidor = React.useCallback(
+    (fila: FilaPipeline): EstadoPresupuesto =>
+      servidorRef.current.find((f) => f.id === fila.id)?.estado ?? fila.estado,
+    [],
+  )
 
   const columnas = React.useMemo(() => agruparPorColumna(filas), [filas])
   const perdidos = React.useMemo(
@@ -198,22 +236,78 @@ export function TableroPipeline({
     [estadoServidor],
   )
 
+  /**
+   * Confirmación con vuelta atrás.
+   *
+   * Un arrastre es un gesto barato —un pulso de más y un presupuesto
+   * cambió de etapa— y el cambio queda en un historial que no se edita.
+   * «Deshacer» no borra nada: escribe el paso inverso, que es la verdad
+   * de lo que pasó. Sin esto, la única forma de arreglar un resbalón era
+   * abrir el detalle y buscar el estado anterior de memoria.
+   */
+  const avisarConDeshacer = React.useCallback(
+    (fila: FilaPipeline, desde: EstadoPresupuesto, hacia: EstadoPresupuesto) => {
+      const texto =
+        hacia === 'perdido'
+          ? `${fila.paciente_nombre}: presupuesto marcado como perdido.`
+          : `${fila.paciente_nombre} pasó a ${ETIQUETA_ESTADO[hacia]}.`
+
+      toast.success(texto, {
+        duration: 7000,
+        action: {
+          label: 'Deshacer',
+          onClick: () => void mover(fila, desde),
+        },
+      })
+    },
+    [mover],
+  )
+
   /* ── Drag & drop ─────────────────────────────────────────── */
 
+  /**
+   * Los sensores son SIEMPRE los mismos, en desktop y en mobile.
+   *
+   * Antes acá había un `sinSensores = useSensors()` que se pasaba al
+   * `DndContext` cuando `useEsDesktop()` daba falso. Sobraba —el
+   * tablero vive dentro de un `hidden md:flex`, y de un `display:none`
+   * no se arrastra ni se tabula— y encima rompía: `useSensorSetup()`
+   * de dnd-kit usa la lista de sensores COMO array de dependencias, así
+   * que pasar de cero a dos le cambiaba el tamaño entre renders. El
+   * primer render del cliente asume mobile (`useSyncExternalStore`
+   * devuelve el snapshot del servidor) y el siguiente corrige a
+   * desktop: el swap ocurría en cada carga en una pantalla grande, y
+   * React tiraba «the final argument passed to useEffect changed size
+   * between renders» antes de dejar el efecto en un estado indefinido.
+   */
   const sensores = useSensors(
     // 6px de umbral: sin esto, un clic en el nombre del paciente se
     // interpretaría como el arranque de un arrastre.
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
-  /** En mobile el tablero está oculto por CSS: tampoco se arrastra. */
-  const sinSensores = useSensors()
 
+  /**
+   * Sólo las zonas gruesas —las cinco columnas y la franja— son
+   * destino.
+   *
+   * BUG QUE ARREGLA: las tarjetas también son droppables (el
+   * `KeyboardSensor` las necesita como mapa para moverse con las
+   * flechas), y `pointerWithin` devolvía primero la tarjeta que estaba
+   * debajo del puntero. Como `over` era esa tarjeta y no su columna,
+   * `isOver` daba falso en todas las columnas: arrastrar sobre una
+   * columna con tarjetas —o sea, casi siempre— no prendía nada y el
+   * tablero no decía dónde iba a caer. Filtrando acá, `over` es siempre
+   * una zona y el resaltado sale solo.
+   *
+   * El puntero manda mientras hay mouse; con teclado no hay puntero y
+   * se cae a la geometría de las zonas.
+   */
   const deteccion = React.useCallback<CollisionDetection>((args) => {
-    // El puntero manda mientras hay mouse; con teclado no hay puntero y
-    // se cae a la geometría de las zonas.
-    const bajoElPuntero = pointerWithin(args)
-    return bajoElPuntero.length > 0 ? bajoElPuntero : closestCorners(args)
+    const zonas = args.droppableContainers.filter((c) => esZonaDeDrop(String(c.id)))
+    const argsZonas = { ...args, droppableContainers: zonas }
+    const bajoElPuntero = pointerWithin(argsZonas)
+    return bajoElPuntero.length > 0 ? bajoElPuntero : closestCorners(argsZonas)
   }, [])
 
   const anuncios = React.useMemo<Announcements>(() => {
@@ -224,7 +318,8 @@ export function TableroPipeline({
       const datos = over?.data.current as DatosDrop | undefined
       if (!datos) return null
       if (datos.tipo === 'perdido') return 'la franja de perdidos'
-      return `la columna ${ETIQUETA_COLUMNA[datos.columna]}`
+      if (datos.tipo === 'columna') return `la columna ${ETIQUETA_COLUMNA[datos.columna]}`
+      return null
     }
 
     return {
@@ -251,6 +346,25 @@ export function TableroPipeline({
     setActiva(porId.get(String(evento.active.id)) ?? null)
   }
 
+  /**
+   * El foco vuelve a la tarjeta después de moverla con el teclado.
+   *
+   * Cambiar de columna la saca de una lista y la mete en otra: React
+   * desmonta el nodo viejo y monta uno nuevo, así que el foco se cae al
+   * `body`. Sin esto, quien navegaba sin mouse tenía que volver a
+   * tabular desde el principio de la página después de CADA movimiento,
+   * y el recorrido con teclado —que dnd-kit resuelve bien hasta el
+   * momento de soltar— quedaba inservible en la práctica.
+   *
+   * Con mouse no se toca el foco: mover el foco por un gesto de puntero
+   * es justo lo que hace saltar la página sin que nadie lo haya pedido.
+   */
+  function devolverFoco(evento: DragEndEvent, id: string) {
+    if (!(evento.activatorEvent instanceof KeyboardEvent)) return
+    // Un frame: para entonces React ya montó la tarjeta en su columna.
+    requestAnimationFrame(() => document.getElementById(idTarjeta(id))?.focus())
+  }
+
   function alSoltar(evento: DragEndEvent) {
     const { active, over } = evento
     setActiva(null)
@@ -274,13 +388,14 @@ export function TableroPipeline({
       return
     }
 
+    if (datos.tipo !== 'columna') return
+
     const columnaDestino: ClaveColumna = datos.columna
     if (columnaDeEstado(fila.estado) === columnaDestino) return
 
-    // Un tratamiento que ya arrancó no vuelve atrás de un arrastre: el
-    // gesto es demasiado barato para deshacer algo que ya pasó en el
-    // sillón. Si de verdad hay que corregirlo, se hace desde el detalle,
-    // donde el cambio de estado es explícito y queda en el historial.
+    // Red de seguridad: la tarjeta de un tratamiento iniciado ni
+    // siquiera levanta (ver `bloqueada` en `tarjeta.tsx`), pero si
+    // alguna vez volviera a levantar, el arrastre no lo degrada.
     if (fila.estado === 'iniciado') {
       toast.error(
         'El tratamiento ya está iniciado. Si hay que corregirlo, cambiá el estado desde el detalle.',
@@ -288,7 +403,12 @@ export function TableroPipeline({
       return
     }
 
-    void mover(fila, estadoDeColumna(columnaDestino))
+    const desde = estadoServidor(fila)
+    const hacia = estadoDeColumna(columnaDestino)
+    void mover(fila, hacia).then((ok) => {
+      if (ok) avisarConDeshacer(fila, desde, hacia)
+    })
+    devolverFoco(evento, fila.id)
   }
 
   /* ── Perdido ─────────────────────────────────────────────── */
@@ -308,22 +428,25 @@ export function TableroPipeline({
     const fila = pendientePerdido
     if (!fila) return
 
+    const desde = estadoServidor(fila)
     setGuardandoPerdido(true)
     const ok = await mover(fila, 'perdido', motivo, nota || null)
     setGuardandoPerdido(false)
     setPendientePerdido(null)
 
-    if (ok) {
-      toast.success(`${fila.paciente_nombre}: presupuesto marcado como perdido.`)
-    }
+    if (ok) avisarConDeshacer(fila, desde, 'perdido')
   }
 
-  const arrastrando = activa !== null
   const franjaHabilitada = activa === null || puedeMarcarsePerdido(activa.estado)
 
   return (
     <div className="flex flex-col gap-5">
-      <Encabezado filtros={filtros} cantidad={total.cantidad} monto={total.monto} />
+      <Encabezado
+        filtros={filtros}
+        cantidad={total.cantidad}
+        monto={total.monto}
+        filtrado={hayFiltros(filtros)}
+      />
 
       {/* Mobile: la ruta existe, la experiencia no. */}
       <div className="md:hidden">
@@ -338,35 +461,55 @@ export function TableroPipeline({
         />
 
         <DndContext
-          sensors={esDesktop ? sensores : sinSensores}
+          /* `id` fijo y no autogenerado: sin él dnd-kit numera el
+             `aria-describedby` de cada tarjeta con un contador de
+             módulo, que en el servidor sigue creciendo entre requests y
+             en el cliente arranca de cero. El HTML no coincidía y React
+             re-renderizaba el tablero entero al hidratar. */
+          id="pipeline"
+          sensors={sensores}
           collisionDetection={deteccion}
           accessibility={{ announcements: anuncios, screenReaderInstructions: INSTRUCCIONES }}
           onDragStart={alLevantar}
           onDragEnd={alSoltar}
           onDragCancel={() => setActiva(null)}
         >
-          {/* Sangra hasta los bordes del `<main>` para que el scroll
-              horizontal del tablero no recorte las tarjetas. */}
-          <div className="-mx-8 overflow-x-auto px-8 pb-1">
-            <div className="grid min-w-[980px] grid-cols-5 gap-3">
-              {CLAVES_COLUMNA.map((clave) => (
-                <Columna
-                  key={clave}
-                  clave={clave}
-                  filas={columnas[clave]}
-                  enVuelo={enVuelo}
-                  arrastrando={arrastrando}
-                />
-              ))}
+          {/* El tablero entra en el viewport: las columnas scrollean por
+              adentro y la franja queda siempre al pie, sin que la página
+              crezca con la columna más larga. El alto se mide, no se
+              adivina (`useAltoTablero`). */}
+          <div
+            ref={refZona}
+            /* Alto definido y no `max-height`: las columnas resuelven su
+               `h-full` contra este número, así las cinco miden lo mismo
+               y la franja queda clavada al pie. El `calc` es sólo el
+               primer cuadro, hasta que `useAltoTablero` mide de verdad. */
+            style={{ height: altoZona ?? 'calc(100dvh - 330px)' }}
+            className="flex min-h-[320px] flex-col gap-3"
+          >
+            {/* Sangra hasta los bordes del `<main>` para que el scroll
+                horizontal del tablero no recorte las tarjetas. */}
+            <div className="-mx-8 min-h-0 flex-1 overflow-x-auto scroll-visible px-8 pb-1">
+              <div className="grid h-full min-w-[980px] grid-cols-5 gap-3">
+                {CLAVES_COLUMNA.map((clave) => (
+                  <Columna
+                    key={clave}
+                    clave={clave}
+                    filas={columnas[clave]}
+                    enVuelo={enVuelo}
+                    activa={activa}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
 
-          <FranjaPerdido
-            resumen={perdidos}
-            periodo={periodoPerdidos}
-            arrastrando={arrastrando}
-            habilitada={franjaHabilitada}
-          />
+            <FranjaPerdido
+              resumen={perdidos}
+              periodo={periodoPerdidos}
+              arrastrando={activa !== null}
+              habilitada={franjaHabilitada}
+            />
+          </div>
 
           {/* Sin animación de vuelta: la tarjeta ya está en su columna
               nueva, animarla hacia la vieja contaría otra historia. */}

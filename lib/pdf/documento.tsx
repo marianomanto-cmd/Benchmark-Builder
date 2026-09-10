@@ -22,7 +22,7 @@
 
 import { Circle, Document, Page, Path, Rect, Svg, Text, View } from '@react-pdf/renderer'
 
-import { fechaLarga, money, porcentaje } from '@/lib/formato'
+import { fechaLarga, matricula, money, porcentaje } from '@/lib/formato'
 
 import { lineasContacto } from './consultorio'
 import type { DatosPdf, ItemPdf } from './datos'
@@ -230,7 +230,7 @@ function Cierre({ datos }: { datos: DatosPdf }) {
         <View style={estilos.lineaFirma}>
           <Text style={estilos.firmaNombre}>{datos.profesionalNombre}</Text>
           {datos.profesionalMatricula ? (
-            <Text style={estilos.firmaMatricula}>{`MP ${datos.profesionalMatricula}`}</Text>
+            <Text style={estilos.firmaMatricula}>{matricula(datos.profesionalMatricula)}</Text>
           ) : null}
         </View>
       </View>
@@ -309,7 +309,7 @@ export function DocumentoPresupuesto({ datos }: { datos: DatosPdf }) {
               <Campo
                 rotulo="PROFESIONAL"
                 valor={datos.profesionalNombre}
-                secundario={datos.profesionalMatricula ? `MP ${datos.profesionalMatricula}` : null}
+                secundario={matricula(datos.profesionalMatricula)}
               />
             </View>
             <View style={estilos.identificacionColumna}>

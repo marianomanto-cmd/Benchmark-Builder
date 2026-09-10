@@ -135,7 +135,19 @@ export function guardarBorrador(borrador: BorradorPresupuesto): string | null {
   }
 }
 
+/**
+ * Cuántas veces se descartó el borrador en esta pestaña.
+ *
+ * El autoguardado tiene un debounce: cuando se emite el presupuesto (o
+ * se descarta el borrador desde la home) puede quedar una escritura en
+ * vuelo con el borrador ya obsoleto. Sin este contador, esa escritura
+ * resucita en localStorage un borrador que ya es un documento emitido, y
+ * la home ofrece "continuar" un presupuesto que ya existe.
+ */
+let epocaBorrado = 0
+
 export function borrarBorrador(): void {
+  epocaBorrado++
   if (typeof window === 'undefined') return
   try {
     window.localStorage.removeItem(CLAVE_BORRADOR)
@@ -166,22 +178,66 @@ export function tieneAlgoQueGuardar(borrador: BorradorPresupuesto): boolean {
  *
  * Pasar `null` desactiva el autoguardado: es lo que hace el wizard
  * cerrado, para no pisar el borrador con el estado inicial.
+ *
+ * Dos detalles que se pagan caro en el mostrador:
+ *
+ *   · **Cerrar dentro del debounce.** Entre paciente y paciente el
+ *     wizard se cierra apenas se termina de tipear. Con sólo el
+ *     `clearTimeout` del cleanup, ese último campo —el teléfono, el
+ *     motivo del override— no llegaba nunca a localStorage. Al pasar de
+ *     un borrador a `null` se escribe lo pendiente antes de apagarse.
+ *   · **Emitir dentro del debounce.** Esa misma escritura pendiente no
+ *     puede resucitar un borrador ya emitido, así que se descarta si
+ *     alguien llamó a `borrarBorrador()` mientras tanto.
  */
 export function useAutoguardado(borrador: BorradorPresupuesto | null): string | null {
-  const [guardadoEn, setGuardadoEn] = React.useState<string | null>(null)
+  /** Lo tipeado que todavía no llegó a localStorage. */
+  const pendiente = React.useRef<{ borrador: BorradorPresupuesto; epoca: number } | null>(null)
+
+  /**
+   * El sello NO se guarda en estado propio: se lee del storage, que es
+   * donde realmente vive.
+   *
+   * Antes había un `useState` que el efecto ponía en `null` al cerrar el
+   * wizard, y eso son dos problemas en uno. Uno, es un `setState` dentro
+   * de un efecto (render en cascada, y `react-hooks/set-state-in-effect`
+   * lo marca). Dos, quedaba desincronizado: si alguien descartaba el
+   * borrador desde el banner de la home con el wizard abierto, el
+   * storage quedaba vacío pero la barra de pasos seguía diciendo
+   * "Guardado 14:32". Derivándolo del store esas dos cosas dejan de
+   * poder pasar.
+   */
+  const guardado = useBorradorGuardado()
 
   React.useEffect(() => {
-    if (!borrador || !tieneAlgoQueGuardar(borrador)) return
+    if (!borrador) {
+      const enVuelo = pendiente.current
+      pendiente.current = null
+      // Se cerró el wizard: lo último tipeado se escribe ya, salvo que
+      // el borrador se haya emitido o descartado en el medio.
+      if (enVuelo && enVuelo.epoca === epocaBorrado) guardarBorrador(enVuelo.borrador)
+      return
+    }
+
+    if (!tieneAlgoQueGuardar(borrador)) return
+
+    const epoca = epocaBorrado
+    pendiente.current = { borrador, epoca }
 
     const id = window.setTimeout(() => {
-      const sello = guardarBorrador(borrador)
-      if (sello) setGuardadoEn(sello)
+      pendiente.current = null
+      if (epoca !== epocaBorrado) return
+      // El sello llega solo: `guardarBorrador` avisa del cambio y el
+      // store lo propaga.
+      guardarBorrador(borrador)
     }, DEBOUNCE_MS)
 
     return () => window.clearTimeout(id)
   }, [borrador])
 
-  return guardadoEn
+  // Sin wizard abierto no hay sello que mostrar, aunque el storage
+  // tenga un borrador: sería "Guardado" sin nada en pantalla.
+  return borrador ? (guardado?.guardado_en ?? null) : null
 }
 
 /**

@@ -4,13 +4,19 @@ import { RotateCcw, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import * as React from 'react'
 
-import { Button } from '@/components/ui'
+import { Button, CopiarBoton } from '@/components/ui'
 import { Logo } from '@/components/shell/logo'
 
 /**
  * Boundary de error de toda la app. Next 16 pasa `retry()`, que vuelve a
  * pedir y renderizar el segmento; `reset()` sigue existiendo pero sólo
  * limpia el estado sin recuperar los datos.
+ *
+ * Tiene que ser una salida, no un cartel: reintentar sin perder el
+ * lugar, volver al inicio, y —si reintentar no alcanzó— recargar de
+ * cero. El código del error se copia de un toque, porque es lo único
+ * que sirve para encontrarlo en los logs y nadie lo transcribe bien a
+ * mano.
  */
 export default function ErrorApp({
   error,
@@ -19,6 +25,9 @@ export default function ErrorApp({
   error: Error & { digest?: string }
   retry: () => void
 }) {
+  const [reintentando, empezar] = React.useTransition()
+  const [intentos, setIntentos] = React.useState(0)
+
   React.useEffect(() => {
     // Sin servicio de reporte todavía: al menos queda en la consola del
     // navegador y en los logs de Vercel.
@@ -42,21 +51,41 @@ export default function ErrorApp({
             No pudimos mostrar esta pantalla. Nada de lo que ya habías guardado se perdió.
           </p>
 
-          {error.digest && (
-            <p className="mt-3 t-helper">
-              Código del error: <span className="tnum">{error.digest}</span>
-            </p>
-          )}
-
           <div className="mt-6 flex flex-col gap-2">
-            <Button variant="primary" size="touch" full onClick={() => retry()}>
-              <RotateCcw aria-hidden />
-              Reintentar
+            <Button
+              variant="primary"
+              size="touch"
+              full
+              loading={reintentando}
+              onClick={() => {
+                setIntentos((n) => n + 1)
+                empezar(() => retry())
+              }}
+            >
+              {!reintentando && <RotateCcw aria-hidden />}
+              {reintentando ? 'Reintentando…' : 'Reintentar'}
             </Button>
+
+            {/* Recién cuando reintentar no alcanzó: recargar pierde el
+                estado del cliente, así que no es la primera opción. */}
+            {intentos > 0 && !reintentando && (
+              <Button variant="secondary" size="touch" full onClick={() => location.reload()}>
+                Recargar la página
+              </Button>
+            )}
+
             <Button variant="ghost" size="touch" full asChild>
               <Link href="/">Volver al inicio</Link>
             </Button>
           </div>
+
+          {error.digest && (
+            <div className="mt-5 flex items-center justify-center gap-1.5 border-t border-hairline pt-4">
+              <span className="t-helper">Código del error</span>
+              <span className="font-sans text-[12px] text-body tnum">{error.digest}</span>
+              <CopiarBoton texto={error.digest} etiqueta="Copiar" />
+            </div>
+          )}
         </div>
       </div>
     </div>

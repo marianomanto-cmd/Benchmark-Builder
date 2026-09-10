@@ -79,6 +79,14 @@ export function calcularTotales(items: TotalesLinea[]): Totales {
  * Reparte un total entre cuotas por porcentaje. La última absorbe el
  * resto para que la suma cierre exacta contra el total a cargo — igual
  * que `crear_presupuesto()` en la base.
+ *
+ * Se multiplica ANTES de dividir, por lo mismo que `calcularItem` y
+ * `montoConAumento`: la cuenta ingenua `total * (pct / 100)` se desvía
+ * medio peso en punto flotante justo cuando el resultado exacto cae en
+ * `.5`, y ahí `Math.round` baja mientras el `numeric` de Postgres sube.
+ * Con «70 % al iniciar» —un plan de lo más común— cualquier total a
+ * cargo que termine en 5 divergía: el preview del paso 3 prometía
+ * $ 89.883 y el documento emitido decía $ 89.884.
  */
 export function repartirCuotas(
   total: number,
@@ -88,17 +96,25 @@ export function repartirCuotas(
   let acumulado = 0
   return porcentajes.map((pct, i) => {
     if (i === porcentajes.length - 1) return total - acumulado
-    const monto = Math.round(total * (pct / 100))
+    const monto = Math.round((total * Math.round(pct * 100)) / 10000)
     acumulado += monto
     return monto
   })
 }
 
-/** Las condiciones de pago tienen que sumar 100 %. */
+/**
+ * Las condiciones de pago tienen que sumar 100 %.
+ *
+ * La cuenta va en centésimas enteras para no discutir con el punto
+ * flotante: `33,33 × 3` da `99.99000000000001`, así que comparar la
+ * suma contra 100 con una tolerancia de 0,01 rechazaba los tercios que
+ * la base sí acepta (`crear_presupuesto` aborta con `> 0.01`). El
+ * wizard bloqueaba «Guardar» por un presupuesto perfectamente válido.
+ */
 export function cuotasSuman100(porcentajes: number[]): boolean {
   if (porcentajes.length === 0) return true
-  const suma = porcentajes.reduce((a, b) => a + b, 0)
-  return Math.abs(suma - 100) < 0.01
+  const suma = porcentajes.reduce((total, pct) => total + Math.round(pct * 100), 0)
+  return Math.abs(suma - 10_000) <= 1
 }
 
 /**

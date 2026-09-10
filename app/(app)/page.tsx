@@ -1,21 +1,24 @@
 import { startOfMonth, subDays } from 'date-fns'
 import { TriangleAlert } from 'lucide-react'
 
+import { AtajosHome } from '@/components/home/atajos-home'
 import { BannerBorrador } from '@/components/home/banner-borrador'
 import { BannerConexion } from '@/components/home/banner-conexion'
 import { BarraFiltros } from '@/components/home/barra-filtros'
 import { HomeVacia, SinResultados } from '@/components/home/estado-vacio'
-import { parseFiltros, terminoSeguro } from '@/components/home/filtros-url'
+import { parseFiltros, parsePagina, terminoSeguro } from '@/components/home/filtros-url'
 import { Kpis } from '@/components/home/kpis'
 import { Listado } from '@/components/home/listado'
 import {
   COLUMNAS_LISTADO,
   KPIS_VACIOS,
   OBRA_SOCIAL_PARTICULAR,
+  type EstadoDatos,
   type FilaPresupuesto,
   type FiltrosHome,
   type KpisHome,
   type OpcionFiltro,
+  type Pagina,
 } from '@/components/home/tipos'
 import { Banner } from '@/components/ui'
 import { ESTADOS_PIPELINE, esperaRespuesta, estaFrio } from '@/lib/estados'
@@ -35,23 +38,34 @@ import type { EstadoPresupuesto } from '@/lib/types'
  * servidor: la URL es el estado, no un `useState`.
  */
 
-/** Tope de filas por consulta. Arriba de esto se pide afinar los filtros. */
-const LIMITE_FILAS = 200
+/**
+ * Filas por página.
+ *
+ * Antes se traían 200 de una y, pasadas esas, la única salida que se
+ * ofrecía era "achicá el rango de fechas": a los presupuestos viejos no
+ * se llegaba. Con paginado por URL se llega a todos, el back del
+ * navegador vuelve a la página anterior y el link se puede compartir.
+ */
+const POR_PAGINA = 50
 
 interface DatosHome {
   kpis: KpisHome
   filas: FilaPresupuesto[]
-  truncado: boolean
+  pagina: Pagina
   hayPresupuestos: boolean
   profesionales: OpcionFiltro[]
   obrasSociales: OpcionFiltro[]
   falla: boolean
 }
 
+function paginaVacia(actual = 1): Pagina {
+  return { actual, porPagina: POR_PAGINA, total: 0, paginas: 1 }
+}
+
 const SIN_DATOS: DatosHome = {
   kpis: KPIS_VACIOS,
   filas: [],
-  truncado: false,
+  pagina: paginaVacia(),
   hayPresupuestos: false,
   profesionales: [],
   obrasSociales: [],
@@ -93,16 +107,19 @@ function aFila(fila: FilaCruda): FilaPresupuesto {
   }
 }
 
-async function consultarHome(filtros: FiltrosHome): Promise<DatosHome> {
-  const supabase = await createClient()
+type Supabase = Awaited<ReturnType<typeof createClient>>
 
-  const hoy = new Date()
-  const inicioMes = isoDate(startOfMonth(hoy))
-  const hace30 = isoDate(subDays(hoy, 30))
-  const hace90 = isoDate(subDays(hoy, 90))
-
-  // ── Listado filtrado ────────────────────────────────────────
-  let listado = supabase.from('presupuestos_listado').select(COLUMNAS_LISTADO)
+/**
+ * Una página del listado. Se arma como función y no como constante
+ * porque hay que poder repetirla: un `?p=` más allá del final vuelve
+ * vacío y hay que reintentar en la última que sí existe.
+ */
+function consultarPagina(supabase: Supabase, filtros: FiltrosHome, pagina: number) {
+  let listado = supabase
+    .from('presupuestos_listado')
+    // El total exacto es lo que permite decir "51–100 de 632" en vez de
+    // "los primeros 200": sin él no se sabe si hay una página más.
+    .select(COLUMNAS_LISTADO, { count: 'exact' })
 
   const q = terminoSeguro(filtros.q)
   if (q) {
@@ -127,10 +144,21 @@ async function consultarHome(filtros: FiltrosHome): Promise<DatosHome> {
   if (filtros.desde) listado = listado.gte('fecha_emision', filtros.desde)
   if (filtros.hasta) listado = listado.lte('fecha_emision', filtros.hasta)
 
-  listado = listado
+  const inicio = (pagina - 1) * POR_PAGINA
+
+  return listado
     .order('fecha_emision', { ascending: false })
     .order('created_at', { ascending: false })
-    .limit(LIMITE_FILAS)
+    .range(inicio, inicio + POR_PAGINA - 1)
+}
+
+async function consultarHome(filtros: FiltrosHome, pagina: number): Promise<DatosHome> {
+  const supabase = await createClient()
+
+  const hoy = new Date()
+  const inicioMes = isoDate(startOfMonth(hoy))
+  const hace30 = isoDate(subDays(hoy, 30))
+  const hace90 = isoDate(subDays(hoy, 90))
 
   // ── KPIs ────────────────────────────────────────────────────
   // Dos ventanas alcanzan para los cuatro números: los emitidos de los
@@ -166,8 +194,8 @@ async function consultarHome(filtros: FiltrosHome): Promise<DatosHome> {
     .eq('activa', true)
     .order('nombre')
 
-  const [resListado, resVentana, resActivos, resTotal, resProf, resOs] = await Promise.all([
-    listado,
+  const [paginaPedida, resVentana, resActivos, resTotal, resProf, resOs] = await Promise.all([
+    consultarPagina(supabase, filtros, pagina),
     ventana,
     activos,
     totalGeneral,
@@ -175,11 +203,27 @@ async function consultarHome(filtros: FiltrosHome): Promise<DatosHome> {
     obrasSociales,
   ])
 
+  // Una página que ya no existe (link viejo, `?p=` a mano, un filtro
+  // que achicó el resultado) no es una falla ni "no hay presupuestos":
+  // `.range()` viaja como `offset`/`limit`, así que Postgres devuelve
+  // 200 con cero filas y el conteo real. Con ese conteo se cae a la
+  // última página que sí existe.
+  let resListado = paginaPedida
+  let actual = pagina
+  if (!resListado.error) {
+    const cuenta = resListado.count ?? 0
+    const ultima = Math.max(1, Math.ceil(cuenta / POR_PAGINA))
+    if (cuenta > 0 && actual > ultima) {
+      actual = ultima
+      resListado = await consultarPagina(supabase, filtros, actual)
+    }
+  }
+
   const error =
     resListado.error ?? resVentana.error ?? resActivos.error ?? resTotal.error ?? resProf.error ?? resOs.error
   if (error) {
     console.error('[home] no se pudo leer el listado', error)
-    return SIN_DATOS
+    return { ...SIN_DATOS, pagina: paginaVacia(actual) }
   }
 
   const filasVentana = ((resVentana.data ?? []) as FilaCruda[]).map((f) => ({
@@ -226,11 +270,17 @@ async function consultarHome(filtros: FiltrosHome): Promise<DatosHome> {
   // `select()` con una lista de columnas armada en runtime no le deja
   // inferir la forma a supabase-js: se normaliza a mano en `aFila`.
   const filas = ((resListado.data ?? []) as unknown as FilaCruda[]).map(aFila)
+  const total = resListado.count ?? filas.length
 
   return {
     kpis,
     filas,
-    truncado: filas.length >= LIMITE_FILAS,
+    pagina: {
+      actual,
+      porPagina: POR_PAGINA,
+      total,
+      paginas: Math.max(1, Math.ceil(total / POR_PAGINA)),
+    },
     hayPresupuestos: (resTotal.count ?? 0) > 0,
     profesionales: ((resProf.data ?? []) as FilaCruda[]).map((p) => ({
       value: texto(p.id),
@@ -250,9 +300,9 @@ async function consultarHome(filtros: FiltrosHome): Promise<DatosHome> {
  * consultorio tiene que poder seguir trabajando (y abrir el wizard)
  * aunque la lectura falle.
  */
-async function cargarHome(filtros: FiltrosHome): Promise<DatosHome> {
+async function cargarHome(filtros: FiltrosHome, pagina: number): Promise<DatosHome> {
   try {
-    return await consultarHome(filtros)
+    return await consultarHome(filtros, pagina)
   } catch (e) {
     console.error('[home] falló la carga', e)
     return SIN_DATOS
@@ -260,14 +310,23 @@ async function cargarHome(filtros: FiltrosHome): Promise<DatosHome> {
 }
 
 export default async function HomePage(props: PageProps<'/'>) {
-  const filtros = parseFiltros(await props.searchParams)
-  const datos = await cargarHome(filtros)
+  const searchParams = await props.searchParams
+  const filtros = parseFiltros(searchParams)
+  const datos = await cargarHome(filtros, parsePagina(searchParams))
   const vacia = !datos.hayPresupuestos
+
+  /* Vacío y caído se ven parecido y no son lo mismo: uno promete que se
+     va a llenar, el otro avisa que no se pudo leer. */
+  const estado: EstadoDatos = datos.falla ? 'falla' : vacia ? 'vacio' : 'ok'
 
   return (
     /* El ancho y el padding los pone el `<main>` del layout: acá sólo el ritmo vertical. */
     <div className="flex flex-col gap-5">
       <BannerConexion />
+
+      {/* `n` abre el wizard, `/` enfoca la búsqueda. Se cargan siempre,
+          también en la pantalla vacía: ahí `n` es justo lo que se quiere. */}
+      <AtajosHome />
 
       <header className="min-w-0">
         <h1 className="t-h2">Presupuestos</h1>
@@ -288,26 +347,27 @@ export default async function HomePage(props: PageProps<'/'>) {
 
       <BannerBorrador />
 
-      <Kpis kpis={datos.kpis} vacio={vacia} />
+      <Kpis kpis={datos.kpis} estado={estado} />
 
       {/* Con la lectura caída no se dibuja el empty state: diría "todavía no
           hay presupuestos" cuando en realidad no se pudieron leer. */}
       {datos.falla ? null : vacia ? (
         <HomeVacia />
       ) : (
-        <>
-          <BarraFiltros
-            filtros={filtros}
-            profesionales={datos.profesionales}
-            obrasSociales={datos.obrasSociales}
-          />
-
+        /* El listado va adentro de la barra: mientras la navegación por
+           un filtro está en vuelo, lo que se está mirando es viejo y
+           tiene que verse viejo. */
+        <BarraFiltros
+          filtros={filtros}
+          profesionales={datos.profesionales}
+          obrasSociales={datos.obrasSociales}
+        >
           {datos.filas.length > 0 ? (
-            <Listado filas={datos.filas} truncado={datos.truncado} limite={LIMITE_FILAS} />
+            <Listado filas={datos.filas} filtros={filtros} pagina={datos.pagina} />
           ) : (
-            <SinResultados termino={filtros.q} />
+            <SinResultados filtros={filtros} />
           )}
-        </>
+        </BarraFiltros>
       )}
     </div>
   )

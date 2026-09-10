@@ -17,24 +17,36 @@ export function Encabezado({
   filtros,
   cantidad,
   monto,
+  filtrado,
 }: {
   filtros: FiltrosHome
   cantidad: number
   monto: number
+  /** Hay filtros puestos: un tablero vacío puede no ser un tablero sin trabajo. */
+  filtrado: boolean
 }) {
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         <h1 className="t-h2">Pipeline</h1>
         <p className="t-helper">
-          {cantidad === 0
-            ? 'No hay presupuestos esperando respuesta.'
-            : `${cantidad} ${plural(cantidad, 'presupuesto', 'presupuestos')} en juego, del primer envío al tratamiento iniciado.`}
+          {cantidad > 0
+            ? `${cantidad} ${plural(cantidad, 'presupuesto', 'presupuestos')} en juego, del primer envío al tratamiento iniciado.`
+            : filtrado
+              ? // Cinco columnas vacías con un filtro puesto se leen como
+                // «no hay trabajo», que es lo contrario de lo que pasa.
+                'Ningún presupuesto en juego coincide con los filtros. Sacá alguno para ver el resto.'
+              : 'No hay presupuestos esperando respuesta.'}
         </p>
       </div>
 
       <div className="flex items-end gap-5">
-        <div className="text-right">
+        {/* Alineado a la izquierda en mobile y a la derecha desde `sm`.
+            Con `text-right` fijo el bloque medía lo que el número y la
+            etiqueta se alineaba al borde derecho DE ESE ancho: en el
+            teléfono, donde el header se apila, quedaba "TOTAL A CARGO"
+            flotando en el medio y el número abajo a la izquierda. */}
+        <div className="text-left sm:text-right">
           <span className="t-label block text-[9.5px] tracking-[0.12em] text-muted">
             Total a cargo
           </span>

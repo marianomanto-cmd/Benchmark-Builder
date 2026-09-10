@@ -19,6 +19,9 @@ import { createAdminClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+// Recorre una fila por presupuesto vencido: con el consultorio andando
+// hace rato, los 10 s por defecto quedan cortos y el cron muere a mitad.
+export const maxDuration = 60
 
 /**
  * Comparación de tiempo constante. Se hashea primero para que los dos
@@ -43,8 +46,17 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase.rpc('marcar_pendientes')
 
   if (error) {
+    // Vercel reintenta los no-2xx, así que el log tiene que decir qué
+    // falló: sin esto, un cron caído se nota recién cuando alguien
+    // pregunta por qué no hay nada en «Pendiente».
+    console.error('[cron] marcar_pendientes falló', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ actualizados: Number(data ?? 0) })
+  const actualizados = Number(data ?? 0)
+  // Una línea por corrida: es la única forma de saber, mirando los logs,
+  // que el cron corrió y no tenía nada que hacer.
+  console.log(`[cron] pendientes: ${actualizados} presupuesto(s) pasaron a pendiente`)
+
+  return NextResponse.json({ actualizados })
 }

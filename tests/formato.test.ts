@@ -14,6 +14,7 @@ import {
   nombreDePila,
   normalizar,
   telefonoWhatsApp,
+  matricula,
 } from '../lib/formato.ts'
 
 test('money usa el formato del consultorio: $ 128.400', () => {
@@ -121,4 +122,23 @@ test('telefonoWhatsApp arma el celular argentino que acepta wa.me', () => {
   assert.equal(telefonoWhatsApp(''), null)
   assert.equal(telefonoWhatsApp('sin teléfono'), null)
   assert.equal(telefonoWhatsApp('123'), null)
+})
+
+test('matricula no repite el prefijo que ya trae cargado', () => {
+  // El caso que se veía en la cabecera del detalle y en la firma del PDF.
+  assert.equal(matricula('MP 34.567'), 'MP 34.567')
+  assert.equal(matricula('mp 34.567'), 'mp 34.567')
+  assert.equal(matricula('M.P. 34.567'), 'M.P. 34.567')
+
+  // Matrícula nacional: prefijarla con MP sería decir otra cosa.
+  assert.equal(matricula('MN 12.345'), 'MN 12.345')
+
+  // Cargada como número pelado, que es lo más común.
+  assert.equal(matricula('34.567'), 'MP 34.567')
+  assert.equal(matricula('  34567 '), 'MP 34567')
+
+  // Sin matrícula no se firma con una vacía.
+  assert.equal(matricula(null), null)
+  assert.equal(matricula(undefined), null)
+  assert.equal(matricula('   '), null)
 })

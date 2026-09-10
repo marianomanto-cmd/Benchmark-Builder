@@ -23,6 +23,9 @@ export const FILTROS_VACIOS: FiltrosHome = {
   hasta: '',
 }
 
+/** Filas por página. Ver `POR_PAGINA` en la home para el porqué. */
+export const PARAM_PAGINA = 'p'
+
 /** searchParams de Next: un valor repetido llega como array. */
 type Entrada = Record<string, string | string[] | undefined>
 
@@ -58,6 +61,9 @@ export function parseFiltros(searchParams: Entrada): FiltrosHome {
     .map((e) => e.trim())
     .filter((e): e is EstadoPresupuesto => (ESTADOS as string[]).includes(e))
 
+  const desde = fecha(searchParams.desde)
+  const hasta = fecha(searchParams.hasta)
+
   return {
     q: texto(searchParams.q),
     // Sin duplicados y en el orden canónico de la máquina de estados.
@@ -68,13 +74,38 @@ export function parseFiltros(searchParams: Entrada): FiltrosHome {
     // que es lo mismo que no filtrar.
     profesional: uuid(searchParams.prof),
     obraSocial: obraSocialFiltro(searchParams.os),
-    desde: fecha(searchParams.desde),
-    hasta: fecha(searchParams.hasta),
+    // Un rango dado vuelta (`desde` posterior a `hasta`) no devuelve
+    // nada y se lee como "no hay presupuestos", que es mentira. Se
+    // endereza acá, que es donde se decide qué significa la URL.
+    desde: hasta && desde > hasta ? hasta : desde,
+    hasta: hasta && desde > hasta ? desde : hasta,
   }
 }
 
-/** `/` cuando no hay nada aplicado, para no ensuciar la URL. */
-export function construirUrl(filtros: FiltrosHome): string {
+/**
+ * Página del listado, 1-based. Lo que no sea un entero positivo vuelve
+ * a la primera: un `?p=0` o un `?p=abc` no puede trabar la pantalla.
+ *
+ * `isSafeInteger` no es paranoia: un `?p=1e21` tipeado a mano sale de
+ * `parseInt` como `1e+21`, viaja así en el `offset` de PostgREST,
+ * Postgres lo rechaza y la home termina diciendo «no se pudieron traer
+ * los presupuestos» —o sea, culpando a la base de un número inventado
+ * en la URL—. Un `?p=` grande pero sano ya cae solo en la última
+ * página, que es el camino que corresponde.
+ */
+export function parsePagina(searchParams: Entrada): number {
+  const n = Number.parseInt(texto(searchParams[PARAM_PAGINA]), 10)
+  return Number.isSafeInteger(n) && n >= 1 ? n : 1
+}
+
+/**
+ * `/` cuando no hay nada aplicado, para no ensuciar la URL.
+ *
+ * La página se pasa aparte y por default vuelve a la primera: cambiar
+ * un filtro estando en la página 4 dejaba una lista vacía que parecía
+ * "no hay resultados".
+ */
+export function construirUrl(filtros: FiltrosHome, pagina = 1): string {
   const p = new URLSearchParams()
   if (filtros.q) p.set('q', filtros.q)
   if (filtros.estados.length) p.set('estado', filtros.estados.join(','))
@@ -82,6 +113,7 @@ export function construirUrl(filtros: FiltrosHome): string {
   if (filtros.obraSocial) p.set('os', filtros.obraSocial)
   if (filtros.desde) p.set('desde', filtros.desde)
   if (filtros.hasta) p.set('hasta', filtros.hasta)
+  if (pagina > 1) p.set(PARAM_PAGINA, String(pagina))
   const qs = p.toString()
   return qs ? `/?${qs}` : '/'
 }
@@ -101,6 +133,19 @@ export function hayFiltrosActivos(filtros: FiltrosHome): boolean {
 export function contarFiltros(filtros: FiltrosHome): number {
   let n = 0
   if (filtros.q) n += 1
+  if (filtros.estados.length) n += 1
+  if (filtros.profesional) n += 1
+  if (filtros.obraSocial) n += 1
+  if (filtros.desde || filtros.hasta) n += 1
+  return n
+}
+
+/**
+ * Los filtros que NO son la búsqueda de texto. En mobile viven en un
+ * sheet aparte, y el botón que lo abre necesita saber si trae algo.
+ */
+export function contarFiltrosAvanzados(filtros: FiltrosHome): number {
+  let n = 0
   if (filtros.estados.length) n += 1
   if (filtros.profesional) n += 1
   if (filtros.obraSocial) n += 1

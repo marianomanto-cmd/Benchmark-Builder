@@ -1,21 +1,44 @@
 /**
  * Formato es-AR. Miles con punto, sin decimales, símbolo `$` separado
  * por espacio: `$ 128.400`.
+ *
+ * ZONA HORARIA — por qué esto no usa la hora local del proceso.
+ *
+ * La app se renderiza en dos lugares con relojes distintos: el
+ * navegador del consultorio (Buenos Aires, UTC−3) y la función de
+ * Vercel (**UTC**, siempre). El timeline, la cabecera del detalle y el
+ * PDF se arman en el servidor, así que `format()` a secas mostraba cada
+ * hora tres horas adelantada: un WhatsApp enviado a las 11:32 figuraba
+ * «14:32», y entre las 21:00 y la medianoche lo de hoy aparecía como
+ * «Ayer» y el reloj de días sin respuesta sumaba uno de más. Encima el
+ * mismo texto se re-renderizaba distinto en el cliente, que sí está en
+ * hora argentina: mismatch de hidratación.
+ *
+ * Acá todo instante se lleva a la hora de pared del consultorio con
+ * `Intl` —que ya viene en la plataforma, sin dependencias nuevas— y
+ * recién ahí se formatea. Un `YYYY-MM-DD` pelado (fecha de emisión,
+ * vigencia de un arancel) NO es un instante sino un día del calendario:
+ * convertirlo de zona lo correría un día para atrás en el PDF, así que
+ * se formatea tal cual viene.
  */
 
 import { format, formatDistanceToNowStrict, differenceInCalendarDays, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+
+/** El consultorio es uno solo y está en Córdoba/Buenos Aires (UTC−3). */
+export const ZONA_CONSULTORIO = 'America/Argentina/Buenos_Aires'
 
 const NUM = new Intl.NumberFormat('es-AR', {
   minimumFractionDigits: 0,
   maximumFractionDigits: 0,
 })
 
-/** `$ 128.400` */
+/** `$ 128.400` — negativo como `− $ 1.234`, nunca `$ -1.234`. */
 export function money(valor: number | string | null | undefined): string {
   const n = typeof valor === 'string' ? Number(valor) : (valor ?? 0)
   if (!Number.isFinite(n)) return '$ 0'
-  return `$ ${NUM.format(Math.round(n))}`
+  const entero = Math.round(n)
+  return entero < 0 ? `− $ ${NUM.format(-entero)}` : `$ ${NUM.format(entero)}`
 }
 
 /** `128.400`, sin símbolo — para celdas que ya tienen el `$` en el header. */
@@ -36,8 +59,63 @@ export function porcentaje(valor: number | string | null | undefined): string {
   return `${texto} %`
 }
 
-function toDate(value: string | Date): Date {
+/* ═══════════════════════════════════════════════════════════
+   Fechas — el reloj del consultorio, no el del proceso
+   ═══════════════════════════════════════════════════════════ */
+
+/** `2026-09-08`: un día del calendario, no un instante. */
+const SOLO_FECHA = /^\d{4}-\d{2}-\d{2}$/
+
+const PARTES_ZONA = new Intl.DateTimeFormat('en-CA', {
+  timeZone: ZONA_CONSULTORIO,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+})
+
+/**
+ * El mismo instante, expresado como un `Date` cuyos componentes
+ * **locales** son la hora de pared de Buenos Aires. Es el truco que
+ * permite seguir usando `date-fns` (que trabaja en hora local) sin
+ * agregar `@date-fns/tz` ni ninguna otra dependencia.
+ */
+function relojDelConsultorio(instante: Date): Date {
+  if (Number.isNaN(instante.getTime())) return instante
+  const p: Record<string, string> = {}
+  for (const parte of PARTES_ZONA.formatToParts(instante)) p[parte.type] = parte.value
+  return new Date(
+    Number(p.year),
+    Number(p.month) - 1,
+    Number(p.day),
+    // Algunos motores devuelven «24» para la medianoche.
+    Number(p.hour) % 24,
+    Number(p.minute),
+    Number(p.second),
+  )
+}
+
+/** El instante real, sin mover: para medir duraciones. */
+function instanteDe(value: string | Date): Date {
   return typeof value === 'string' ? parseISO(value) : value
+}
+
+/**
+ * Lo que hay que formatear. Un `YYYY-MM-DD` es un día del calendario y
+ * se respeta tal cual; cualquier otra cosa es un instante y se lleva a
+ * la hora del consultorio.
+ */
+function toDate(value: string | Date): Date {
+  if (typeof value === 'string' && SOLO_FECHA.test(value)) return parseISO(value)
+  return relojDelConsultorio(instanteDe(value))
+}
+
+/** «Ahora» en hora del consultorio. Es el hoy contra el que se compara. */
+export function ahora(): Date {
+  return relojDelConsultorio(new Date())
 }
 
 /** `8 de septiembre de 2026` */
@@ -65,19 +143,35 @@ export function hora(value: string | Date): string {
   return format(toDate(value), 'HH:mm', { locale: es })
 }
 
-/** `hace 3 días` */
-export function haceCuanto(value: string | Date): string {
-  return `hace ${formatDistanceToNowStrict(toDate(value), { locale: es })}`
+/** El año calendario del consultorio — para no repetirlo si es el actual. */
+export function anio(value: string | Date): number {
+  return toDate(value).getFullYear()
 }
 
-/** Días transcurridos desde una fecha, en días de calendario. */
+/**
+ * `hace 3 días` — se mide contra el instante real, no contra el reloj
+ * movido de zona.
+ *
+ * Abajo del minuto dice «recién». Es el caso más común de todos: al
+ * guardar una nota o cambiar un estado, la pantalla se revalida y el
+ * timeline aparecía anunciando «hace 0 segundos», que se lee como un
+ * error de la app y no como «esto lo acabás de hacer vos».
+ */
+export function haceCuanto(value: string | Date): string {
+  const instante = instanteDe(value)
+  const segundos = (Date.now() - instante.getTime()) / 1000
+  if (segundos >= 0 && segundos < 60) return 'recién'
+  return `hace ${formatDistanceToNowStrict(instante, { locale: es })}`
+}
+
+/** Días transcurridos desde una fecha, en días de calendario del consultorio. */
 export function diasDesde(value: string | Date): number {
-  return Math.max(0, differenceInCalendarDays(new Date(), toDate(value)))
+  return Math.max(0, differenceInCalendarDays(ahora(), toDate(value)))
 }
 
 /** Días que faltan para una fecha. Negativo = ya venció. */
 export function diasHasta(value: string | Date): number {
-  return differenceInCalendarDays(toDate(value), new Date())
+  return differenceInCalendarDays(toDate(value), ahora())
 }
 
 /** `vence en 12 días` · `vencido hace 3 días` · `vence hoy` */
@@ -88,8 +182,16 @@ export function vigenciaTexto(validoHasta: string | Date): string {
   return `vence en ${d} ${d === 1 ? 'día' : 'días'}`
 }
 
-/** Fecha ISO `YYYY-MM-DD` en hora local, para inputs date y para la base. */
-export function isoDate(value: Date = new Date()): string {
+/**
+ * Fecha ISO `YYYY-MM-DD` para inputs date y para la base.
+ *
+ * Sin argumento es **hoy en el consultorio**: en el servidor (UTC) un
+ * `new Date()` pelado adelanta el día a partir de las 21:00, y con eso
+ * se emitían presupuestos fechados mañana. Con un `Date` explícito se
+ * formatea tal cual: quien lo arma ya eligió el día (`addDays`,
+ * `startOfMonth`) sobre su propio calendario.
+ */
+export function isoDate(value: Date = ahora()): string {
   return format(value, 'yyyy-MM-dd')
 }
 
@@ -113,6 +215,22 @@ export function nombreDePila(nombre: string): string {
 }
 
 /** Normaliza para buscar sin acentos ni mayúsculas. */
+/**
+ * La matrícula como se muestra: `MP 12.345`.
+ *
+ * El campo es texto libre y en el consultorio se carga de las dos
+ * formas —«12.345» y «MP 12.345»—, así que prefijar sin mirar daba
+ * «MP MP 34.567» en la cabecera del detalle, en la firma del PDF y en
+ * el mensaje de WhatsApp. Se respeta lo que ya trae prefijo, incluida
+ * la matrícula nacional (MN), que prefijar con MP directamente
+ * falsearía.
+ */
+export function matricula(valor: string | null | undefined): string | null {
+  const limpio = (valor ?? '').trim()
+  if (!limpio) return null
+  return /^m\.?\s?[pn]\b\.?/i.test(limpio) ? limpio : `MP ${limpio}`
+}
+
 export function normalizar(texto: string): string {
   return texto
     .normalize('NFD')

@@ -1,8 +1,10 @@
 import 'server-only'
 
+import { after } from 'next/server'
+
 import { createClient } from '@/lib/supabase/server'
 
-import { cargarDatosPdf } from './datos'
+import { cargarCabeceraPdf, cargarDocumentoPdf, type CabeceraPdf } from './datos'
 import { renderizarPresupuesto } from './render'
 
 /**
@@ -16,6 +18,23 @@ import { renderizarPresupuesto } from './render'
  *
  * El bucket `presupuestos` es privado; se accede por URL firmada de 7
  * días, la misma vigencia que documenta la migración de Storage.
+ *
+ * ── CUÁNDO VALE EL CACHÉ ──────────────────────────────────────────
+ *
+ * Antes se comparaba la fecha del objeto contra `presupuestos.updated_at`.
+ * Esa cuenta invalidaba el PDF por cosas que **no salen en el documento**:
+ * cada cambio de estado, cada nota interna y cada teléfono cargado
+ * mueven `updated_at`. Resultado: un presupuesto que iba de Enviado a
+ * Interesado a Aceptado re-renderizaba el mismo documento tres veces
+ * —tres segundos de espera cada una— y dejaba tres líneas «Se generó el
+ * PDF» en un historial que es append-only y no se puede limpiar.
+ *
+ * La regla real es más simple y es la del producto: **un presupuesto
+ * emitido no cambia de contenido** (lo garantizan `guard_presupuesto_emitido`
+ * y `guard_item_emitido`). Entonces, si está emitido y hay un objeto en
+ * el bucket, ese objeto ES el documento. Sólo se regenera cuando todavía
+ * es borrador —ahí sí los ítems están abiertos— o cuando el archivo no
+ * está: firmar una ruta inexistente falla, y esa falla es la señal.
  */
 
 /** Bucket privado creado en `20260101000400_storage.sql`. */
@@ -30,10 +49,13 @@ export const VIGENCIA_LINK_SEGUNDOS = 60 * 60 * 24 * 7
  * `presupuestos/2026-0341.pdf`), para que cualquiera pueda firmar el
  * link con `storage.from(BUCKET_PDF).createSignedUrl(pdf_path)` sin
  * tener que reconstruir la ruta.
+ *
+ * El `id` es el respaldo: sin número, todos los presupuestos caían en
+ * el mismo objeto y el PDF de uno se servía como el de otro.
  */
-export function rutaPdf(numero: string): string {
+export function rutaPdf(numero: string, id?: string): string {
   const limpio = numero.trim().replace(/[^\w.-]+/g, '-')
-  return `presupuestos/${limpio || 'presupuesto'}.pdf`
+  return `presupuestos/${limpio || id || 'presupuesto'}.pdf`
 }
 
 type ClienteSupabase = Awaited<ReturnType<typeof createClient>>
@@ -42,39 +64,27 @@ export interface PdfResuelto {
   numero: string
   /** Clave del objeto en el bucket = `presupuestos.pdf_path`. */
   ruta: string
-  /** URL firmada por 7 días, o null si no se pudo firmar. */
+  /**
+   * URL firmada por 7 días **cuando sirvió el caché**, que es el único
+   * caso en que hace falta (la respuesta es un redirect al objeto). En
+   * una generación nueva viaja el buffer, así que firmar sería un viaje
+   * a Storage que nadie mira, justo en la petición que ya pagó el
+   * render. Ver `urlFirmadaPdf`, que firma si de verdad la necesita.
+   */
   url: string | null
   /** Bytes recién renderizados. `null` cuando se reusó el caché. */
   buffer: Buffer | null
   /** `true` si el archivo ya estaba en Storage y sigue vigente. */
   desdeCache: boolean
+  /** Un emitido está congelado: el navegador puede quedárselo un rato. */
+  congelado: boolean
 }
 
-/** Cuándo se subió por última vez el objeto, según Storage. */
-async function generadoEn(
-  supabase: ClienteSupabase,
-  ruta: string,
-): Promise<Date | null> {
-  const corte = ruta.lastIndexOf('/')
-  const carpeta = corte >= 0 ? ruta.slice(0, corte) : ''
-  const nombre = corte >= 0 ? ruta.slice(corte + 1) : ruta
-
-  const { data, error } = await supabase.storage
-    .from(BUCKET_PDF)
-    .list(carpeta, { limit: 100, search: nombre })
-
-  if (error || !data) return null
-
-  // `search` es una coincidencia parcial: hay que quedarse con el
-  // objeto cuyo nombre es exactamente el buscado.
-  const archivo = data.find((item) => item.name === nombre)
-  const marca = archivo?.updated_at ?? archivo?.created_at
-  if (!marca) return null
-
-  const fecha = new Date(marca)
-  return Number.isNaN(fecha.getTime()) ? null : fecha
-}
-
+/**
+ * Firma el objeto. Devuelve `null` si no existe o Storage no contesta:
+ * el endpoint de firma valida que el archivo esté, así que una firma
+ * exitosa es a la vez la prueba de que el caché sigue en pie.
+ */
 async function firmar(supabase: ClienteSupabase, ruta: string): Promise<string | null> {
   const { data, error } = await supabase.storage
     .from(BUCKET_PDF)
@@ -83,12 +93,19 @@ async function firmar(supabase: ClienteSupabase, ruta: string): Promise<string |
   return data.signedUrl
 }
 
+/** Mientras es borrador, los ítems siguen abiertos: el PDF no se cachea. */
+function estaCongelado(cabecera: CabeceraPdf): boolean {
+  return cabecera.estado !== 'borrador'
+}
+
 /**
  * Devuelve el PDF del presupuesto, generándolo si hace falta.
  *
- * Reusa el archivo cacheado cuando existe y el presupuesto no cambió
- * desde que se generó. Si no, renderiza, sube con `upsert`, deja
- * `pdf_path` apuntando al objeto y registra el evento `pdf_generado`.
+ * Con el caché caliente son dos viajes (una consulta y una firma) y
+ * cero renders. Sin caché, se renderiza y se guarda; el evento del
+ * historial se manda con `after()`, después de contestar, porque el
+ * consultorio no tiene que esperar a que se escriba una línea de log
+ * para abrir el documento.
  *
  * Devuelve `null` cuando el presupuesto no existe o la RLS no deja
  * verlo: quien llama decide qué contestar.
@@ -96,84 +113,95 @@ async function firmar(supabase: ClienteSupabase, ruta: string): Promise<string |
 export async function asegurarPdf(id: string): Promise<PdfResuelto | null> {
   const supabase = await createClient()
 
-  const presupuesto = await cargarDatosPdf(supabase, id)
-  if (!presupuesto) return null
+  const encabezado = await cargarCabeceraPdf(supabase, id)
+  if (!encabezado) return null
 
-  const ruta = rutaPdf(presupuesto.numero)
-  const actualizado = new Date(presupuesto.actualizadoEn)
+  const { cabecera, fila } = encabezado
+  const congelado = estaCongelado(cabecera)
+  const ruta = rutaPdf(cabecera.numero, cabecera.id)
 
   // ── ¿Sirve lo que ya está en el bucket? ──────────────────────────
-  if (presupuesto.pdfPath) {
-    const generado = await generadoEn(supabase, presupuesto.pdfPath)
-    const vigente =
-      generado !== null &&
-      (Number.isNaN(actualizado.getTime()) || generado.getTime() >= actualizado.getTime())
-
-    if (vigente) {
-      const url = await firmar(supabase, presupuesto.pdfPath)
-      if (url) {
-        return {
-          numero: presupuesto.numero,
-          ruta: presupuesto.pdfPath,
-          url,
-          buffer: null,
-          desdeCache: true,
-        }
+  if (congelado && cabecera.pdfPath) {
+    const url = await firmar(supabase, cabecera.pdfPath)
+    if (url) {
+      return {
+        numero: cabecera.numero,
+        ruta: cabecera.pdfPath,
+        url,
+        buffer: null,
+        desdeCache: true,
+        congelado,
       }
-      // Si no se pudo firmar, se sigue de largo y se regenera: mejor
-      // gastar un render que devolverle un error al consultorio.
     }
+    // No se pudo firmar (el objeto no está, o Storage no contestó): se
+    // regenera. Mejor gastar un render que devolverle un error al
+    // consultorio con el paciente enfrente.
   }
 
-  const buffer = await renderizarPresupuesto(presupuesto.datos)
+  const datos = await cargarDocumentoPdf(supabase, fila)
+  const buffer = await renderizarPresupuesto(datos)
 
   /*
-   * El orden importa. `presupuestos` tiene el trigger
-   * `touch_updated_at`, así que escribir `pdf_path` mueve `updated_at`.
-   * Si se escribiera después de subir el archivo, el presupuesto
-   * quedaría más nuevo que su propio PDF y el caché nunca daría en el
-   * blanco: se regeneraría en cada visita. Por eso primero se guarda la
-   * ruta y recién después se sube el objeto, que queda con marca
-   * posterior.
+   * La ruta y el archivo son independientes entre sí, así que van
+   * juntos: `pdf_path` tiene que quedar escrito antes de contestar
+   * —el sheet de WhatsApp lo lee para armar el link firmado— pero no
+   * tiene por qué esperar a la subida.
    *
-   * Y sólo se escribe si la ruta cambió: en las regeneraciones el valor
-   * es el mismo y no hace falta tocar la fila.
+   * Sólo se escribe si la ruta cambió: en las regeneraciones el valor
+   * es el mismo y no hace falta tocar la fila (ni disparar
+   * `touch_updated_at`).
    */
-  if (presupuesto.pdfPath !== ruta) {
-    await supabase.from('presupuestos').update({ pdf_path: ruta }).eq('id', presupuesto.id)
-  }
-
-  const { error: errorSubida } = await supabase.storage
-    .from(BUCKET_PDF)
-    .upload(ruta, buffer, {
+  const [, subida] = await Promise.all([
+    cabecera.pdfPath === ruta
+      ? Promise.resolve(null)
+      : supabase.from('presupuestos').update({ pdf_path: ruta }).eq('id', cabecera.id),
+    supabase.storage.from(BUCKET_PDF).upload(ruta, buffer, {
       contentType: 'application/pdf',
       upsert: true,
-    })
+    }),
+  ])
 
-  if (errorSubida) {
+  if (subida.error) {
     // El archivo no quedó cacheado, pero el documento existe: se
     // devuelve igual para que el consultorio pueda mandarlo.
+    console.error('[pdf] no se pudo guardar en Storage', subida.error)
     return {
-      numero: presupuesto.numero,
+      numero: cabecera.numero,
       ruta,
       url: null,
       buffer,
       desdeCache: false,
+      congelado,
     }
   }
 
-  await supabase.rpc('registrar_evento', {
-    p_id: presupuesto.id,
-    p_tipo: 'pdf_generado',
-    p_desc: `Se generó el PDF del presupuesto N.º ${presupuesto.numero}`,
-  })
+  // El historial no bloquea la respuesta. Un borrador no deja línea:
+  // el documento que cuenta es el emitido.
+  if (congelado) {
+    const anotar = async () => {
+      const { error } = await supabase.rpc('registrar_evento', {
+        p_id: cabecera.id,
+        p_tipo: 'pdf_generado',
+        p_desc: `Se generó el PDF del presupuesto N.º ${cabecera.numero}`,
+      })
+      if (error) console.error('[pdf] no se pudo anotar el evento', error)
+    }
+    try {
+      after(anotar)
+    } catch {
+      // `after` sólo existe dentro de una request. Fuera de ahí (un
+      // script, un test) se escribe en línea antes de devolver.
+      await anotar()
+    }
+  }
 
   return {
-    numero: presupuesto.numero,
+    numero: cabecera.numero,
     ruta,
-    url: await firmar(supabase, ruta),
+    url: null,
     buffer,
     desdeCache: false,
+    congelado,
   }
 }
 
@@ -188,5 +216,10 @@ export async function asegurarPdf(id: string): Promise<PdfResuelto | null> {
  */
 export async function urlFirmadaPdf(id: string): Promise<string | null> {
   const resultado = await asegurarPdf(id)
-  return resultado?.url ?? null
+  if (!resultado) return null
+  if (resultado.url) return resultado.url
+
+  // Recién generado: el objeto está en el bucket pero sin firmar.
+  const supabase = await createClient()
+  return firmar(supabase, resultado.ruta)
 }

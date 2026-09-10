@@ -16,11 +16,12 @@ import { CircleAlert, Loader2, Wallet } from 'lucide-react'
 import * as React from 'react'
 import { toast } from 'sonner'
 
-import { Banner, Button, EmptyState, Field, Monto } from '@/components/ui'
+import { Banner, Button, EmptyState, Field, Kbd, Monto } from '@/components/ui'
 import { calcularTotales } from '@/lib/calculo'
 import { money } from '@/lib/formato'
 import type { Arancel, BorradorPresupuesto, ItemBorrador, Prestacion } from '@/lib/types'
 
+import { abrirBuscador } from './atajos'
 import { itemComoParticular, itemDesdeArancel } from './borrador'
 import { Capa, enfocar } from './capa'
 import { buscarAranceles } from './consultas'
@@ -30,6 +31,11 @@ import { ListaItems } from './items'
 import { PickerPrestacion } from './pickers'
 
 const ID_BUSCADOR = 'w2-prestacion'
+
+/** Deja el buscador de prestaciones listo para tipear. Lo usa el atajo `/`. */
+export function enfocarBuscadorPrestacion(): void {
+  abrirBuscador(ID_BUSCADOR)
+}
 
 /** Prestación elegida que quedó esperando una decisión de arancel. */
 interface Pendiente {
@@ -54,14 +60,73 @@ export function PasoQue({
   const [capa, setCapa] = React.useState<CapaAbierta>(null)
   const [pendiente, setPendiente] = React.useState<Pendiente | null>(null)
   const [buscando, setBuscando] = React.useState(false)
+  /** Nombre del último ítem agregado: confirma sin robar el foco. */
+  const [ultimo, setUltimo] = React.useState<string | null>(null)
 
   const nombreObraSocial = borrador.obra_social_nombre ?? 'Particular'
   const totales = calcularTotales(borrador.items)
 
-  function agregar(item: ItemBorrador) {
+  /**
+   * Ids ya cargados, memoizados.
+   *
+   * Sin esto la lista se rearmaba en cada tecla de cualquier campo del
+   * paso —incluido el detalle de cada ítem—, y con la biblioteca entera
+   * adentro eso se siente al escribir.
+   */
+  const yaCargadas = React.useMemo(
+    () =>
+      borrador.items
+        .map((i) => i.prestacion_id)
+        .filter((id): id is string => id !== null),
+    [borrador.items],
+  )
+
+  /**
+   * Un plan de tratamiento son cinco o seis prestaciones seguidas.
+   *
+   * Después de agregar una, el buscador vuelve a quedar abierto y con
+   * el cursor adentro: se sigue tipeando la próxima sin tocar el mouse
+   * ni apretar una tecla de más. En mobile no se reabre —abriría el
+   * teclado virtual encima de la lista recién cargada— y alcanza con
+   * que el foco vuelva al campo.
+   */
+  function agregar(item: ItemBorrador, seguirCargando = true) {
     setItems((items) => [...items, item])
     setPendiente(null)
-    enfocar(ID_BUSCADOR)
+    setUltimo(item.nombre)
+    if (seguirCargando && esDesktop) abrirBuscador(ID_BUSCADOR)
+    else enfocar(ID_BUSCADOR)
+  }
+
+  /**
+   * Quitar con vuelta atrás.
+   *
+   * Una fila del paso 2 no es sólo un renglón: puede llevar el detalle
+   * de la pieza, un monto editado a mano y el motivo del override. Con
+   * el botón de quitar al lado del de editar y un dedo en el celular,
+   * un toque de más costaba volver a cargar todo eso de memoria.
+   */
+  function quitar(key: string) {
+    const posicion = borrador.items.findIndex((i) => i.key === key)
+    const quitado = borrador.items[posicion]
+    setItems((items) => items.filter((i) => i.key !== key))
+    if (!quitado) return
+
+    toast(`${quitado.nombre} ya no está en el presupuesto`, {
+      action: {
+        label: 'Deshacer',
+        onClick: () =>
+          setItems((items) => {
+            // Idempotente: dos toques en "Deshacer" no lo duplican.
+            if (items.some((i) => i.key === quitado.key)) return items
+            // Vuelve a su lugar, no al final: el orden del presupuesto
+            // es el orden del tratamiento.
+            const copia = [...items]
+            copia.splice(Math.min(posicion, copia.length), 0, quitado)
+            return copia
+          }),
+      },
+    })
   }
 
   async function elegirPrestacion(prestacion: Prestacion) {
@@ -98,7 +163,9 @@ export function PasoQue({
           onCancelar={() => setCapa(null)}
           onListo={(prestacion, arancel) => {
             setCapa(null)
-            agregar(itemDesdeArancel(prestacion, arancel))
+            // Recién creada: primero se mira cómo quedó, no se sigue
+            // buscando a ciegas.
+            agregar(itemDesdeArancel(prestacion, arancel), false)
           }}
         />
       </Capa>
@@ -124,7 +191,7 @@ export function PasoQue({
             onListo={(arancel) => {
               const prestacion = capa.prestacion
               setCapa(null)
-              agregar(itemDesdeArancel(prestacion, arancel))
+              agregar(itemDesdeArancel(prestacion, arancel), false)
             }}
           />
         )}
@@ -134,7 +201,17 @@ export function PasoQue({
         <Field
           label="Agregar prestación"
           htmlFor={ID_BUSCADOR}
-          helper={`Se autocompleta con el arancel vigente para ${nombreObraSocial}.`}
+          helper={
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>
+                Se autocompleta con el arancel vigente para {nombreObraSocial}. Elegí una y el
+                buscador queda listo para la próxima.
+              </span>
+              <span className="hidden items-center gap-1 md:inline-flex">
+                <Kbd>/</Kbd> para volver acá
+              </span>
+            </span>
+          }
         >
           <div className="flex items-center gap-2">
             <div className="min-w-0 flex-1">
@@ -142,15 +219,20 @@ export function PasoQue({
                 id={ID_BUSCADOR}
                 onChange={(p) => void elegirPrestacion(p)}
                 onCrear={(texto) => setCapa({ tipo: 'prestacion', texto })}
-                yaCargadas={borrador.items
-                  .map((i) => i.prestacion_id)
-                  .filter((id): id is string => id !== null)}
+                yaCargadas={yaCargadas}
                 disabled={buscando}
               />
             </div>
             {buscando && <Loader2 className="size-4 animate-spin text-faint" aria-hidden />}
           </div>
         </Field>
+
+        {/* En pantalla la confirmación es la fila nueva y el total que
+            cambia. Con lector de pantalla eso no se ve, y como el foco
+            se queda en el buscador tampoco se oye: de ahí este aviso. */}
+        <p role="status" aria-live="polite" className="sr-only">
+          {ultimo ? `${ultimo} agregada. ${borrador.items.length} en el presupuesto.` : ''}
+        </p>
 
         {pendiente && (
           <Banner
@@ -230,7 +312,7 @@ export function PasoQue({
             onCambiar={(key, nuevo) =>
               setItems((items) => items.map((i) => (i.key === key ? nuevo : i)))
             }
-            onQuitar={(key) => setItems((items) => items.filter((i) => i.key !== key))}
+            onQuitar={quitar}
           />
         )}
 

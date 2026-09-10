@@ -144,8 +144,36 @@ export interface ColumnaObraSocial {
   activa: boolean
 }
 
-/** Una vigencia abierta, tal como la trae `aranceles_vigentes`. */
-export interface CeldaVigente {
+/**
+ * Fecha de vigencia normalizada a `YYYY-MM-DD`.
+ *
+ * Las columnas son `date`, pero la API devuelve
+ * `2026-06-11T00:00:00.000Z`. Con eso pasan dos cosas, las dos malas:
+ *
+ * - `parseISO` lo lee como un instante UTC y, en Argentina (UTC-3), se
+ *   formatea como el día anterior: la pantalla que existe para sostener
+ *   lo que se le prometió al paciente mostraba «desde el 10 de junio»
+ *   una vigencia que arranca el 11.
+ * - Las comparaciones contra `hoy` (`YYYY-MM-DD`) son de texto: el
+ *   sufijo horario hace que una vigencia que arranca HOY dé
+ *   `vigente_desde > hoy` y se muestre como «todavía no arrancó».
+ *
+ * Se recorta al entrar y todo lo demás compara y formatea días.
+ */
+export function soloFecha(valor: string): string {
+  return valor.slice(0, 10)
+}
+
+/**
+ * Una vigencia de `aranceles`, con lo que la pantalla necesita de ella.
+ *
+ * `vigente_hasta === null` marca **la vigencia abierta** de la celda, que
+ * no siempre es la que se cotiza hoy: si hay un aumento programado, la de
+ * hoy ya quedó cerrada con fecha futura y la abierta es la programada. Es
+ * la abierta la que `nueva_vigencia()` y `aumento_masivo()` tocan, así que
+ * cualquier preview que prometa un número tiene que mirar ésta.
+ */
+export interface Arancel {
   id: string
   prestacion_id: string
   obra_social_id: string | null
@@ -153,14 +181,21 @@ export interface CeldaVigente {
   cobertura_tipo: CoberturaTipo
   cobertura_valor: number
   vigente_desde: string
+  vigente_hasta: string | null
+}
+
+/** La vigencia que rige HOY, tal como la trae `aranceles_vigentes`. */
+export interface CeldaVigente extends Arancel {
   /** Presupuestos emitidos que la usan. Arriba de 0 ya no se edita. */
   usos: number
-  /**
-   * Aumento ya cargado que todavía no arrancó. La celda sigue mostrando
-   * lo que se cotiza hoy; esto avisa que hay uno esperando, para que
-   * nadie lo cargue dos veces creyendo que se perdió.
-   */
-  programado?: { monto: number; vigente_desde: string } | null
+}
+
+/** Una vigencia ya cargada que todavía no arrancó (`aranceles_programados`). */
+export type ArancelProgramado = Arancel
+
+/** ¿Es la vigencia abierta de su celda? Es la que se cierra al cargar otra. */
+export function esAbierta(a: Arancel): boolean {
+  return a.vigente_hasta === null
 }
 
 /** Una vigencia cualquiera (abierta o cerrada) para el histórico. */
@@ -185,7 +220,21 @@ export interface Celda {
   prestacion: string
   obra_social_id: string | null
   obra_social: string
+  /** Lo que se cotiza hoy. `null` = todavía no hay precio para hoy. */
   vigente: CeldaVigente | null
+  /**
+   * La próxima vigencia ya cargada, la más cercana en el tiempo. La
+   * celda sigue mostrando lo de hoy; esto avisa que hay una esperando,
+   * para que nadie la cargue dos veces creyendo que se perdió.
+   */
+  programada: ArancelProgramado | null
+  /**
+   * La vigencia abierta: la que se cierra al cargar la siguiente y
+   * contra la que valida `nueva_vigencia()`. No siempre es la de hoy ni
+   * la primera programada — con dos aumentos encadenados, la abierta es
+   * la última.
+   */
+  abierta: Arancel | null
 }
 
 export type VistaAranceles = 'vigentes' | 'historico'

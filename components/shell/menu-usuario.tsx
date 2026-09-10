@@ -1,17 +1,25 @@
 'use client'
 
-import { LogOut, ShieldCheck, UserRound } from 'lucide-react'
+import { Keyboard, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
-import * as React from 'react'
 
-import { cerrarSesion } from '@/app/actions/auth'
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/components/ui'
-import { borrarBorrador } from '@/lib/draft'
+import {
+  Kbd,
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuLabel,
+  MenuSeparator,
+  MenuTrigger,
+} from '@/components/ui'
 import { iniciales } from '@/lib/formato'
 import type { Perfil } from '@/lib/supabase/server'
 
-export function MenuUsuario({ perfil }: { perfil: Perfil }) {
-  const [saliendo, empezarSalida] = React.useTransition()
+import { TECLA_AYUDA } from './atajos'
+import { useSalir } from './salir'
+
+export function MenuUsuario({ perfil, onAtajos }: { perfil: Perfil; onAtajos: () => void }) {
+  const { saliendo, salir } = useSalir()
 
   return (
     <Menu>
@@ -50,6 +58,20 @@ export function MenuUsuario({ perfil }: { perfil: Perfil }) {
           </Link>
         </MenuItem>
 
+        {/* La única forma de enterarse de que hay atajos. */}
+        <MenuItem
+          onSelect={() => {
+            // Radix cierra el menú y devuelve el foco al trigger al
+            // desmontarlo. Si el modal se abre en el mismo tick, esa
+            // restauración le roba el foco recién montado.
+            setTimeout(onAtajos, 0)
+          }}
+        >
+          <Keyboard aria-hidden />
+          <span className="flex-1">Atajos de teclado</span>
+          <Kbd>{TECLA_AYUDA}</Kbd>
+        </MenuItem>
+
         <MenuSeparator />
 
         <MenuItem
@@ -59,12 +81,7 @@ export function MenuUsuario({ perfil }: { perfil: Perfil }) {
             // Sin `preventDefault` Radix desmonta el menú antes de que la
             // action llegue a despacharse.
             evento.preventDefault()
-            empezarSalida(async () => {
-              // El borrador vive en el navegador con datos del paciente:
-              // en una máquina compartida no puede sobrevivir al logout.
-              borrarBorrador()
-              await cerrarSesion()
-            })
+            salir()
           }}
         >
           <LogOut aria-hidden />

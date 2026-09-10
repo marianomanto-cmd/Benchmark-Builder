@@ -185,6 +185,50 @@ export async function crearPaciente(entrada: EntradaPaciente): Promise<Resultado
   return { ok: true, data: data as Paciente }
 }
 
+/** Tope de resultados de una búsqueda: más que esto no se mira, se afina. */
+const LIMITE_BUSQUEDA = 60
+
+/**
+ * Búsqueda de pacientes contra la base.
+ *
+ * La biblioteca trae las primeras N fichas por orden alfabético y
+ * filtra en el cliente, que es instantáneo mientras se tipea. Pero con
+ * la lista recortada ese filtro sólo mira lo que llegó: el paciente
+ * número 900 no aparecía nunca, aunque la pantalla invitara a escribir
+ * su apellido. Cuando hay más fichas que el tope, la búsqueda pasa por
+ * acá.
+ *
+ * El DNI se busca dígito por dígito para que `30123456` encuentre
+ * también `30.123.456`: en el mostrador se carga de las dos maneras.
+ */
+export async function buscarPacientes(termino: string): Promise<Resultado<Paciente[]>> {
+  const supabase = await conSesion()
+  if (!supabase) return { ok: false, error: SIN_SESION }
+
+  // Los metacaracteres de PostgREST (coma, paréntesis, comillas) parten
+  // el filtro `or` en dos: se sacan antes de armarlo.
+  const limpio = termino.trim().replace(/[,()"\\%*]/g, ' ').replace(/\s+/g, ' ')
+  if (limpio.length < 2) return { ok: true, data: [] }
+
+  const filtros = [`nombre.ilike.%${limpio}%`]
+
+  const digitos = limpio.replace(/\D/g, '')
+  if (digitos.length >= 3) {
+    filtros.push(`dni.ilike.%${digitos.split('').join('%')}%`)
+  }
+
+  const { data, error } = await supabase
+    .from('pacientes')
+    .select('*')
+    .or(filtros.join(','))
+    .order('nombre')
+    .limit(LIMITE_BUSQUEDA)
+
+  if (error) return { ok: false, error: mensajeDeError(error.message) }
+
+  return { ok: true, data: (data ?? []) as Paciente[] }
+}
+
 export async function actualizarPaciente(
   id: string,
   entrada: EntradaPaciente,

@@ -29,7 +29,7 @@ export default async function MiCuentaPage() {
           </p>
         </CardHeader>
         <CardBody>
-          <FormMiContrasena />
+          <FormMiContrasena usuario={perfil.usuario} />
         </CardBody>
       </Card>
     </div>

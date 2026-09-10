@@ -6,12 +6,19 @@ import {
   Button,
   EstadoBadge,
   Field,
+  MicroBadge,
   RadioGroup,
   RadioItem,
   ResponsiveModal,
   Textarea,
 } from '@/components/ui'
-import { ESTADOS, ETIQUETA_MOTIVO, MOTIVOS } from '@/lib/estados'
+import {
+  ESTADOS,
+  ETIQUETA_ESTADO,
+  ETIQUETA_MOTIVO,
+  MOTIVOS,
+  transicionesSugeridas,
+} from '@/lib/estados'
 import type { EstadoPresupuesto, MotivoPerdida } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -63,6 +70,9 @@ export function DialogoEstado({
 
   const esPerdido = destino === 'perdido'
   const sinCambio = destino === estadoActual
+  // El paso natural desde donde está parado: en una lista de siete
+  // estados, decir cuál es el de siempre ahorra leerlos todos.
+  const sugeridas = transicionesSugeridas(estadoActual)
 
   async function confirmar() {
     const ok = await onConfirmar(
@@ -124,9 +134,12 @@ export function DialogoEstado({
                       destino === estado && 'bg-tint',
                     )}
                   >
-                    <RadioItem value={estado} aria-label={estado} />
+                    <RadioItem value={estado} aria-label={ETIQUETA_ESTADO[estado]} />
                     <EstadoBadge estado={estado} size="sm" />
                     {actual && <span className="t-helper">estado actual</span>}
+                    {!actual && sugeridas.includes(estado) && (
+                      <MicroBadge tono="primary">el paso siguiente</MicroBadge>
+                    )}
                   </div>
                 )
               })}

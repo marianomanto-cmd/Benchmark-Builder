@@ -1,32 +1,22 @@
 'use client'
 
-import { KeyRound, LogIn, TriangleAlert, User } from 'lucide-react'
+import { Eye, EyeOff, KeyRound, LogIn, TriangleAlert, User } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import * as React from 'react'
 
 import { Banner, Button, Card, CardBody, Field, Input } from '@/components/ui'
-import { mailDeUsuario, normalizarUsuario } from '@/lib/auth/usuarios'
+import { mailDeUsuario, normalizarUsuario, traducirErrorAuth } from '@/lib/auth/usuarios'
 import { createClient } from '@/lib/supabase/client'
 
 const MENSAJES: Record<string, string> = {
   sesion_expirada: 'Se cerró la sesión por inactividad. Volvé a entrar.',
+  sin_permiso: 'Esa pantalla es sólo para quien administra el consultorio.',
 }
 
-/** Traduce lo que devuelve Supabase a algo que se entienda en el mostrador. */
-function mensajeDeError(error: { message?: string; status?: number }): string {
-  const texto = (error.message ?? '').toLowerCase()
-
-  if (texto.includes('invalid login credentials')) {
-    return 'Usuario o contraseña incorrectos.'
-  }
-  if (error.status === 429 || texto.includes('rate limit') || texto.includes('too many')) {
-    return 'Demasiados intentos seguidos. Esperá un minuto y probá de nuevo.'
-  }
-  if (texto.includes('email logins are disabled') || texto.includes('not enabled')) {
-    return 'El login con contraseña está apagado en Supabase. Activá Authentication → Providers → Email.'
-  }
-  return 'No se pudo entrar. Probá de nuevo en un momento.'
-}
+/** A partir de acá el silencio se avisa: algo está tardando. */
+const AVISO_LENTO_MS = 6_000
+/** Y a partir de acá se corta: la pantalla no se queda colgada para siempre. */
+const LIMITE_MS = 25_000
 
 /** Sólo rutas internas: `//evil.com` sería un dominio externo. */
 function destinoSeguro(desde: string | null): string {
@@ -38,41 +28,110 @@ function destinoSeguro(desde: string | null): string {
 
 export function LoginForm({
   errorInicial,
-  adminReciénCreado,
+  aviso,
 }: {
   errorInicial: string | null
-  adminReciénCreado: boolean
+  /** Server component en streaming: el cartel del admin inicial. */
+  aviso?: React.ReactNode
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [usuario, setUsuario] = React.useState('')
-  const [contrasena, setContrasena] = React.useState('')
+  const claveRef = React.useRef<HTMLInputElement>(null)
+  const [verClave, setVerClave] = React.useState(false)
+  const [mayusculas, setMayusculas] = React.useState(false)
+
+  /**
+   * `entrando` no se apaga cuando la respuesta llega bien: se apaga
+   * cuando la pantalla cambia. Apagarlo antes devolvía el botón a
+   * «Entrar» mientras la navegación viajaba, y en una conexión lenta eso
+   * se lee como que no pasó nada — y se vuelve a clickear.
+   */
   const [entrando, setEntrando] = React.useState(false)
+  /**
+   * El `disabled` del botón necesita un render, y ⏎ puede repetirse
+   * antes: dos altas de sesión seguidas se comen el límite de intentos
+   * de GoTrue y devuelven un 429 que parece contraseña mal puesta.
+   */
+  const enviandoRef = React.useRef(false)
+  const [lento, setLento] = React.useState(false)
   const [error, setError] = React.useState<string | null>(
-    errorInicial ? (MENSAJES[errorInicial] ?? null) : null,
+    errorInicial ? (MENSAJES[errorInicial] ?? 'No se pudo entrar. Probá de nuevo.') : null,
   )
+
+  function fallar(mensaje: string) {
+    enviandoRef.current = false
+    setError(mensaje)
+    setEntrando(false)
+    setLento(false)
+    // El foco vuelve a la contraseña: es lo que se vuelve a escribir, y
+    // moverlo hace que el lector de pantalla llegue al aviso.
+    const campo = claveRef.current
+    if (campo) {
+      campo.focus()
+      campo.select()
+    }
+  }
 
   async function onSubmit(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    setError(null)
+    if (enviandoRef.current) return
+    enviandoRef.current = true
 
-    const nombre = normalizarUsuario(usuario)
-    if (!nombre || !contrasena) {
+    /**
+     * Los valores salen del formulario, no de un `useState`.
+     *
+     * El gestor de contraseñas del navegador escribe los dos campos de
+     * una y no siempre dispara el `change` de React —sobre todo si
+     * completa antes de que hidrate—: con campos controlados el
+     * formulario se veía lleno y «Entrar» contestaba «Completá usuario y
+     * contraseña». Leyendo del DOM eso no puede pasar.
+     */
+    const datos = new FormData(evento.currentTarget)
+    const usuario = normalizarUsuario(String(datos.get('username') ?? ''))
+    const contrasena = String(datos.get('password') ?? '')
+
+    if (!usuario || !contrasena) {
+      enviandoRef.current = false
       setError('Completá usuario y contraseña.')
+      const campo = usuario ? claveRef.current : evento.currentTarget.elements.namedItem('usuario')
+      if (campo instanceof HTMLElement) campo.focus()
       return
     }
 
+    setError(null)
     setEntrando(true)
+    setLento(false)
+
+    const avisoLento = window.setTimeout(() => setLento(true), AVISO_LENTO_MS)
+    let corte: number | undefined
+
     try {
       const supabase = createClient()
-      const { error: errorEntrada } = await supabase.auth.signInWithPassword({
-        email: mailDeUsuario(nombre),
+      const entrada = supabase.auth.signInWithPassword({
+        email: mailDeUsuario(usuario),
         password: contrasena,
       })
 
-      if (errorEntrada) {
-        setError(mensajeDeError(errorEntrada))
+      // `signInWithPassword` no acepta un `AbortSignal`, así que el
+      // corte es una carrera: si Supabase no contesta, la pantalla deja
+      // de esperar y dice qué hacer en vez de girar para siempre.
+      const respuesta = await Promise.race([
+        entrada,
+        new Promise<'tarde'>((resolver) => {
+          corte = window.setTimeout(() => resolver('tarde'), LIMITE_MS)
+        }),
+      ])
+
+      if (respuesta === 'tarde') {
+        fallar('Supabase no contestó. Fijate la conexión y probá de nuevo.')
+        return
+      }
+
+      if (respuesta.error) {
+        fallar(
+          traducirErrorAuth(respuesta.error.message, { status: respuesta.error.status, usuario }),
+        )
         return
       }
 
@@ -80,10 +139,16 @@ export function LoginForm({
       router.replace(destinoSeguro(searchParams.get('desde')))
       router.refresh()
     } catch {
-      setError('No se pudo conectar. Fijate la conexión y probá de nuevo.')
+      fallar('No se pudo conectar. Fijate la conexión y probá de nuevo.')
     } finally {
-      setEntrando(false)
+      window.clearTimeout(avisoLento)
+      if (corte !== undefined) window.clearTimeout(corte)
     }
+  }
+
+  /** Bloq Mayús con una contraseña oculta explica el 90 % de los «no entra». */
+  function mirarMayusculas(evento: React.KeyboardEvent<HTMLInputElement>) {
+    setMayusculas(evento.getModifierState?.('CapsLock') ?? false)
   }
 
   return (
@@ -94,28 +159,25 @@ export function LoginForm({
           Entrá con el usuario y la contraseña del consultorio.
         </p>
 
-        {adminReciénCreado && (
-          <Banner
-            className="mt-5"
-            tono="info"
-            titulo="Se creó el usuario administrador"
-          >
-            Usuario <strong className="font-semibold">admin</strong>, contraseña{' '}
-            <strong className="font-semibold">smilelab</strong>. Cambiala desde Equipo apenas
-            entres.
-          </Banner>
-        )}
+        {aviso}
 
-        {error && (
-          <Banner
-            className="mt-5"
-            tono="warm"
-            icono={<TriangleAlert className="size-4" />}
-            titulo="No se pudo entrar"
-          >
-            {error}
-          </Banner>
-        )}
+        {/*
+          La región vive siempre, aunque esté vacía: un `aria-live` que
+          se monta junto con el mensaje no se anuncia. Sin esto el error
+          aparecía en pantalla y el lector de pantalla no decía nada.
+        */}
+        <div aria-live="polite" aria-atomic="true">
+          {error && (
+            <Banner
+              className="mt-5"
+              tono="warm"
+              icono={<TriangleAlert className="size-4" />}
+              titulo="No se pudo entrar"
+            >
+              {error}
+            </Banner>
+          )}
+        </div>
 
         <form className="mt-5 flex flex-col gap-4" onSubmit={onSubmit} noValidate>
           <Field label="Usuario" htmlFor="usuario">
@@ -132,10 +194,9 @@ export function LoginForm({
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
+                enterKeyHint="next"
                 placeholder="admin"
                 className="h-12 pl-9 text-[16px]"
-                value={usuario}
-                onChange={(e) => setUsuario(e.target.value)}
               />
             </div>
           </Field>
@@ -147,25 +208,54 @@ export function LoginForm({
                 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint"
               />
               <Input
+                ref={claveRef}
                 id="contrasena"
                 name="password"
-                type="password"
+                type={verClave ? 'text' : 'password'}
                 autoComplete="current-password"
+                enterKeyHint="go"
                 placeholder="••••••••"
-                className="h-12 pl-9 text-[16px]"
-                value={contrasena}
-                onChange={(e) => setContrasena(e.target.value)}
+                className="h-12 pl-9 pr-12 text-[16px]"
+                onKeyDown={mirarMayusculas}
+                onKeyUp={mirarMayusculas}
+                onBlur={() => setMayusculas(false)}
               />
+              <button
+                type="button"
+                onClick={() => {
+                  setVerClave((v) => !v)
+                  claveRef.current?.focus()
+                }}
+                aria-label={verClave ? 'Ocultar la contraseña' : 'Mostrar la contraseña'}
+                aria-pressed={verClave}
+                className="absolute right-1 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-pill text-faint transition-colors hover:bg-tint hover:text-ink"
+              >
+                {verClave ? (
+                  <EyeOff className="size-4 stroke-[1.75]" aria-hidden />
+                ) : (
+                  <Eye className="size-4 stroke-[1.75]" aria-hidden />
+                )}
+              </button>
             </div>
           </Field>
+
+          {mayusculas && (
+            <p className="-mt-2 t-helper text-warm-ink" role="status">
+              Bloq Mayús está activado.
+            </p>
+          )}
 
           <Button type="submit" variant="primary" size="touch" full loading={entrando}>
             {!entrando && <LogIn aria-hidden />}
             {entrando ? 'Entrando…' : 'Entrar'}
           </Button>
+
+          <p className="min-h-4 text-center t-helper" aria-live="polite">
+            {lento && entrando ? 'Está tardando más de lo normal. Seguimos esperando…' : ''}
+          </p>
         </form>
 
-        <p className="mt-4 t-helper">
+        <p className="mt-1 t-helper">
           ¿No tenés usuario? Pediselo a quien administra el consultorio.
         </p>
       </CardBody>

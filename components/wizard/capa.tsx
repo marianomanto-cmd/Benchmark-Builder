@@ -79,6 +79,48 @@ export function Capa({
 }
 
 /**
+ * Marco de un mini-form: lo único que agrega es el Enter.
+ *
+ * Los mini-forms no son `<form>` —viven adentro del modal del wizard,
+ * que ya es uno— así que el navegador no les daba el "Enter manda" que
+ * cualquiera espera de un formulario: había que llegar al botón con
+ * Tab o con el mouse. Crear un paciente al vuelo en el mostrador,
+ * mientras el paciente espera del otro lado, es exactamente el momento
+ * en el que ese viaje al mouse se nota.
+ *
+ * Enter manda desde un input de una línea; desde un textarea hace falta
+ * ⌘/Ctrl + Enter, para no cortar un párrafo a la mitad. Los botones y
+ * los comboboxes conservan su Enter: el suyo abre o elige.
+ */
+export function MarcoCapa({
+  onEnviar,
+  children,
+}: {
+  onEnviar: () => void
+  children: React.ReactNode
+}) {
+  function alTeclear(evento: React.KeyboardEvent<HTMLDivElement>) {
+    if (evento.key !== 'Enter') return
+    const destino = evento.target
+    const conModificador = evento.metaKey || evento.ctrlKey
+
+    if (!conModificador) {
+      if (!(destino instanceof HTMLInputElement)) return
+    } else if (
+      !(destino instanceof HTMLInputElement) &&
+      !(destino instanceof HTMLTextAreaElement)
+    ) {
+      return
+    }
+
+    evento.preventDefault()
+    onEnviar()
+  }
+
+  return <div onKeyDown={alTeclear}>{children}</div>
+}
+
+/**
  * Encabezado común de los mini-forms: volver + título + por qué estás
  * acá. El "porqué" no es decorativo — en el mini-form de arancel es la
  * única explicación de por qué el flujo se interrumpió.

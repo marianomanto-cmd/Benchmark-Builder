@@ -23,5 +23,11 @@ export default async function EquipoPage() {
 
   const equipo = await listarEquipo()
 
-  return <PantallaEquipo equipo={equipo} usuarioActual={perfil.usuario} />
+  return (
+    <PantallaEquipo
+      equipo={equipo}
+      usuarioActual={perfil.usuario}
+      profesionalActual={perfil.profesionalId}
+    />
+  )
 }
