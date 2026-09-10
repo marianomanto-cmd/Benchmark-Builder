@@ -108,6 +108,15 @@ export interface Perfil {
   nombre: string
   matricula: string | null
   esAdmin: boolean
+  /**
+   * Si la ficha del equipo está dada de alta.
+   *
+   * `false` sólo cuando existe una ficha y dice que no. Un usuario SIN
+   * ficha sigue entrando —es el fallback documentado para quien todavía
+   * no está en `profesionales`—; lo que no puede pasar es que una baja
+   * explícita no signifique nada.
+   */
+  activo: boolean
 }
 
 /**
@@ -127,11 +136,14 @@ export const getPerfil = cache(async function getPerfil(): Promise<Perfil | null
   const supabase = await createClient()
   const { data: profesional } = await supabase
     .from('profesionales')
-    .select('id, nombre, matricula, es_admin')
+    .select('id, nombre, matricula, es_admin, activo')
     .eq('user_id', user.id)
     .maybeSingle()
 
   const usuario = usuarioDeMail(user.email)
+  // Sin ficha se entra igual (fallback documentado); con una ficha que
+  // dice `activo = false`, no.
+  const activo = profesional ? profesional.activo !== false : true
 
   return {
     userId: user.id,
@@ -139,6 +151,10 @@ export const getPerfil = cache(async function getPerfil(): Promise<Perfil | null
     profesionalId: profesional?.id ?? null,
     nombre: profesional?.nombre?.trim() || usuario || 'Sin nombre',
     matricula: profesional?.matricula ?? null,
-    esAdmin: Boolean(profesional?.es_admin),
+    // Una ficha dada de baja no administra nada. Antes ni el código ni
+    // `es_admin()` en SQL miraban `activo`, así que una baja seguía
+    // pasando por `exigirAdmin()` — y podía deshacerse su propia baja.
+    esAdmin: Boolean(profesional?.es_admin) && activo,
+    activo,
   }
 })

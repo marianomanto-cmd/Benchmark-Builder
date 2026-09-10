@@ -5,7 +5,7 @@ import { Command } from 'cmdk'
 import { Check, ChevronsUpDown, Loader2, Plus, Search } from 'lucide-react'
 import * as React from 'react'
 
-import { normalizar } from '@/lib/formato'
+import { coincide } from '@/lib/busqueda'
 import { cn } from '@/lib/utils'
 
 export interface OpcionCombobox {
@@ -69,10 +69,17 @@ export function Combobox({
   )
 
   const filtradas = React.useMemo(() => {
-    const q = normalizar(texto)
-    if (!q) return opciones
+    if (!texto.trim()) return opciones
+    /*
+     * `coincide()` y no un `includes()` del término entero: los
+     * pacientes se guardan «Apellido, Nombre», así que buscar la frase
+     * como una subcadena literal fallaba con «gomez renata», con
+     * «Renata Gómez» y hasta con el nombre copiado del propio listado.
+     * Y un DNI se guarda con puntos y se tipea sin ellos. Es la misma
+     * regla que usa el listado contra la base — ver `lib/busqueda.ts`.
+     */
     return opciones.filter((o) =>
-      normalizar(`${o.label} ${o.detalle ?? ''} ${o.busqueda ?? ''}`).includes(q),
+      coincide(`${o.label} ${o.detalle ?? ''} ${o.busqueda ?? ''}`, texto),
     )
   }, [opciones, texto])
 

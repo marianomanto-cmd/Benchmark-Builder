@@ -17,6 +17,7 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { palabrasBusqueda, patronDeDigitos } from '@/lib/busqueda'
 import { paraMostrar } from '@/lib/errores'
 import { createClient, getUsuario } from '@/lib/supabase/server'
 import type { ObraSocial, Paciente, Prestacion, Profesional } from '@/lib/types'
@@ -211,22 +212,27 @@ export async function buscarPacientes(termino: string): Promise<Resultado<Pacien
   const supabase = await conSesion()
   if (!supabase) return { ok: false, error: SIN_SESION }
 
-  // Los metacaracteres de PostgREST (coma, paréntesis, comillas) parten
-  // el filtro `or` en dos: se sacan antes de armarlo.
-  const limpio = termino.trim().replace(/[,()"\\%*]/g, ' ').replace(/\s+/g, ' ')
-  if (limpio.length < 2) return { ok: true, data: [] }
+  /*
+   * Contra `busqueda`, que la base mantiene normalizada (nombre, DNI y
+   * afiliado, sin acentos y en minúsculas), y palabra por palabra.
+   *
+   * Es el picker donde más caro sale no encontrar: si «Gomez» no trae a
+   * «Gómez, Renata», lo que la pantalla ofrece a continuación es «Crear
+   * paciente», y la agenda termina con dos fichas de la misma persona y
+   * el historial partido entre las dos.
+   */
+  const palabras = palabrasBusqueda(termino)
+  if (palabras.join('').length < 2) return { ok: true, data: [] }
 
-  const filtros = [`nombre.ilike.%${limpio}%`]
-
-  const digitos = limpio.replace(/\D/g, '')
-  if (digitos.length >= 3) {
-    filtros.push(`dni.ilike.%${digitos.split('').join('%')}%`)
+  let consulta = supabase.from('pacientes').select('*')
+  for (const palabra of palabras) {
+    const digitos = patronDeDigitos(palabra)
+    consulta = digitos
+      ? consulta.or(`busqueda.like.%${palabra}%,busqueda.like.${digitos}`)
+      : consulta.like('busqueda', `%${palabra}%`)
   }
 
-  const { data, error } = await supabase
-    .from('pacientes')
-    .select('*')
-    .or(filtros.join(','))
+  const { data, error } = await consulta
     .order('nombre')
     .limit(LIMITE_BUSQUEDA)
 

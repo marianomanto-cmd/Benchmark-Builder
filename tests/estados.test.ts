@@ -30,12 +30,20 @@ test('los ocho estados tienen etiqueta y estilo', () => {
 })
 
 test('el kanban tiene cinco columnas y perdido no es una de ellas', () => {
-  assert.equal(ESTADOS_PIPELINE.length, 5)
+  // Seis estados en cinco columnas: aceptado e iniciado comparten la
+  // última. El KPI de la home linkea al tablero, así que los dos tienen
+  // que sumar exactamente lo mismo.
+  assert.equal(ESTADOS_PIPELINE.length, 6)
+  assert.ok(ESTADOS_PIPELINE.includes('iniciado'), 'un tratamiento iniciado sigue en juego')
   assert.ok(!ESTADOS_PIPELINE.includes('perdido'), 'perdido va al pie, no como columna')
   assert.ok(!ESTADOS_PIPELINE.includes('borrador'), 'un borrador todavía no está en juego')
   assert.equal(Object.keys(ESTADOS_COLUMNA).length, 5)
-  // Aceptado e iniciado comparten columna.
   assert.deepEqual(ESTADOS_COLUMNA.aceptado, ['aceptado', 'iniciado'])
+  // La lista del KPI y la del tablero son la misma, en cualquier orden.
+  assert.deepEqual(
+    [...ESTADOS_PIPELINE].sort(),
+    [...Object.values(ESTADOS_COLUMNA).flat()].sort(),
+  )
 })
 
 test('cada estado del pipeline mapea a alguna columna', () => {

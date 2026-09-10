@@ -309,10 +309,18 @@ function Resumen({ datos }: { datos: Estadisticas }) {
             : `Tardan ${dias(resumen.diasACierre)} en cerrarse`
         }
       />
+      {/*
+        «Esperando respuesta» y no «En juego»: acá se cuenta lo que
+        todavía no se decidió —ni ganado ni perdido—, que es MENOS que
+        lo que el tablero llama «en juego», donde un tratamiento
+        aceptado o iniciado sigue contando. Dos números distintos con la
+        misma etiqueta se leen como una contradicción; con la etiqueta
+        que le corresponde a cada uno, son dos preguntas distintas.
+      */}
       <Tarjeta
-        etiqueta="En juego"
+        etiqueta="Esperando respuesta"
         valor={money(resumen.montoEnJuego)}
-        ayuda={`${numero(resumen.enJuego)} esperando respuesta`}
+        ayuda={`${numero(resumen.enJuego)} sin decisión del paciente`}
       />
     </section>
   )

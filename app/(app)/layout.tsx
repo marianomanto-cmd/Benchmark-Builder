@@ -14,6 +14,10 @@ import { getPerfil } from '@/lib/supabase/server'
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const perfil = await getPerfil()
   if (!perfil) redirect('/login')
+  // La baja tiene que cortar el acceso acá y no sólo en GoTrue: el ban
+  // impide renovar el token, pero el que la persona ya tiene en la
+  // pestaña abierta sigue siendo válido por firma hasta que venza.
+  if (!perfil.activo) redirect('/login?error=dado_de_baja')
 
   return (
     <div className="min-h-dvh bg-page">

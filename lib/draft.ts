@@ -101,7 +101,26 @@ export function leerBorrador(): BorradorPresupuesto | null {
     const crudo = window.localStorage.getItem(CLAVE_BORRADOR)
     if (!crudo) return null
     const dato: unknown = JSON.parse(crudo)
-    return esBorrador(dato) ? normalizar(dato) : null
+    if (!esBorrador(dato)) return null
+
+    const borrador = normalizar(dato)
+
+    /*
+     * Si `normalizar` tuvo que inventar la clave del alta, se persiste
+     * en el acto en vez de esperar al próximo autoguardado.
+     *
+     * La clave es lo que hace que un reintento después de una respuesta
+     * perdida devuelva el documento que ya se emitió en lugar de emitir
+     * otro. Si vive sólo en memoria hasta que el debounce escriba, una
+     * recarga en el medio la reemplaza por otra y el reintento vuelve a
+     * ser peligroso — justo en el escenario donde más importa, que es
+     * el de la conexión inestable.
+     */
+    if (borrador.clave_alta !== (dato as BorradorPresupuesto).clave_alta) {
+      window.localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(borrador))
+    }
+
+    return borrador
   } catch {
     // Storage bloqueado o JSON roto: para el wizard es "no hay borrador".
     return null

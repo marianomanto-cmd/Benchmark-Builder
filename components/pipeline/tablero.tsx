@@ -490,7 +490,26 @@ export function TableroPipeline({
             {/* Sangra hasta los bordes del `<main>` para que el scroll
                 horizontal del tablero no recorte las tarjetas. */}
             <div className="-mx-8 min-h-0 flex-1 overflow-x-auto scroll-visible px-8 pb-1">
-              <div className="grid h-full min-w-[980px] grid-cols-5 gap-3">
+              {/*
+                `grid-rows-1` es `grid-template-rows: minmax(0, 1fr)`, y
+                sin él nada de esto funciona: el `h-full` del grid le
+                daba 574px al contenedor, pero la fila implícita se
+                dimensiona POR CONTENIDO, así que medía 2138px y el
+                `h-full` de cada columna se resolvía contra ESO. Las
+                columnas quedaban de 2138px, su `ul` con
+                `overflow-y-auto` nunca llegaba a scrollear, y quien
+                scrolleaba era el envoltorio entero: girar la rueda se
+                llevaba puestos los cinco encabezados con el nombre de
+                la etapa, el conteo y el monto.
+
+                Y de yapa: con las columnas de 2138px, sus rects de
+                colisión cubrían casi toda la página, así que dnd-kit
+                encontraba una columna «debajo del puntero» en cualquier
+                lado —soltar sobre la barra de filtros cambiaba el
+                estado— y con teclado la franja de perdidos ganaba
+                siempre el `closestCorners`.
+              */}
+              <div className="grid h-full min-w-[980px] grid-cols-5 grid-rows-1 gap-3">
                 {CLAVES_COLUMNA.map((clave) => (
                   <Columna
                     key={clave}

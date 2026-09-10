@@ -1,7 +1,7 @@
 import { subDays } from 'date-fns'
 import { TriangleAlert } from 'lucide-react'
 
-import { parseFiltros, terminoSeguro } from '@/components/home/filtros-url'
+import { parseFiltros } from '@/components/home/filtros-url'
 import { OBRA_SOCIAL_PARTICULAR, type FiltrosHome } from '@/components/home/tipos'
 import { TableroPipeline } from '@/components/pipeline/tablero'
 import {
@@ -15,6 +15,7 @@ import { Banner, Button } from '@/components/ui'
 import { fechaCorta } from '@/lib/formato'
 import { createClient } from '@/lib/supabase/server'
 import type { EstadoPresupuesto, MotivoPerdida } from '@/lib/types'
+import { palabrasBusqueda, patronDeDigitos } from '@/lib/busqueda'
 
 /**
  * Pantalla 12 · Pipeline.
@@ -90,13 +91,28 @@ function periodoDePerdidos(filtros: FiltrosHome): string {
 
 async function consultarPipeline(filtros: FiltrosHome): Promise<DatosPipeline> {
   const supabase = await createClient()
-  const q = terminoSeguro(filtros.q)
-  const busqueda = [
-    `paciente_nombre.ilike.%${q}%`,
-    `paciente_dni.ilike.%${q}%`,
-    `prestacion_principal.ilike.%${q}%`,
-    `numero.ilike.%${q}%`,
-  ].join(',')
+  /*
+   * Mismo criterio que la home: cada palabra por separado contra la
+   * columna `busqueda` de la vista, que ya viene sin acentos. Ver
+   * `lib/busqueda.ts` — los dos listados tienen que encontrar lo mismo,
+   * porque el buscador es el mismo control y la búsqueda viaja en la
+   * URL de una pantalla a la otra.
+   */
+  const palabras = palabrasBusqueda(filtros.q)
+
+  /** Aplica la búsqueda a una consulta ya armada. */
+  function conBusqueda<T extends { like: (c: string, p: string) => T; or: (f: string) => T }>(
+    consulta: T,
+  ): T {
+    let salida = consulta
+    for (const palabra of palabras) {
+      const digitos = patronDeDigitos(palabra)
+      salida = digitos
+        ? salida.or(`busqueda.like.%${palabra}%,busqueda.like.${digitos}`)
+        : salida.like('busqueda', `%${palabra}%`)
+    }
+    return salida
+  }
 
   // ── Las cinco columnas ──────────────────────────────────────
   // Orden por días en el estado: arriba de cada columna queda lo que
@@ -106,7 +122,7 @@ async function consultarPipeline(filtros: FiltrosHome): Promise<DatosPipeline> {
     .select(COLUMNAS_PIPELINE)
     .in('estado', ESTADOS_TABLERO)
 
-  if (q) activos = activos.or(busqueda)
+  activos = conBusqueda(activos)
   if (filtros.profesional) activos = activos.eq('profesional_id', filtros.profesional)
   if (filtros.obraSocial === OBRA_SOCIAL_PARTICULAR) {
     activos = activos.is('obra_social_id', null)
@@ -127,7 +143,7 @@ async function consultarPipeline(filtros: FiltrosHome): Promise<DatosPipeline> {
     .select(COLUMNAS_PIPELINE)
     .eq('estado', 'perdido')
 
-  if (q) perdidos = perdidos.or(busqueda)
+  perdidos = conBusqueda(perdidos)
   if (filtros.profesional) perdidos = perdidos.eq('profesional_id', filtros.profesional)
   if (filtros.obraSocial === OBRA_SOCIAL_PARTICULAR) {
     perdidos = perdidos.is('obra_social_id', null)

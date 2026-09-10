@@ -23,13 +23,27 @@ export const ESTADOS: EstadoPresupuesto[] = [
   'perdido',
 ]
 
-/** Los cinco estados activos que son columna del pipeline. */
+/**
+ * Los estados que están EN JUEGO: los que el tablero muestra.
+ *
+ * Son seis en cinco columnas, porque `aceptado` e `iniciado` comparten
+ * la última. Faltaba `iniciado`, y como el KPI «Monto en pipeline» de
+ * la home se arma con esta lista mientras el tablero se arma con
+ * `ESTADOS_TABLERO`, la tarjeta decía $ 8.894.100, el usuario la
+ * clickeaba —es un `<Link href="/pipeline">`— y la pantalla siguiente
+ * decía $ 9.618.700, sin nada que explicara el salto.
+ *
+ * El pipeline va «del primer envío al tratamiento iniciado», así que un
+ * tratamiento ya iniciado sigue estando en juego: la plata todavía no
+ * entró del todo.
+ */
 export const ESTADOS_PIPELINE: EstadoPresupuesto[] = [
   'realizado',
   'enviado',
   'pendiente',
   'interesado',
   'aceptado',
+  'iniciado',
 ]
 
 /**

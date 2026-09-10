@@ -1393,9 +1393,11 @@ language sql stable security definer
 set search_path = public
 as $$
   select coalesce(
-    (select p.es_admin from profesionales p where p.user_id = auth.uid() limit 1),
-    false
-  )
+    (select p.es_admin and p.activo
+       from profesionales p
+      where p.user_id = auth.uid()
+      limit 1),
+    false)
 $$;
 
 
@@ -2262,3 +2264,101 @@ comment on table aranceles is
   'Append-only. Un precio nuevo es una fila nueva; la anterior se cierra. '
   'Ninguna columna se edita desde una sesión del equipo: las escrituras '
   'legítimas entran por nueva_vigencia() y aumento_masivo().';
+
+
+-- ─── baja y borrado ───────────────────────────────────────
+
+
+-- ─────────────────────────────────────────────────────────────
+-- 1) `es_admin()` mira si la ficha está de alta
+--
+-- Es la definición de la que cuelgan `guard_es_admin()` y, del lado de
+-- la app, `exigirAdmin()`. Cambiarla acá las arregla todas.
+-- ─────────────────────────────────────────────────────────────
+
+
+-- ─────────────────────────────────────────────────────────────
+-- 2) Las fichas no se borran desde una sesión del equipo
+--
+-- Una ficha borrada se lleva puesto el vínculo con quien entra, y el
+-- consultorio no tiene forma de recuperarla desde la app. Dar de baja
+-- es la operación que existe para esto: conserva el nombre, que es lo
+-- que los presupuestos emitidos ya copiaron.
+--
+-- El rol de servicio y el editor SQL del dashboard sí pueden: es la
+-- salida de emergencia, igual que en la 18 y la 21.
+-- ─────────────────────────────────────────────────────────────
+
+
+create or replace function guard_profesional_no_delete() returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user in ('service_role', 'supabase_admin', 'postgres') then
+    return old;
+  end if;
+
+  raise exception
+    'Las fichas del equipo no se borran: dale de baja el acceso en su lugar';
+end $$;
+
+
+drop trigger if exists trg_profesional_no_delete on profesionales;
+
+create trigger trg_profesional_no_delete
+  before delete on profesionales
+  for each row execute function guard_profesional_no_delete();
+
+-- ─────────────────────────────────────────────────────────────
+-- 3) El consultorio nunca se queda sin nadie que administre
+--
+-- Con `es_admin()` mirando `activo`, quedarse sin ningún admin activo
+-- ya no es «un problema para después»: es quedarse sin forma de dar de
+-- alta a nadie, sin forma de cambiar una contraseña y sin pantalla de
+-- Equipo. Desde la app no habría manera de salir.
+--
+-- La guarda mira el estado DESPUÉS del cambio, así que cubre las tres
+-- formas de llegar: sacarle el `es_admin`, darle de baja, y —aunque el
+-- trigger de arriba ya lo impide para el equipo— borrarla.
+-- ─────────────────────────────────────────────────────────────
+
+
+create or replace function guard_ultimo_admin() returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare v_quedan int;
+begin
+  select count(*) into v_quedan
+    from profesionales p
+   where p.es_admin
+     and p.activo
+     and p.user_id is not null
+     and p.id <> coalesce(new.id, old.id);
+
+  -- La fila que se está tocando cuenta sólo si queda administrando.
+  if tg_op <> 'DELETE'
+     and new.es_admin and new.activo and new.user_id is not null then
+    v_quedan := v_quedan + 1;
+  end if;
+
+  if v_quedan = 0 then
+    raise exception
+      'El consultorio se quedaría sin ningún administrador con acceso: nombrá otro antes';
+  end if;
+
+  return coalesce(new, old);
+end $$;
+
+
+drop trigger if exists trg_ultimo_admin on profesionales;
+
+create trigger trg_ultimo_admin
+  after update or delete on profesionales
+  for each row execute function guard_ultimo_admin();
+
+comment on function guard_ultimo_admin() is
+  'Impide dejar al consultorio sin ningún administrador activo con acceso. '
+  'Va AFTER para ver el estado final de la fila, y cuenta las otras fichas '
+  'por separado para no depender del orden de los triggers.';

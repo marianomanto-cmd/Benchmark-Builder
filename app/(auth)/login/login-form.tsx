@@ -11,6 +11,8 @@ import { createClient } from '@/lib/supabase/client'
 const MENSAJES: Record<string, string> = {
   sesion_expirada: 'Se cerró la sesión por inactividad. Volvé a entrar.',
   sin_permiso: 'Esa pantalla es sólo para quien administra el consultorio.',
+  dado_de_baja:
+    'Tu acceso está dado de baja. Pedile a quien administra el consultorio que te dé de alta de nuevo.',
 }
 
 /** A partir de acá el silencio se avisa: algo está tardando. */
@@ -18,12 +20,34 @@ const AVISO_LENTO_MS = 6_000
 /** Y a partir de acá se corta: la pantalla no se queda colgada para siempre. */
 const LIMITE_MS = 25_000
 
-/** Sólo rutas internas: `//evil.com` sería un dominio externo. */
+/**
+ * Sólo rutas internas. Se decide resolviendo, no mirando el principio.
+ *
+ * La versión anterior chequeaba el string a mano —que empiece con `/`,
+ * que no empiece con `//` ni con `/\`— y eso no alcanza, porque el
+ * parser de URL del navegador BORRA los tabs y los saltos de línea
+ * antes de resolver la dirección. `?desde=/%09/evil.example.com` llega
+ * acá como `"/" + TAB + "/evil.example.com"`, pasa los tres chequeos, y
+ * cuando `router.replace()` lo resuelve el tab desaparece y queda
+ * `//evil.example.com`: un dominio ajeno. Verificado — el navegador
+ * terminaba en `http://evil.example.com/`, y encima DESPUÉS del login
+ * exitoso, que es el momento en que alguien está más dispuesto a
+ * escribir sus datos en una pantalla que dice Smile Lab.
+ *
+ * Resolver contra el propio origen y comparar es la única forma de
+ * saber a dónde va a ir el navegador de verdad: lo que se compara es el
+ * resultado del mismo parser que después va a navegar.
+ */
 function destinoSeguro(desde: string | null): string {
-  if (!desde || !desde.startsWith('/') || desde.startsWith('//') || desde.startsWith('/\\')) {
+  if (!desde) return '/'
+  if (typeof window === 'undefined') return '/'
+  try {
+    const url = new URL(desde, window.location.origin)
+    if (url.origin !== window.location.origin) return '/'
+    return `${url.pathname}${url.search}${url.hash}`
+  } catch {
     return '/'
   }
-  return desde
 }
 
 export function LoginForm({
@@ -48,6 +72,20 @@ export function LoginForm({
    * se lee como que no pasó nada — y se vuelve a clickear.
    */
   const [entrando, setEntrando] = React.useState(false)
+  /**
+   * Si React ya tomó el control de la página.
+   *
+   * Entrar depende de JavaScript —la sesión la abre el cliente de
+   * Supabase en el navegador—, así que hasta que no hidrate no hay nada
+   * que el botón pueda hacer bien. Mejor decirlo que dejar que el
+   * navegador mande el formulario por su cuenta.
+   */
+  const hidratado = React.useSyncExternalStore(
+    // Nada que suscribir: el valor cambia una sola vez, al hidratar.
+    () => () => {},
+    () => true,
+    () => false,
+  )
   /**
    * El `disabled` del botón necesita un render, y ⏎ puede repetirse
    * antes: dos altas de sesión seguidas se comen el límite de intentos
@@ -179,7 +217,29 @@ export function LoginForm({
           )}
         </div>
 
-        <form className="mt-5 flex flex-col gap-4" onSubmit={onSubmit} noValidate>
+        {/*
+          `method="post"` no es decorativo: sin él, un envío NATIVO
+          —el que ocurre cuando el HTML ya llegó pero el bundle todavía
+          no, que en el mostrador con mala señal pasa— es un GET, y un
+          GET pone los campos en el query string. Los campos se llaman
+          `username` y `password` para que el gestor de contraseñas los
+          complete, así que la URL terminaba siendo
+          `…/login?username=recepcion&password=Clave-Real-2026`:
+          a la vista de quien esté parado del otro lado del mostrador,
+          en el historial del navegador y en el log de accesos del
+          servidor. Verificado con JavaScript apagado.
+
+          El botón deshabilitado hasta hidratar es la otra mitad: con el
+          único botón de submit deshabilitado el navegador tampoco manda
+          con ⏎, así que el POST de arriba queda como red y no como
+          camino.
+        */}
+        <form
+          className="mt-5 flex flex-col gap-4"
+          method="post"
+          onSubmit={onSubmit}
+          noValidate
+        >
           <Field label="Usuario" htmlFor="usuario">
             <div className="relative">
               <User
@@ -245,9 +305,16 @@ export function LoginForm({
             </p>
           )}
 
-          <Button type="submit" variant="primary" size="touch" full loading={entrando}>
+          <Button
+            type="submit"
+            variant="primary"
+            size="touch"
+            full
+            loading={entrando}
+            disabled={!hidratado}
+          >
             {!entrando && <LogIn aria-hidden />}
-            {entrando ? 'Entrando…' : 'Entrar'}
+            {entrando ? 'Entrando…' : hidratado ? 'Entrar' : 'Cargando…'}
           </Button>
 
           <p className="min-h-4 text-center t-helper" aria-live="polite">

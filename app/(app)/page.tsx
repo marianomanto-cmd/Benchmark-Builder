@@ -6,7 +6,7 @@ import { BannerBorrador } from '@/components/home/banner-borrador'
 import { BannerConexion } from '@/components/home/banner-conexion'
 import { BarraFiltros } from '@/components/home/barra-filtros'
 import { HomeVacia, SinResultados } from '@/components/home/estado-vacio'
-import { parseFiltros, parsePagina, terminoSeguro } from '@/components/home/filtros-url'
+import { parseFiltros, parsePagina } from '@/components/home/filtros-url'
 import { Kpis } from '@/components/home/kpis'
 import { Listado } from '@/components/home/listado'
 import {
@@ -25,6 +25,7 @@ import { ESTADOS_PIPELINE, esperaRespuesta, estaFrio } from '@/lib/estados'
 import { isoDate } from '@/lib/formato'
 import { createClient } from '@/lib/supabase/server'
 import type { EstadoPresupuesto } from '@/lib/types'
+import { palabrasBusqueda, patronDeDigitos } from '@/lib/busqueda'
 
 /**
  * Pantallas 02 y 03 — la home.
@@ -121,18 +122,22 @@ function consultarPagina(supabase: Supabase, filtros: FiltrosHome, pagina: numbe
     // "los primeros 200": sin él no se sabe si hay una página más.
     .select(COLUMNAS_LISTADO, { count: 'exact' })
 
-  const q = terminoSeguro(filtros.q)
-  if (q) {
-    // La prestación principal la resuelve la vista, así que se puede
-    // buscar por ella sin traerse todos los ítems.
-    listado = listado.or(
-      [
-        `paciente_nombre.ilike.%${q}%`,
-        `paciente_dni.ilike.%${q}%`,
-        `prestacion_principal.ilike.%${q}%`,
-        `numero.ilike.%${q}%`,
-      ].join(','),
-    )
+  /*
+   * Cada palabra por separado contra `busqueda`, que la vista trae ya
+   * normalizada: número, paciente, DNI, afiliado, obra social,
+   * profesional y prestación principal, sin acentos y en minúsculas.
+   *
+   * Antes eran cuatro `ilike` con el término entero, y `ilike` en
+   * Postgres distingue acentos: «Gomez» no encontraba ninguno de los 31
+   * presupuestos de «Gómez, Renata», y copiar el nombre del propio
+   * listado y pegarlo tampoco, porque la coma se reemplaza por un
+   * espacio y lo guardado la tiene.
+   */
+  for (const palabra of palabrasBusqueda(filtros.q)) {
+    const digitos = patronDeDigitos(palabra)
+    listado = digitos
+      ? listado.or(`busqueda.like.%${palabra}%,busqueda.like.${digitos}`)
+      : listado.like('busqueda', `%${palabra}%`)
   }
   if (filtros.estados.length > 0) listado = listado.in('estado', filtros.estados)
   if (filtros.profesional) listado = listado.eq('profesional_id', filtros.profesional)

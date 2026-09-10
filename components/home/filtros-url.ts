@@ -34,10 +34,32 @@ function texto(valor: string | string[] | undefined): string {
   return (valor ?? '').trim()
 }
 
-/** Sólo aceptamos fechas `YYYY-MM-DD`: cualquier otra cosa se descarta. */
+/**
+ * Sólo aceptamos fechas `YYYY-MM-DD` **que existan**.
+ *
+ * La forma sola no alcanza: `2026-13-45`, `2026-02-30` y `0000-00-00`
+ * la cumplen y viajaban tal cual al `.gte('fecha_emision', …)`. Postgres
+ * las rechaza («date/time field value out of range»), la consulta
+ * devolvía error y la home entera se caía al estado de falla: los
+ * cuatro KPIs en «—», el listado vacío y el banner «La base no
+ * respondió» culpando a la base de un parámetro de la URL.
+ *
+ * Es el mismo agujero que este archivo ya tapaba para `?prof=`, que
+ * también iría a un `.eq()` contra una columna tipada.
+ */
 function fecha(valor: string | string[] | undefined): string {
   const t = texto(valor)
-  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : ''
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return ''
+  // El round-trip descarta lo imposible: `Date.UTC` normaliza el 30 de
+  // febrero a marzo, así que si vuelve distinto es que no existía.
+  const [a, m, d] = t.split('-').map(Number)
+  if (a < 1000 || m < 1 || m > 12 || d < 1 || d > 31) return ''
+  const fechaReal = new Date(Date.UTC(a, m - 1, d))
+  const vuelve =
+    fechaReal.getUTCFullYear() === a &&
+    fechaReal.getUTCMonth() === m - 1 &&
+    fechaReal.getUTCDate() === d
+  return vuelve ? t : ''
 }
 
 const ES_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -151,12 +173,4 @@ export function contarFiltrosAvanzados(filtros: FiltrosHome): number {
   if (filtros.obraSocial) n += 1
   if (filtros.desde || filtros.hasta) n += 1
   return n
-}
-
-/**
- * PostgREST arma el `or=` con comas y paréntesis: si el término tipeado
- * los trae, rompe el parseo del filtro. Se limpian antes de consultar.
- */
-export function terminoSeguro(q: string): string {
-  return q.replace(/[,()"\\%*]/g, ' ').replace(/\s+/g, ' ').trim()
 }
