@@ -231,6 +231,27 @@ export function BarraFiltros({
           ? `Hasta ${fechaCorta(actual.hasta)}`
           : 'Fechas'
 
+  /**
+   * El trigger dice «Profesional», no «Todos los profesionales».
+   *
+   * Radix pinta en el trigger el texto del ítem elegido, y el ítem por
+   * defecto es «Todos los profesionales»: 180px es justo el ancho donde
+   * ese texto entra o no entra según la fuente del sistema, así que en
+   * algunas máquinas se partía en dos líneas y esos dos controles
+   * quedaban más altos que el resto de la barra. Además rompía la
+   * gramática de la fila, donde los demás son sustantivos sueltos
+   * (Estado, Fechas). El «Todos los…» sigue estando adentro de la
+   * lista, que es donde significa algo: ahí quiere decir «sacá el
+   * filtro».
+   */
+  const etiquetaProfesional =
+    profesionales.find((p) => p.value === actual.profesional)?.label ?? 'Profesional'
+
+  const etiquetaObraSocial =
+    actual.obraSocial === OBRA_SOCIAL_PARTICULAR
+      ? 'Particular'
+      : (obrasSociales.find((o) => o.value === actual.obraSocial)?.label ?? 'Obra social')
+
   const selectProfesional = (
     <Select
       value={actual.profesional || TODOS}
@@ -238,9 +259,15 @@ export function BarraFiltros({
     >
       <SelectTrigger
         aria-label="Filtrar por profesional"
-        className={cn('w-full md:w-[180px]', actual.profesional && 'border-primary/40 bg-tint')}
+        className={cn('w-full md:w-[168px]', actual.profesional && 'border-primary/40 bg-tint')}
       >
-        <SelectValue placeholder="Profesional" />
+        <SelectValue asChild>
+          {/* Sin `text-faint`: los cuatro controles de la fila están sin
+              elegir y pintar dos de gris los hacía ver deshabilitados
+              al lado de Estado y Fechas. Que un filtro está puesto lo
+              dice el borde, no el color del texto. */}
+          <span className="min-w-0 truncate">{etiquetaProfesional}</span>
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={TODOS}>Todos los profesionales</SelectItem>
@@ -260,9 +287,11 @@ export function BarraFiltros({
     >
       <SelectTrigger
         aria-label="Filtrar por obra social"
-        className={cn('w-full md:w-[180px]', actual.obraSocial && 'border-primary/40 bg-tint')}
+        className={cn('w-full md:w-[168px]', actual.obraSocial && 'border-primary/40 bg-tint')}
       >
-        <SelectValue placeholder="Obra social" />
+        <SelectValue asChild>
+          <span className="min-w-0 truncate">{etiquetaObraSocial}</span>
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={TODOS}>Todas las obras sociales</SelectItem>

@@ -20,6 +20,9 @@ export function SelectTrigger({
       aria-invalid={invalido || undefined}
       className={cn(
         'flex h-9 w-full items-center justify-between gap-2 rounded-input border border-hairline bg-card px-3',
+        // El alto es fijo: si la etiqueta no entra, se corta con puntos
+        // suspensivos y no parte el control en dos líneas.
+        'whitespace-nowrap',
         'font-sans text-[14px] text-ink transition-colors',
         'hover:border-primary/30',
         'focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25',
