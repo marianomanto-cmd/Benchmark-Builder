@@ -25,10 +25,10 @@ import { destinosMobile, esRutaActiva } from './navegacion'
  * mobile no existe—, así que la sesión quedaba abierta sin forma de
  * cerrarla.
  */
-export function Tabbar({ esAdmin }: { esAdmin: boolean }) {
+export function Tabbar() {
   const pathname = usePathname()
   const { abrir } = useWizard()
-  const destinos = destinosMobile(esAdmin)
+  const destinos = destinosMobile()
   const cuentaAbierta = useCuentaAbierta()
 
   const claseTab = (activo: boolean) =>

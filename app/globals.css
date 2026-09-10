@@ -33,6 +33,27 @@
   --color-warm-ink: #8a4326;
   --color-warm-line: #c4603a;
 
+  /* ── Gráficos ────────────────────────────────────────────────
+     El acento de marca (#2fa6b4) queda en 2.9:1 contra el blanco: sirve
+     para un botón con texto encima, no para una línea de 2px que hay
+     que seguir con la vista. `--color-serie` es el mismo tono un paso
+     más hondo, elegido corriendo el validador de paleta: pasa banda de
+     luminosidad, piso de croma, contraste ≥3:1 y separación para
+     daltonismo contra la serie negativa (ΔE 15.7 deuteranopía).
+
+     La rampa es UN solo tono de claro a oscuro, no seis colores. La
+     usan las barras, donde el color codifica magnitud y no identidad;
+     su luminosidad baja de forma monótona, que es lo que la hace
+     legible en escala de grises y para cualquier tipo de daltonismo. */
+  --color-serie: #0e97a8;
+  --color-serie-perdido: #c4603a;
+  --color-rampa-1: #cdeef2;
+  --color-rampa-2: #a3e0e7;
+  --color-rampa-3: #6ecfdb;
+  --color-rampa-4: #38b6c6;
+  --color-rampa-5: #0e97a8;
+  --color-rampa-6: #0b6f7c;
+
   /* ── Tipografía ──────────────────────────────────────────── */
   --font-display: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;

@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         style={{ height: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
       />
 
-      <Tabbar esAdmin={perfil.esAdmin} />
+      <Tabbar />
       <WizardPresupuesto />
     </div>
   )

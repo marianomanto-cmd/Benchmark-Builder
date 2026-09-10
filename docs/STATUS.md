@@ -106,6 +106,7 @@ Migraciones en `supabase/migrations/`, en este orden:
 | `20260101001300_duplicado_afiliado.sql` | Duplicado coherente y conteo de usos agregado |
 | `20260101001400_admin.sql` | `es_admin` en `profesionales` + guarda de escalada |
 | `20260101001500_guarda_alta_admin.sql` | La guarda de `es_admin` cubre también el `INSERT`, con el rol de servicio exento |
+| `20260101001600_estadisticas.sql` | Las funciones `stats_*` que agregan la historia para la pantalla 15 |
 
 **Sin la CLI**: `supabase/instalar.sql` e `instalar-storage.sql` son las mismas
 migraciones concatenadas en orden, para pegar en el SQL Editor de Supabase. Se
@@ -157,6 +158,8 @@ que las toca.
 | `cambiar_estado(id, estado, motivo, nota)` | Transición + evento. Bloquea la vuelta a borrador |
 | `registrar_evento(id, tipo, desc)` | Evento suelto (nota, PDF, WhatsApp) |
 | `marcar_pendientes()` | `enviado → pendiente` a los 7 días. Sólo `service_role` |
+| `stats_ganado(estado)` | Qué cuenta como aceptado. **Misma definición que la Home**: `aceptado` o `iniciado` |
+| `stats_resumen`, `stats_embudo`, `stats_tiempos`, `stats_mensual`, `stats_motivos`, `stats_obras_sociales`, `stats_prestaciones`, `stats_profesionales`, `stats_pacientes`, `stats_aging`, `stats_precios` | Las once lecturas de la pantalla 15. Todas `stable` y con derechos de invocador: la RLS sigue mandando |
 
 ### Vistas
 
@@ -213,6 +216,7 @@ borrador → realizado → enviado → pendiente → interesado → aceptado →
 | 12 | `/pipeline` | Kanban desktop, franja de perdidos al pie |
 | 13 | `/api/presupuestos/[id]/pdf` | A4, cacheado en Storage mientras el presupuesto esté emitido |
 | 14 | — | Sheet de WhatsApp (`?whatsapp=1` en el detalle) |
+| 15 | `/estadisticas` | Embudo, series mensuales, tiempos por etapa, motivos de pérdida, antigüedad de lo abierto y tablas por obra social, tratamiento y profesional |
 | 15 | `/equipo` | Equipo y accesos (sólo admin): alta, contraseña, baja |
 | 16 | `/equipo/mi-cuenta` | Cambiar la propia contraseña |
 
@@ -270,6 +274,12 @@ Notas de diseño cerradas:
   salida ofrecida era «achicá el rango de fechas»: con 500 presupuestos, los
   300 más viejos eran inalcanzables. Una página fuera de rango cae en la
   última que existe en vez de leerse como «no hay nada».
+- **Estadísticas es pestaña en mobile; Equipo no.** «Equipo y accesos» ya vivía
+  en la hoja de cuenta junto con «Mi contraseña» y «Cerrar sesión», que es
+  donde uno busca las cosas de su acceso: tenerlo además en la tabbar
+  duplicaba la puerta y hacía que la barra cambiara de forma según el rol
+  —cuatro pestañas para el admin, tres para el resto, y el pulgar aprendiendo
+  dos mapas—. Ese lugar lo ocupa Estadísticas, que es contenido.
 - Atajos globales del shell: `1` Home, `2` Pipeline, `3` Biblioteca y `?` la
   chuleta con todos. La tecla se dibuja en cada ítem de la topbar y la lista
   está también en el menú de usuario, que es de dónde se entera alguien que no
@@ -289,6 +299,20 @@ significado. La paleta literal vive en `ESTILO_ESTADO` (`lib/estados.ts`).
 
 Todo monto lleva `font-variant-numeric: tabular-nums` y se formatea con
 `money()` → `$ 128.400`.
+
+**Gráficos.** El acento de marca queda en 2.9:1 contra el blanco: alcanza para
+un botón con texto encima, no para una línea de 2px que hay que seguir con la
+vista. `--color-serie` es el mismo tono un paso más hondo, elegido corriendo un
+validador de paleta —pasa banda de luminosidad, piso de croma, contraste ≥3:1 y
+separación para daltonismo contra la serie negativa (ΔE 15.7 en deuteranopía)—.
+La rampa `--color-rampa-1..6` es **un solo tono** de claro a oscuro con
+luminosidad monótona: la usan las barras, donde el color acompaña la magnitud o
+la profundidad de la etapa, nunca el ranking. Pintar por ranking haría que al
+reordenarse los datos se repintaran las barras.
+
+Ningún gráfico usa dos escalas en un mismo eje. Cuando hay dos unidades
+—cantidad y pesos— van en dos gráficos, porque un eje doble deja «demostrar»
+cualquier correlación moviendo una de las dos escalas.
 
 ---
 
@@ -487,6 +511,10 @@ antes de aceptarlo. Los que resultaron reales:
 | En el paso 3 del wizard en mobile, «Cuándo» se encogía a cero y su etiqueta se imprimía encima de «Porcentaje» | El campo ocupa la fila completa hasta `sm`; el resto va abajo |
 | En la grilla de aranceles, la banda de rubro se iba de pantalla al scrollear a la derecha: lo sticky era la celda, que mide lo que la tabla entera | Lo sticky pasa a ser el texto de adentro |
 | En mobile el «Total a cargo» del pipeline quedaba flotando en el medio, arriba y a la derecha de su propio número | Alineado a la izquierda hasta `sm`, a la derecha desde ahí |
+| Los dos filtros de la barra de Home arrastraban al trigger el texto del ítem por defecto —«Todos los profesionales»—, que a 180px entra o no entra según la fuente del sistema: en algunas máquinas se partía en dos líneas y esos dos controles quedaban más altos que Estado y Fechas | El trigger dice «Profesional» y «Obra social», la misma gramática que sus vecinos, y no envuelve nunca |
+| `SelectValue asChild` metía un `Slot` de Radix sobre un Fragment: React lo marcaba en consola en cada render de la Home | El texto va como `children`, que consigue lo mismo sin envoltorio |
+| Los rieles de las barras de estadísticas medían distinto en cada fila —el detalle de cada una se comía un ancho distinto—, así que dos barras del mismo largo no representaban el mismo valor | Columna de ancho fijo: el riel mide lo mismo en todas las filas del gráfico |
+| En mobile los montos del encabezado de estadísticas se partían después del signo y se salían de su tarjeta | El número héroe escala con el ancho; 34px son 180px de «$ 4.528.600» en una tarjeta de 170 |
 | La home se cortaba en 200 filas y la única salida ofrecida era «achicá el rango de fechas»: con 500 presupuestos, a los 300 más viejos no se llegaba nunca | Paginado por URL (`?p=`, 50 por página) con el total exacto: el back del navegador vuelve y el link se comparte |
 | Un `?p=` fuera de rango —un link viejo, o un filtro que achicó el resultado— dejaba la pantalla en «ningún presupuesto con esos filtros» | `.range()` viaja como `offset`/`limit` y vuelve vacío, no con error: con el conteo real se cae a la última página que existe |
 | Un rango de fechas dado vuelta (`?desde=` posterior a `?hasta=`) devolvía cero y se leía como «no hay» | `parseFiltros` lo endereza |
@@ -544,7 +572,8 @@ antes de aceptarlo. Los que resultaron reales:
 ## 10 · Cómo se verifica
 
 - `npm run build` · `npm run typecheck` · `npm run lint` — sin errores.
-- `npm test` — 46 casos sobre `lib/calculo.ts`, `lib/formato.ts` y `lib/estados.ts`.
+- `npm test` — 54 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts` y
+  `lib/estadisticas.ts`.
 - `npm run sql:instalar` — regenera los scripts del SQL Editor desde las
   migraciones. Correr después de tocar cualquier migración.
 - `npm run test:paridad` — 220 casos comparando `calcularItem` contra
