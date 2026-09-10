@@ -30,12 +30,14 @@ import {
 const SIN_REORDEN: SortingStrategy = () => null
 
 /**
- * Sombras de scroll vertical, sin JavaScript. Mismo truco que
- * `.scroll-sombras` de la hoja global, girado 90°: los dos degradados
- * van `local` —viajan con el contenido y tapan la sombra cuando se
- * llegó al extremo— y los dos radiales van `scroll`, clavados al borde
- * de la caja. Resultado: la sombra aparece sólo del lado donde todavía
- * hay tarjetas.
+ * Sombras de scroll vertical, sin JavaScript: los dos degradados van
+ * `local` —viajan con el contenido y tapan la sombra cuando se llegó al
+ * extremo— y los dos radiales van `scroll`, clavados al borde de la
+ * caja. Resultado: la sombra aparece sólo del lado donde todavía hay
+ * tarjetas.
+ *
+ * (La hoja global tenía la versión horizontal de este mismo truco para
+ * las tablas que scrolleaban de costado. Ya no hay ninguna.)
  *
  * Va inline y no en `globals.css` porque el color tiene que ser el del
  * fondo de la columna, que es propio de esta pantalla.

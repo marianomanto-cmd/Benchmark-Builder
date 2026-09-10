@@ -48,7 +48,7 @@ Consecuencias que el código respeta hoy:
   `app/globals.css` — **no hay `tailwind.config.ts`**.
 - **Server Components** para la carga inicial de cada pantalla.
 - **TanStack Query + cliente de navegador** para lecturas interactivas
-  (comboboxes, grilla de aranceles, kanban).
+  (comboboxes, lista de aranceles, kanban).
 - **Server Actions** para las escrituras; las que tienen lógica de dominio
   delegan en **RPC de Postgres** para ser atómicas.
 - **RLS**: autenticado = acceso, anónimo = nada. La autorización es de la base,
@@ -176,7 +176,7 @@ que las toca.
 ### Vistas
 
 - `aranceles_vigentes` — lo que rige **hoy** (`vigente_desde <= hoy` y
-  `vigente_hasta` nulo o futuro), con `usos` por arancel. Es la grilla de la
+  `vigente_hasta` nulo o futuro), con `usos` por arancel. Es la lista de la
   pantalla 10 y la base del banner de precio desactualizado.
 - `aranceles_programados` — aumentos ya cargados que todavía no arrancaron.
   Sin esta vista, arreglar la anterior los haría desaparecer de la pantalla.
@@ -223,7 +223,7 @@ borrador → realizado → enviado → pendiente → interesado → aceptado →
 | 04-06 | `/?nuevo=1` | Wizard 3 pasos, modal sobre la ruta actual |
 | 07-08 | — | Comboboxes con creación al vuelo; prestación encadena arancel |
 | 09 | `/biblioteca` | Tabs de entidades |
-| 10 | `/biblioteca/aranceles` | Grilla, drawer de vigencias, aumento masivo |
+| 10 | `/biblioteca/aranceles` | Lista por prestación (particular + obras sociales con precio), drawer de vigencias, aumento masivo |
 | 11 | `/presupuestos/[id]` | Detalle, banner de precio, timeline |
 | 12 | `/pipeline` | Kanban desktop, franja de perdidos al pie |
 | 13 | `/api/presupuestos/[id]/pdf` | A4, cacheado en Storage mientras el presupuesto esté emitido |
@@ -595,6 +595,8 @@ antes de aceptarlo. Los que resultaron reales:
 | `matricula()` no reconocía el prefijo pegado al número: «MN9876» salía «MP MN9876» en la cabecera, en el PDF y en el WhatsApp — justo lo que el comentario de la función decía que no podía pasar | La regex deja de exigir separador después de la P/N |
 | El timeline decidía si mostrar el año con los getters de `Date`, que en Vercel son UTC: un movimiento del 31 de diciembre a la noche perdía el año y se leía como del año en curso | `anio()`, que existe exactamente para eso |
 | `haceCuanto()` anunciaba como pasado cualquier instante futuro («hace 3 días» para algo del 14/09), y con el guard en `>= 0` bastaba con que el reloj de Postgres fuera unos milisegundos por delante del de Vercel para que un evento recién creado dijera «hace 1 segundo» en vez de «recién» | Debajo del minuto es «recién», venga del pasado o del futuro |
+| **Ninguna tabla scrollea de costado.** `Tabla` envolvía todas las tablas en un `overflow-x-auto`: avisaba con sombras, sí, pero la solución a una tabla que no entra no es una barra —arrastrar de costado para leer una fila es incómodo con mouse y hostil con el dedo, y esconde columnas enteras detrás de un gesto que mucha gente no descubre. La grilla de aranceles era el caso extremo: 7.464px de tabla dentro de una caja de 1.114 | La primitiva no scrollea y las celdas parten el texto largo, así que el contenido tiene que entrar; si una tabla nueva no entra, se nota en seguida en vez de esconderse. Medido en las diez pantallas, a 1440 y a 390: cero tablas con desborde horizontal |
+| **La grilla de aranceles era una matriz prestación × obra social.** Con las 42 obras sociales del consultorio son 2.451 celdas para 110 precios: el 95 % de la pantalla decía «Sin cargar», y cada tarjeta ofrecía «Faltan 38 obras sociales» como si fuera deuda, cuando es el estado normal —el consultorio negocia con unas pocas | Una lista por prestación, la misma en desktop y en mobile: nombre y precio particular en una fila, los precios de obra social que EXISTEN como pastillas, y una sola acción para agregar otro. Más un selector de obra social que reemplaza a las columnas: se elige una y cada prestación muestra el particular y esa, que es como se carga una lista de precios entera |
 | **Dos obras sociales con el mismo nombre convivían.** `unique (nombre, plan)` no impide el duplicado que importa: en Postgres dos NULL no son iguales, y la mayoría de las obras sociales de un consultorio no tienen plan. Los aranceles cuelgan de una de las dos filas y los pacientes se reparten entre las dos: los que caen del lado sin aranceles se presupuestan como particulares —con el precio de lista completo— sin que nada avise. Lo encontré cargando los datos reales del consultorio: mi propio script de importación duplicó las 42 obras sociales al correrlo dos veces | Índices únicos parciales sobre `lower(nombre)`, sin distinguir mayúsculas porque estos nombres se tipean a mano. Lo mismo para `prestaciones`, donde `codigo` es único pero acepta null (migración 24) |
 | **La misma omisión del PDF, viva en el detalle**: `cargarDetalle()` chequeaba `resCabecera.error` pero leía los ítems con `?? []`. Un timeout en esa lectura dibujaba «A CARGO DEL PACIENTE $ 260.400» arriba de una tabla vacía — y el detalle es imprimible, así que ese papel puede terminar en la mano del paciente. La encontró el escéptico revisando el arreglo del PDF | Los ítems son el documento: su lectura corta la pantalla como la de la cabecera. Cuotas e historial son accesorios y degradan avisando, en vez de afirmar «no hay condiciones de pago» o «todavía no hay movimientos» sobre lecturas que nunca llegaron |
 

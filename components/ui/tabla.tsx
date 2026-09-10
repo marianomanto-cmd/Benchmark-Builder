@@ -5,18 +5,25 @@ import { cn } from '@/lib/utils'
 /**
  * Tabla de desktop. En mobile no se usa tabla nunca: card por fila.
  * Fila de 15px de padding vertical, hover `--tint`.
+ *
+ * **Sin scroll horizontal.** Antes esto envolvía la tabla en un
+ * `overflow-x-auto` con sombras y barra visible, para que una tabla más
+ * ancha que su caja no se cortara sin avisar. Avisaba, sí — pero la
+ * solución a una tabla que no entra no es una barra: es una tabla que
+ * entra. Arrastrar de costado para leer una fila es incómodo con mouse
+ * y directamente hostil con el dedo, y encima esconde columnas enteras
+ * detrás de un gesto que mucha gente no descubre.
+ *
+ * Que no scrollee obliga a que el contenido quepa, que es la regla que
+ * queremos: si una tabla nueva no entra, hay que sacarle una columna o
+ * repensarla como lista, y ahora eso se nota en seguida en vez de
+ * quedar escondido detrás de un scroll.
+ *
+ * Para que quepa, las celdas parten el texto largo (`break-words` en
+ * `Td`/`Th`) en vez de empujar el ancho.
  */
 export function Tabla({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
-  return (
-    // `scroll-sombras` marca con una sombra el lado donde todavía hay
-    // contenido, y `scroll-visible` deja ver la barra: una tabla más
-    // ancha que su caja se cortaba sin avisar, y la última columna
-    // quedaba partida contra el borde sin que nadie supiera que había
-    // más a la derecha.
-    <div className="w-full overflow-x-auto scroll-sombras scroll-visible">
-      <table className={cn('w-full border-collapse text-left', className)} {...props} />
-    </div>
-  )
+  return <table className={cn('w-full border-collapse text-left', className)} {...props} />
 }
 
 export function Thead({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
@@ -32,7 +39,7 @@ export function Th({
     <th
       scope="col"
       className={cn(
-        't-label px-3 py-2.5 align-middle',
+        't-label px-3 py-2.5 align-middle break-words',
         numerico && 'text-right',
         className,
       )}
@@ -71,7 +78,7 @@ export function Td({
   return (
     <td
       className={cn(
-        'px-3 py-[15px] align-middle text-[14px] text-body',
+        'px-3 py-[15px] align-middle text-[14px] text-body break-words',
         numerico && 'text-right tabular-nums',
         className,
       )}

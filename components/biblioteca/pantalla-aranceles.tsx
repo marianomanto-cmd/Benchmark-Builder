@@ -24,7 +24,7 @@ import { useAtajos } from '@/lib/hooks/use-atajos'
 import { CampoBusqueda } from './campo-busqueda'
 import { DrawerHistorial } from './drawer-historial'
 import { FormVigencia } from './form-vigencia'
-import { GrillaAranceles, ListaArancelesMobile } from './grilla-aranceles'
+import { ListaAranceles } from './lista-aranceles'
 import { HistoricoAranceles } from './historico-aranceles'
 import { ModalAumentoMasivo } from './modal-aumento-masivo'
 import {
@@ -46,6 +46,8 @@ const OPCIONES_VISTA: { value: VistaAranceles; label: string }[] = [
 
 const TODOS = '__todos__'
 const SIN_RUBRO = '__sin_rubro__'
+/** Sentinela del selector de obra social: ninguna enfocada. */
+const TODAS = '__todas__'
 
 /** Id del buscador de la grilla: lo enfoca el atajo `/`. */
 const ID_BUSQUEDA = 'busqueda-aranceles'
@@ -98,6 +100,16 @@ export function PantallaAranceles({
   const [busqueda, setBusqueda] = React.useState(busquedaInicial ?? '')
   const [rubro, setRubro] = React.useState<string>(TODOS)
   const [soloIncompletas, setSoloIncompletas] = React.useState(false)
+  /**
+   * Obra social enfocada, o `TODAS`.
+   *
+   * Es lo que reemplaza a las columnas de la grilla: en vez de dibujar
+   * las cuarenta y dos a la vez, se elige una y cada prestación muestra
+   * el particular y esa. Es además el modo con el que se carga una
+   * lista de precios entera, que es lo que se hace en la práctica: se
+   * negocia con UNA obra social y se cargan sus veinte prestaciones.
+   */
+  const [enfoque, setEnfoque] = React.useState<string>(TODAS)
 
   // Índice por (prestación, obra social). La clave usa '' para la
   // columna Particular, que en la base es `obra_social_id is null`.
@@ -174,17 +186,28 @@ export function PantallaAranceles({
 
     return prestaciones.filter((p) => {
       if (!coincideRubro(p.rubro)) return false
-      if (soloIncompletas && faltantesDe(p.id) === 0) return false
+      if (soloIncompletas) {
+        // Con una obra social enfocada, «incompleta» es «le falta ESA»,
+        // que es lo único que importa mientras se carga su lista.
+        const falta = enfoque === TODAS
+          ? faltantesDe(p.id) > 0
+          : !indice.has(`${p.id}|${enfoque}`)
+        if (!falta) return false
+      }
       if (!q) return true
       return normalizar(`${p.nombre} ${p.codigo ?? ''} ${p.rubro ?? ''}`).includes(q)
     })
-  }, [prestaciones, busqueda, rubro, soloIncompletas, faltantesDe])
+  }, [prestaciones, busqueda, rubro, soloIncompletas, faltantesDe, enfoque, indice])
 
   const conteo = React.useMemo(() => {
-    let cargadas = 0
-    for (const p of visibles) cargadas += columnas.length - faltantesDe(p.id)
-    return { cargadas, total: visibles.length * columnas.length }
-  }, [visibles, columnas.length, faltantesDe])
+    let conParticular = 0
+    let conEnfocada = 0
+    for (const p of visibles) {
+      if (indice.has(`${p.id}|`)) conParticular += 1
+      if (enfoque !== TODAS && indice.has(`${p.id}|${enfoque}`)) conEnfocada += 1
+    }
+    return { conParticular, conEnfocada }
+  }, [visibles, indice, enfoque])
 
   const filtrando = busqueda.trim() !== '' || rubro !== TODOS || soloIncompletas
 
@@ -320,6 +343,35 @@ export function PantallaAranceles({
                 </Select>
               )}
 
+              {/*
+                El selector de obra social es lo que reemplaza a las
+                columnas: cuarenta y dos no entran en ninguna pantalla,
+                pero una sí, y es con una que se trabaja.
+              */}
+              <Select value={enfoque} onValueChange={setEnfoque}>
+                <SelectTrigger
+                  id="filtro-obra-social"
+                  aria-label="Enfocar una obra social"
+                  className="h-11 w-auto min-w-[190px] sm:h-9"
+                >
+                  <SelectValue>
+                    {enfoque === TODAS
+                      ? 'Todas las obras sociales'
+                      : (columnas.find((c) => c.id === enfoque)?.nombre ?? 'Obra social')}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={TODAS}>Todas las obras sociales</SelectItem>
+                  {columnas
+                    .filter((c) => c.id !== null)
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id!}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+
               <Button
                 type="button"
                 variant={soloIncompletas ? 'secondary' : 'ghost'}
@@ -328,7 +380,7 @@ export function PantallaAranceles({
                 aria-pressed={soloIncompletas}
                 onClick={() => setSoloIncompletas((v) => !v)}
               >
-                Sólo incompletas
+                {enfoque === TODAS ? 'Sólo incompletas' : 'Sólo sin precio'}
               </Button>
             </div>
           </div>
@@ -358,17 +410,33 @@ export function PantallaAranceles({
             />
           ) : (
             <>
+              {/*
+                Antes acá decía «110 de 2.451 celdas con precio». Ese
+                denominador es el cruce completo prestación × obra
+                social, que nadie va a llenar nunca: la mayoría de las
+                obras sociales no negocia la mayoría de las
+                prestaciones. Contarlo como deuda hacía que el
+                consultorio leyera «tenés el 4 % cargado» cuando en
+                realidad tiene todo lo que corresponde.
+              */}
               <p className="t-label" aria-live="polite">
                 {numero(visibles.length)}{' '}
                 {visibles.length === 1 ? 'prestación' : 'prestaciones'}
-                {filtrando && ` de ${numero(prestaciones.length)}`} ·{' '}
-                {numero(conteo.cargadas)} de {numero(conteo.total)} celdas con precio
+                {filtrando && ` de ${numero(prestaciones.length)}`}
+                {enfoque === TODAS
+                  ? ` · ${numero(conteo.conParticular)} con precio particular`
+                  : ` · ${numero(conteo.conEnfocada)} con precio de ${
+                      columnas.find((c) => c.id === enfoque)?.nombre ?? 'esa obra social'
+                    }`}
               </p>
 
-              <GrillaAranceles {...props} />
-              <ListaArancelesMobile {...props} />
+              <ListaAranceles
+                {...props}
+                enfoque={enfoque === TODAS ? null : enfoque}
+              />
+
               <p className="t-helper">
-                Tocá una celda para ver su historial de vigencias. Las que tienen candado ya se
+                Tocá un precio para ver su historial de vigencias. Los que tienen candado ya se
                 usaron en presupuestos emitidos: se les carga una vigencia nueva, no se editan.
               </p>
             </>

@@ -90,7 +90,13 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
                       href={`/presupuestos/${fila.id}`}
                       onClick={(e) => e.stopPropagation()}
                       className={cn(
-                        'font-medium tabular-nums',
+                        // `whitespace-nowrap`: el número del documento
+                        // es lo que se le lee al paciente por teléfono,
+                        // y partido en «2026-» / «0002» deja de leerse
+                        // como un número. Las celdas parten el texto
+                        // largo para que la tabla entre sin scroll; un
+                        // identificador es la excepción.
+                        'whitespace-nowrap font-medium tabular-nums',
                         cerrado ? 'text-muted' : 'text-ink',
                         'hover:text-primary-hover hover:underline underline-offset-4',
                       )}
