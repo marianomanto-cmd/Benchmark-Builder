@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 import { Banner, Checkbox, Field, Input, InputMonto, Textarea } from '@/components/ui'
 import type { Arancel, Prestacion } from '@/lib/types'
 
-import { CabeceraCapa, MarcoCapa, PieCapa } from './capa'
+import { CabeceraCapa, MarcoCapa, PieCapa, useGuardadoUnico } from './capa'
 import { useCrearArancel, useCrearPrestacion } from './consultas'
 import { ARANCEL_VACIO, CamposArancel, type ValoresArancel } from './form-arancel'
 
@@ -64,6 +64,7 @@ export function FormPrestacion({
 
   const esParticular = obraSocialId === null
   const guardando = crearPrestacion.isPending || crearArancel.isPending
+  const enviar = useGuardadoUnico(guardar)
 
   function seguir() {
     if (nombre.trim().length < 3) {
@@ -220,7 +221,7 @@ export function FormPrestacion({
   }
 
   return (
-    <MarcoCapa onEnviar={() => void guardar()}>
+    <MarcoCapa onEnviar={enviar}>
       <CabeceraCapa
         titulo={`Arancel de ${nombre.trim()}`}
         ayuda={
@@ -294,7 +295,7 @@ export function FormPrestacion({
       <PieCapa
         etiqueta="Crear prestación y agregarla"
         onCancelar={onCancelar}
-        onGuardar={() => void guardar()}
+        onGuardar={enviar}
         guardando={guardando}
         deshabilitado={valores.monto <= 0}
       />

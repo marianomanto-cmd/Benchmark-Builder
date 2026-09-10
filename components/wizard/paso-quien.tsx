@@ -115,6 +115,20 @@ export function PasoQuien({
 
     let recotizados = 0
     let sinArancel = 0
+    /**
+     * Lecturas que NO se pudieron hacer: red caída, Supabase sin
+     * responder, sesión vencida.
+     *
+     * Hay que contarlas aparte de `sinArancel`. «No hay arancel para
+     * esta obra social» es una respuesta —el ítem cae a particular o se
+     * queda sin cobertura, y eso es correcto—; «no pude preguntar» no lo
+     * es. Antes las dos caían en el mismo contador y el ítem se
+     * devolvía intacto: el presupuesto quedaba con «OSDE 210» en la
+     * cabecera y la cobertura de Swiss Medical en las líneas, y el
+     * cartel decía «1 quedó sin arancel para esta obra social», que es
+     * una explicación creíble de algo que nunca se comprobó.
+     */
+    let fallaron = 0
 
     setRecotizando(true)
     const nuevos = await Promise.all(
@@ -130,7 +144,7 @@ export function PasoQuien({
           else sinArancel++
           return r.item
         } catch {
-          sinArancel++
+          fallaron++
           return item
         }
       }),
@@ -141,6 +155,19 @@ export function PasoQuien({
     if (mio !== turno.current) return
 
     setRecotizando(false)
+
+    // Con una sola lectura fallida no se aplica NADA: se deja la obra
+    // social anterior, que es la que sí concuerda con lo cotizado. Un
+    // documento a medio recotizar es peor que uno sin cambiar, porque
+    // no se nota mirándolo.
+    if (fallaron > 0) {
+      toast.error(
+        `No se pudo recalcular ${fallaron} prestación(es) con la cobertura nueva. ` +
+          'Se dejó la obra social anterior para que el presupuesto no quede mezclado: probá de nuevo.',
+      )
+      return
+    }
+
     parche({ ...cambio, items: nuevos })
 
     if (conPrestacion.length === 0) return

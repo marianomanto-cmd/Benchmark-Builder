@@ -612,6 +612,7 @@ as $$
 declare
   v_id            uuid;
   v_numero        text;
+  v_clave         uuid;
   v_pac           pacientes%rowtype;
   v_prof          profesionales%rowtype;
   v_os_nombre     text;
@@ -636,6 +637,15 @@ begin
     raise exception 'No autenticado';
   end if;
 
+  -- ── Idempotencia: ¿esta alta ya emitió un documento? ──
+  v_clave := nullif(p_payload ->> 'clave_alta', '')::uuid;
+  if v_clave is not null then
+    select id into v_id from presupuestos where clave_alta = v_clave;
+    if v_id is not null then
+      return v_id;
+    end if;
+  end if;
+
   v_estado := coalesce((p_payload ->> 'estado')::estado_presupuesto, 'realizado');
   if v_estado not in ('borrador','realizado','enviado') then
     raise exception 'Estado inicial inválido: %', v_estado;
@@ -651,8 +661,6 @@ begin
   select * into v_prof from profesionales where id = (p_payload ->> 'profesional_id')::uuid;
   if not found then raise exception 'Profesional inexistente'; end if;
 
-  -- La obra social del presupuesto puede diferir de la de la ficha
-  -- (el paso 1 la deja editable), pero se congela como texto.
   v_os_id := nullif(p_payload ->> 'obra_social_id', '')::uuid;
   select nombre || coalesce(' ' || plan, '') into v_os_nombre
     from obras_sociales where id = v_os_id;
@@ -662,7 +670,7 @@ begin
     paciente_nombre, paciente_dni, paciente_telefono, paciente_afiliado,
     profesional_nombre, profesional_matricula,
     fecha_emision, valido_hasta, observaciones, nota_interna,
-    estado, created_by
+    estado, created_by, clave_alta
   ) values (
     v_pac.id, v_prof.id, v_os_id, v_os_nombre,
     v_pac.nombre, v_pac.dni, v_pac.telefono, v_pac.nro_afiliado,
@@ -671,7 +679,7 @@ begin
     coalesce((p_payload ->> 'valido_hasta')::date, current_date + 30),
     nullif(p_payload ->> 'observaciones', ''),
     nullif(p_payload ->> 'nota_interna', ''),
-    'borrador', auth.uid()
+    'borrador', auth.uid(), v_clave
   )
   returning id, numero into v_id, v_numero;
 
@@ -712,9 +720,6 @@ begin
   -- ── Cuotas: el porcentaje manda, la última absorbe el redondeo ──
   v_cuotas_n := jsonb_array_length(coalesce(p_payload -> 'cuotas', '[]'::jsonb));
   if v_cuotas_n > 0 then
-    -- Sin esta validación, unos porcentajes que suman más de 100 dejan
-    -- la última cuota en negativo y la emisión aborta con un error de
-    -- Postgres que no le dice nada a quien está cargando.
     if abs(coalesce((
       select sum((c ->> 'porcentaje')::numeric)
         from jsonb_array_elements(p_payload -> 'cuotas') c
@@ -759,6 +764,17 @@ begin
           v_estado, auth.uid(), actor_nombre());
 
   return v_id;
+
+exception
+  -- Dos pedidos con la misma clave a la vez: el que pierde la carrera
+  -- llega acá, su inserción parcial se deshace sola con la subtransacción
+  -- y devuelve el documento del que ganó. Cualquier otra violación de
+  -- unicidad sigue su camino de siempre.
+  when unique_violation then
+    if v_clave is null then raise; end if;
+    select id into v_id from presupuestos where clave_alta = v_clave;
+    if v_id is null then raise; end if;
+    return v_id;
 end $$;
 
 
@@ -1277,7 +1293,6 @@ language plpgsql
 set search_path = public
 as $$
 begin
-  -- Mientras es borrador se puede tocar todo: todavía no es documento.
   if old.estado = 'borrador' then
     return new;
   end if;
@@ -1287,7 +1302,6 @@ begin
       'Un presupuesto emitido no vuelve a borrador: duplicalo en lugar de reabrirlo';
   end if;
 
-  -- Congelado: es lo que se le prometió al paciente.
   if new.numero                is distinct from old.numero
      or new.paciente_id        is distinct from old.paciente_id
      or new.profesional_id     is distinct from old.profesional_id
@@ -1307,14 +1321,12 @@ begin
      or new.duplicado_de       is distinct from old.duplicado_de
      or new.created_by         is distinct from old.created_by
      or new.created_at         is distinct from old.created_at
+     or new.clave_alta         is distinct from old.clave_alta
   then
     raise exception
       'Los valores de un presupuesto emitido no se editan: duplicalo con los valores de hoy';
   end if;
 
-  -- Siguen abiertos a propósito: estado, estado_desde, motivo_perdida,
-  -- motivo_perdida_nota, nota_interna, pdf_path, paciente_telefono
-  -- (se puede completar al mandar el WhatsApp) y updated_at.
   return new;
 end $$;
 
@@ -2096,3 +2108,40 @@ drop trigger if exists trg_evento_firmado on presupuesto_eventos;
 create trigger trg_evento_firmado
   before insert on presupuesto_eventos
   for each row execute function firmar_evento();
+
+
+-- ─── alta idempotente ───────────────────────────────────────
+
+
+alter table presupuestos add column if not exists clave_alta uuid;
+
+comment on column presupuestos.clave_alta is
+  'Clave de idempotencia del alta, generada por el wizard. Permite que un '
+  'reintento después de una respuesta perdida devuelva el mismo documento '
+  'en lugar de emitir uno nuevo.';
+
+-- Parcial: los presupuestos viejos y los duplicados no tienen clave, y
+-- muchos `null` no chocan entre sí en un índice único de todos modos.
+create unique index if not exists presupuestos_clave_alta_key
+  on presupuestos (clave_alta) where clave_alta is not null;
+
+-- ─────────────────────────────────────────────────────────────
+-- La clave es parte de la identidad del alta: una vez emitido, no se
+-- toca. Sin esto, un PATCH podía reapuntar la clave de un documento a
+-- otro y hacer que el próximo alta devolviera el presupuesto equivocado.
+-- ─────────────────────────────────────────────────────────────
+
+
+-- ─────────────────────────────────────────────────────────────
+-- El alta, ahora idempotente
+--
+-- Lo único que cambia respecto de la migración 12 son las tres piezas
+-- de la clave: la lectura antes de insertar, la columna en el insert, y
+-- el `exception` que resuelve la carrera de dos pedidos simultáneos con
+-- la misma clave (el segundo choca contra el índice único, deshace su
+-- inserción parcial y devuelve el documento que ganó).
+-- ─────────────────────────────────────────────────────────────
+
+
+revoke execute on function crear_presupuesto(jsonb) from public, anon;
+grant execute on function crear_presupuesto(jsonb) to authenticated;

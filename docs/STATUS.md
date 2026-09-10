@@ -109,6 +109,7 @@ Migraciones en `supabase/migrations/`, en este orden:
 | `20260101001600_estadisticas.sql` | Las funciones `stats_*` que agregan la historia para la pantalla 15 |
 | `20260101001700_agujeros.sql` | Un ítem no se muda de presupuesto · el vínculo de identidad (`user_id`) y la baja son permisos · el historial se firma en el servidor |
 | `20260101001800_estadisticas_honestas.sql` | La serie mensual arranca donde arranca el consultorio · el ticket de un mes vacío es `null`, no 0 |
+| `20260101001900_alta_idempotente.sql` | `presupuestos.clave_alta` + índice único parcial · `crear_presupuesto` devuelve el documento que ya emitió esa clave, incluso con dos pedidos a la vez · la clave queda congelada al emitir |
 
 **Sin la CLI**: `supabase/instalar.sql` e `instalar-storage.sql` son las mismas
 migraciones concatenadas en orden, para pegar en el SQL Editor de Supabase. Se
@@ -126,7 +127,7 @@ que las toca.
 | `prestaciones` | Catálogo. `descripcion` es la plantilla que se copia |
 | `prestacion_cuotas` | Plantilla de condiciones de pago (suma 100 %) |
 | `aranceles` | **Append-only** con vigencias. `obra_social_id` null = particular |
-| `presupuestos` | Cabecera + snapshot de contexto + totales congelados |
+| `presupuestos` | Cabecera + snapshot de contexto + totales congelados. `clave_alta` es la clave de idempotencia del alta (única, parcial) |
 | `presupuesto_items` | **El documento**: snapshot completo de cada prestación |
 | `presupuesto_cuotas` | Condiciones de pago congeladas |
 | `presupuesto_eventos` | Historial append-only que alimenta el timeline |
@@ -145,6 +146,10 @@ que las toca.
 - `pacientes_nombre_fts` / `prestaciones_nombre_fts` — GIN sobre
   `to_tsvector('spanish', nombre)` para los comboboxes.
 - `presupuestos (estado, fecha_emision desc)` — listado y pipeline.
+- `presupuestos_clave_alta_key` — único parcial sobre `clave_alta`: es lo que
+  convierte un reintento del wizard en el mismo documento en vez de en uno
+  nuevo. Parcial porque los presupuestos anteriores y los duplicados no
+  llevan clave.
 
 ### Funciones y RPC
 
@@ -155,7 +160,7 @@ que las toca.
 | `actor_nombre()` | Nombre legible del usuario para los eventos |
 | `nueva_vigencia(...)` | Cierra la vigencia abierta e inserta la nueva, atómico |
 | `aumento_masivo(rubro, os, solo_particular, pct, desde)` | Una llamada a `nueva_vigencia` por fila, en una transacción |
-| `crear_presupuesto(jsonb)` | Congela cabecera + ítems + cuotas + evento. Inserta como borrador y promueve el estado al final (lo exige `guard_item_emitido`) |
+| `crear_presupuesto(jsonb)` | Congela cabecera + ítems + cuotas + evento. Inserta como borrador y promueve el estado al final (lo exige `guard_item_emitido`). **Idempotente por `clave_alta`**: si esa clave ya emitió un documento devuelve ese mismo, incluso si dos pedidos llegan a la vez |
 | `duplicar_presupuesto(uuid)` | Copia re-resolviendo contra los aranceles vigentes hoy |
 | `cambiar_estado(id, estado, motivo, nota)` | Transición + evento. Bloquea la vuelta a borrador |
 | `registrar_evento(id, tipo, desc)` | Evento suelto (nota, PDF, WhatsApp) |
@@ -555,6 +560,13 @@ antes de aceptarlo. Los que resultaron reales:
 | iOS convertía en links los números del presupuesto —el número de documento, el DNI, el afiliado— y tocarlos abría el teléfono | `formatDetection` apagado en la metadata |
 | En mobile el toast salía a 16 px del borde, debajo de la tabbar: el «Deshacer» del kanban quedaba tapado por el FAB, justo el atajo para arreglar un arrastre equivocado | `mobileOffset` por arriba de la barra, respetando el safe-area |
 | Sin número, `rutaPdf()` devolvía la misma clave para todos: el PDF de un presupuesto se podía servir como el de otro | Cae al `id` antes que a un nombre compartido |
+| **Una respuesta perdida emitía el presupuesto dos veces.** La RPC commitea y después viaja la respuesta; si el enlace se cortaba en el medio, la server action caía en su `catch` y el wizard decía «no se emitió nada» —falso— y ofrecía «Reintentar». El consultorio terminaba con 2026-0341 y 2026-0342 idénticos por el mismo tratamiento, sin saber cuál mandó | El alta la identifica el cliente: el wizard genera una `clave_alta`, la guarda en el borrador (sobrevive la recarga) y viaja con el payload. Si esa clave ya emitió, la RPC devuelve ese documento. Verificado también con dos pedidos simultáneos: el que pierde la carrera deshace su inserción y devuelve el del otro (migración 20) |
+| Una lectura de arancel que **fallaba** al cambiar de obra social se contaba igual que «no hay arancel para esta obra social»: el ítem se devolvía intacto, con la cobertura de la obra social anterior, y el cartel explicaba con seguridad algo que nunca se comprobó. El documento salía con «OSDE 210» en la cabecera y Swiss Medical en las líneas | Las lecturas caídas se cuentan aparte y no se aplica nada: se deja la obra social anterior, que es la que sí concuerda con lo cotizado, y se pide reintentar |
+| El Enter de los mini-formularios del wizard no pasaba por el botón, así que el `isPending` que lo deshabilita no lo frenaba: dos Enter creaban dos pacientes «Gómez, Renata» en la agenda, o dos prestaciones con el mismo código | `useGuardadoUnico`, con `ref`: se cierra en el mismo tick, un render antes de que `isPending` exista |
+| En mobile —donde se carga la mayoría de los presupuestos— la X del wizard llamaba a `cerrar` derecho, salteándose la guarda que sí tenían el Escape y el clic afuera: se podía cerrar el wizard con la RPC en vuelo y quedarse sin ninguna pantalla que contara cómo terminó | La X se deshabilita mientras se emite |
+| Los errores que ninguna traducción supo nombrar se mostraban crudos: «new row for relation "presupuesto_items" violates check constraint …» en el banner del wizard y en la biblioteca | `lib/errores.ts` decide qué es texto para leer y qué es jerga; el crudo queda en el log del servidor |
+| Los mensajes de zod sin texto propio salían en inglés («Too big: expected string to have <=200 characters») | Locale de zod en castellano como red de abajo, y mensaje escrito a mano en cada regla alcanzable desde la pantalla |
+| Duplicar no distinguía «no se pudo» de «no sé»: una caída de red después del commit se reportaba como fallo y quien reintentaba se llevaba dos duplicados | Ahí el mensaje no promete: pide refrescar el listado antes de repetir. En `cambiar_estado` sí se puede invitar a repetir, porque la RPC sale sola si el estado ya es el pedido |
 
 ### Pendiente
 
@@ -589,8 +601,8 @@ antes de aceptarlo. Los que resultaron reales:
 ## 10 · Cómo se verifica
 
 - `npm run build` · `npm run typecheck` · `npm run lint` — sin errores.
-- `npm test` — 56 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts` y
-  `lib/estadisticas.ts`.
+- `npm test` — 58 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts`,
+  `lib/estadisticas.ts` y `lib/zod.ts`.
 - `npm run sql:instalar` — regenera los scripts del SQL Editor desde las
   migraciones. Correr después de tocar cualquier migración.
 - `npm run test:paridad` — 220 casos comparando `calcularItem` contra
@@ -605,7 +617,11 @@ antes de aceptarlo. Los que resultaron reales:
 - Las guardas de la regla del snapshot se probaron contra un Postgres real
   aplicando las migraciones desde cero: cada regla se intentó violar y tiene
   que fallar (ítems de un emitido, arancel usado, borrado de aranceles,
-  edición del historial, vuelta a borrador, reapuntado de un arancel).
+  edición del historial, vuelta a borrador, reapuntado de un arancel, mudanza
+  de un ítem a otro presupuesto, reapuntado de `clave_alta` en un emitido).
+- **La idempotencia del alta se prueba con dos pedidos simultáneos**, no con
+  dos seguidos: dos transacciones con la misma `clave_alta` tienen que dejar
+  UN documento y devolverle el mismo id a las dos.
 - **QA con navegador, en mobile (390×844) y desktop (1440×900).** Se abre la
   app real —no un mock— contra un Postgres local con el seed, se entra con
   usuario y contraseña, se recorre cada pantalla y se carga un presupuesto

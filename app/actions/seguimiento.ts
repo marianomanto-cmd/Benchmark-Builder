@@ -15,10 +15,11 @@
  */
 
 import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
 
+import { paraMostrar, sinCaerse } from '@/lib/errores'
 import { createClient, getUsuario } from '@/lib/supabase/server'
 import type { EstadoPresupuesto, MotivoPerdida } from '@/lib/types'
+import { z } from '@/lib/zod'
 
 /* ═══════════════════════════════════════════════════════════
    Validación
@@ -107,7 +108,13 @@ function mensajeDeError(crudo: string): string {
   if (m.includes('violates row-level security') || m.includes('permission denied')) {
     return 'Tu usuario no tiene permiso para esta acción. Avisale al consultorio.'
   }
-  return crudo
+  // Lo que no supimos nombrar arriba puede ser un `raise exception` de la
+  // RPC —escrito en castellano y para mostrar— o un error interno de
+  // Postgres. Sólo lo primero se muestra tal cual.
+  return paraMostrar(
+    crudo,
+    'No se pudo completar la operación. Refrescá la pantalla y probá de nuevo; si sigue igual, avisale al consultorio.',
+  )
 }
 
 /**
@@ -147,14 +154,29 @@ export async function cambiarEstado(
   const datos = parseado.data
 
   const supabase = await createClient()
-  const { error } = await supabase.rpc('cambiar_estado', {
-    p_id: datos.id,
-    p_estado: datos.estado,
-    // Fuera de `perdido` la RPC los ignora igual, pero se mandan en null
-    // para que el intento quede explícito de este lado también.
-    p_motivo: datos.estado === 'perdido' ? (datos.motivo ?? null) : null,
-    p_nota: datos.estado === 'perdido' ? (datos.nota || null) : null,
-  })
+  const llamada = await sinCaerse(
+    () =>
+      supabase.rpc('cambiar_estado', {
+        p_id: datos.id,
+        p_estado: datos.estado,
+        // Fuera de `perdido` la RPC los ignora igual, pero se mandan en
+        // null para que el intento quede explícito de este lado también.
+        p_motivo: datos.estado === 'perdido' ? (datos.motivo ?? null) : null,
+        p_nota: datos.estado === 'perdido' ? (datos.nota || null) : null,
+      }),
+    'cambiar_estado',
+  )
+  if (!llamada.ok) {
+    // Acá sí se puede invitar a repetir sin reservas: la RPC sale por
+    // `if v_ant = p_estado then return`, así que un segundo intento
+    // sobre un cambio que ya se aplicó no hace nada ni ensucia el
+    // historial con una línea repetida.
+    return {
+      ok: false,
+      error: 'No hubo respuesta del servidor. Revisá la conexión y probá de nuevo.',
+    }
+  }
+  const { error } = llamada.valor
 
   if (error) return { ok: false, error: mensajeDeError(error.message) }
 
@@ -181,9 +203,25 @@ export async function duplicarPresupuesto(
   if (!parseado.success) return { ok: false, error: 'Ese presupuesto no es válido.' }
 
   const supabase = await createClient()
-  const { data: nuevoId, error } = await supabase.rpc('duplicar_presupuesto', {
-    p_id: parseado.data,
-  })
+  /**
+   * Duplicar es una escritura: si el enlace se corta después del commit
+   * el duplicado EXISTE, aunque acá se vea como un fallo. Por eso el
+   * mensaje no promete que no pasó nada — pedir «duplicá de nuevo»
+   * sobre una respuesta perdida es cómo se termina con tres copias del
+   * mismo presupuesto en el listado.
+   */
+  const llamada = await sinCaerse(
+    () => supabase.rpc('duplicar_presupuesto', { p_id: parseado.data }),
+    'duplicar_presupuesto',
+  )
+  if (!llamada.ok) {
+    return {
+      ok: false,
+      error:
+        'No hubo respuesta del servidor. Antes de volver a duplicar, refrescá el listado: puede que el duplicado ya se haya creado.',
+    }
+  }
+  const { data: nuevoId, error } = llamada.valor
 
   if (error) return { ok: false, error: mensajeDeError(error.message) }
   if (typeof nuevoId !== 'string') {

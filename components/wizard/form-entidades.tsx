@@ -18,7 +18,7 @@ import { toast } from 'sonner'
 import { Field, Input, Switch } from '@/components/ui'
 import type { ObraSocial, Paciente, Profesional } from '@/lib/types'
 
-import { CabeceraCapa, MarcoCapa, PieCapa } from './capa'
+import { CabeceraCapa, MarcoCapa, PieCapa, useGuardadoUnico } from './capa'
 import {
   useCrearObraSocial,
   useCrearPaciente,
@@ -53,6 +53,7 @@ export function FormPaciente({
   const [creandoObraSocial, setCreandoObraSocial] = React.useState<string | null>(null)
 
   const crear = useCrearPaciente()
+  const enviar = useGuardadoUnico(guardar)
 
   async function guardar() {
     const limpio = nombre.trim()
@@ -91,7 +92,7 @@ export function FormPaciente({
   }
 
   return (
-    <MarcoCapa onEnviar={() => void guardar()}>
+    <MarcoCapa onEnviar={enviar}>
       <CabeceraCapa
         titulo="Nuevo paciente"
         ayuda="Con el nombre alcanza. El resto lo podés completar más adelante."
@@ -182,7 +183,7 @@ export function FormPaciente({
       <PieCapa
         etiqueta="Crear paciente"
         onCancelar={onCancelar}
-        onGuardar={() => void guardar()}
+        onGuardar={enviar}
         guardando={crear.isPending}
         deshabilitado={nombre.trim().length < 2}
       />
@@ -209,6 +210,7 @@ export function FormProfesional({
   const [error, setError] = React.useState<string | null>(null)
 
   const crear = useCrearProfesional()
+  const enviar = useGuardadoUnico(guardar)
 
   async function guardar() {
     const limpio = nombre.trim()
@@ -230,7 +232,7 @@ export function FormProfesional({
   }
 
   return (
-    <MarcoCapa onEnviar={() => void guardar()}>
+    <MarcoCapa onEnviar={enviar}>
       <CabeceraCapa
         titulo="Nuevo profesional"
         ayuda="El nombre sale impreso en el presupuesto, así que escribilo como firma."
@@ -276,7 +278,7 @@ export function FormProfesional({
       <PieCapa
         etiqueta="Crear profesional"
         onCancelar={onCancelar}
-        onGuardar={() => void guardar()}
+        onGuardar={enviar}
         guardando={crear.isPending}
         deshabilitado={nombre.trim().length < 3}
       />
@@ -302,6 +304,7 @@ export function FormObraSocial({
   const [error, setError] = React.useState<string | null>(null)
 
   const crear = useCrearObraSocial()
+  const enviar = useGuardadoUnico(guardar)
 
   async function guardar() {
     const limpio = nombre.trim()
@@ -324,7 +327,7 @@ export function FormObraSocial({
   }
 
   return (
-    <MarcoCapa onEnviar={() => void guardar()}>
+    <MarcoCapa onEnviar={enviar}>
       <CabeceraCapa
         titulo="Nueva obra social"
         ayuda="El plan va aparte del nombre: así “OSDE 210” y “OSDE 310” son dos coberturas distintas."
@@ -359,7 +362,7 @@ export function FormObraSocial({
       <PieCapa
         etiqueta="Crear obra social"
         onCancelar={onCancelar}
-        onGuardar={() => void guardar()}
+        onGuardar={enviar}
         guardando={crear.isPending}
         deshabilitado={nombre.trim().length < 2}
       />

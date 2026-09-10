@@ -11,21 +11,22 @@
  */
 
 import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
 
 import { cuotasSuman100 } from '@/lib/calculo'
+import { esJerga } from '@/lib/errores'
 import { createClient, getUsuario } from '@/lib/supabase/server'
+import { z } from '@/lib/zod'
 
 /* ═══════════════════════════════════════════════════════════
    Validación
    ═══════════════════════════════════════════════════════════ */
 
-const tipoCobertura = z.enum(['porcentaje', 'monto', 'ninguna'])
+const tipoCobertura = z.enum(['porcentaje', 'monto', 'ninguna'], 'Ese tipo de cobertura no existe.')
 
 const textoOpcional = z
   .string()
   .trim()
-  .max(2000)
+  .max(2000, 'Ese texto es demasiado largo: no puede pasar de 2000 caracteres.')
   .nullable()
   .default(null)
   // El cliente manda "" cuando el campo quedó vacío; en la base eso es null.
@@ -33,9 +34,13 @@ const textoOpcional = z
 
 const itemSchema = z
   .object({
-    prestacion_id: z.uuid().nullable().default(null),
-    arancel_id: z.uuid().nullable().default(null),
-    nombre: z.string().trim().min(1, 'Cada prestación necesita un nombre.').max(200),
+    prestacion_id: z.uuid('La prestación elegida no es válida.').nullable().default(null),
+    arancel_id: z.uuid('El arancel elegido no es válido.').nullable().default(null),
+    nombre: z
+      .string()
+      .trim()
+      .min(1, 'Cada prestación necesita un nombre.')
+      .max(200, 'El nombre de una prestación no puede pasar de 200 caracteres.'),
     codigo: textoOpcional,
     descripcion: textoOpcional,
     detalle: textoOpcional,
@@ -43,12 +48,20 @@ const itemSchema = z
       .number()
       .int('Los montos van en pesos enteros.')
       .min(0, 'Un monto no puede ser negativo.')
-      .max(999_999_999),
+      .max(999_999_999, 'Ese monto es demasiado grande. Revisá los ceros.'),
     cobertura_tipo: tipoCobertura,
-    cobertura_valor: z.number().min(0, 'La cobertura no puede ser negativa.').max(999_999_999),
+    cobertura_valor: z
+      .number()
+      .min(0, 'La cobertura no puede ser negativa.')
+      .max(999_999_999, 'Esa cobertura es demasiado grande. Revisá los ceros.'),
     editado: z.boolean().default(false),
     cobertura_original_tipo: tipoCobertura.nullable().default(null),
-    cobertura_original_valor: z.number().min(0).max(999_999_999).nullable().default(null),
+    cobertura_original_valor: z
+      .number()
+      .min(0, 'La cobertura de referencia no puede ser negativa.')
+      .max(999_999_999, 'La cobertura de referencia es demasiado grande.')
+      .nullable()
+      .default(null),
     motivo_override: textoOpcional,
   })
   .refine((i) => i.cobertura_tipo !== 'porcentaje' || i.cobertura_valor <= 100, {
@@ -57,7 +70,11 @@ const itemSchema = z
   })
 
 const cuotaSchema = z.object({
-  etiqueta: z.string().trim().min(1, 'Cada condición de pago necesita una etiqueta.').max(120),
+  etiqueta: z
+    .string()
+    .trim()
+    .min(1, 'Cada condición de pago necesita una etiqueta.')
+    .max(120, 'El nombre de una condición de pago no puede pasar de 120 caracteres.'),
   porcentaje: z
     .number()
     .min(0, 'Un porcentaje no puede ser negativo.')
@@ -69,7 +86,7 @@ const payloadSchema = z
     paciente_id: z.uuid('Elegí un paciente.'),
     profesional_id: z.uuid('Elegí un profesional.'),
     /** null = Particular. */
-    obra_social_id: z.uuid().nullable().default(null),
+    obra_social_id: z.uuid('La obra social elegida no es válida.').nullable().default(null),
     fecha_emision: z.iso.date('La fecha de emisión no es válida.'),
     valido_hasta: z.iso.date('La fecha de vigencia no es válida.'),
     observaciones: textoOpcional,
@@ -79,6 +96,12 @@ const payloadSchema = z
      * presupuesto a medias vive en localStorage, no en la base.
      */
     estado: z.enum(['realizado', 'enviado']),
+    /**
+     * Clave de idempotencia del alta, generada por el wizard. La RPC la
+     * usa para reconocer un reintento: si esta clave ya emitió un
+     * presupuesto, devuelve ese mismo en lugar de crear otro.
+     */
+    clave_alta: z.uuid('La clave del alta no es válida.').nullable().default(null),
     items: z.array(itemSchema).min(1, 'Un presupuesto necesita al menos una prestación.'),
     cuotas: z.array(cuotaSchema).max(12, 'Doce condiciones de pago son demasiadas.').default([]),
   })
@@ -120,37 +143,6 @@ function pasoDelCampo(path: PropertyKey[]): PasoWizard | undefined {
   if (campo === 'items') return 2
   if (['cuotas', 'observaciones', 'nota_interna', 'estado'].includes(campo)) return 3
   return undefined
-}
-
-/**
- * ¿El texto es un error interno de Postgres o de red?
- *
- * Los `raise exception` de la RPC están escritos en castellano y para
- * mostrar. El resto no: "new row for relation … violates check
- * constraint" no le dice nada a quien está atendiendo, y encima lo
- * asusta. Ante la duda, mostramos algo accionable y dejamos el crudo en
- * el log del servidor.
- */
-function esJerga(crudo: string): boolean {
-  const m = crudo.toLowerCase()
-  return [
-    'violates',
-    'constraint',
-    'relation',
-    'column',
-    'invalid input syntax',
-    'duplicate key',
-    'null value',
-    'function',
-    'operator',
-    'syntax error',
-    'fetch failed',
-    'econnrefused',
-    'etimedout',
-    'network',
-    'timeout',
-    'canceling statement',
-  ].some((pista) => m.includes(pista))
 }
 
 interface ErrorTraducido {
@@ -205,7 +197,7 @@ function traducirError(crudo: string): ErrorTraducido {
   ) {
     return {
       mensaje:
-        'No hubo respuesta del servidor. Probá "Reintentar": lo cargado sigue acá y no se emitió nada.',
+        'No hubo respuesta del servidor. Probá "Reintentar": lo cargado sigue acá y, si el presupuesto llegó a emitirse, no se va a duplicar.',
     }
   }
   if (esJerga(crudo)) {
@@ -257,6 +249,14 @@ export async function crearPresupuesto(
    * llegaba al cliente como el error genérico de una server action y el
    * wizard mostraba "An unexpected response was received from the
    * server" arriba de un presupuesto entero cargado.
+   *
+   * Ojo con lo que se promete acá: cuando el enlace se corta DESPUÉS del
+   * commit, el presupuesto está emitido y esta rama igual se ejecuta.
+   * Por eso el payload lleva `clave_alta`: el reintento vuelve a entrar
+   * con la misma clave y la RPC devuelve el documento que ya existe en
+   * lugar de emitir un segundo. Sin esa clave, el mensaje de abajo sería
+   * mentira y el consultorio terminaría con dos números para el mismo
+   * tratamiento.
    */
   let id: unknown
   try {
@@ -273,7 +273,7 @@ export async function crearPresupuesto(
     return {
       ok: false,
       error:
-        'No se pudo hablar con el servidor. Probá "Reintentar": lo cargado sigue acá y no se emitió nada.',
+        'No se pudo hablar con el servidor. Probá "Reintentar": lo cargado sigue acá y, si el presupuesto llegó a emitirse, no se va a duplicar.',
     }
   }
 

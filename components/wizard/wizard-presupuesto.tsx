@@ -428,6 +428,7 @@ function WizardInterno() {
                   guardadoEn={guardadoEn}
                   onIr={irAlPaso}
                   onCerrar={cerrar}
+                  guardando={Boolean(guardando)}
                 />
 
                 {fallo && (
@@ -554,6 +555,7 @@ function BarraPasos({
   guardadoEn,
   onIr,
   onCerrar,
+  guardando,
 }: {
   paso: 1 | 2 | 3
   itemsCargados: number
@@ -562,6 +564,8 @@ function BarraPasos({
   guardadoEn: string | null
   onIr: (n: 1 | 2 | 3) => void
   onCerrar: () => void
+  /** Con la RPC en vuelo no se sale: ver la X de abajo. */
+  guardando: boolean
 }) {
   /**
    * Sólo se puede saltar a un paso ya alcanzado: nunca hacia adelante
@@ -634,12 +638,22 @@ function BarraPasos({
 
       <SelloGuardado guardadoEn={guardadoEn} />
 
-      {/* En mobile el sheet no trae botón de cerrar: sólo el gesto. */}
+      {/*
+        En mobile el sheet no trae botón de cerrar: sólo el gesto.
+
+        Va deshabilitada mientras se emite. El `onOpenChange` del modal
+        ya bloqueaba el Escape y el clic afuera, pero esta X llamaba a
+        `cerrar` derecho: en mobile —que es donde se carga la mayoría de
+        los presupuestos— era la única salida que se saltaba la guarda, y
+        cerrar acá deja el alta en vuelo sin ninguna pantalla que cuente
+        cómo terminó.
+      */}
       <Button
         variant="ghost"
         size="icon-touch"
         className="-mr-2 shrink-0 md:hidden"
         onClick={onCerrar}
+        disabled={guardando}
         aria-label="Cerrar el wizard"
       >
         <X aria-hidden />

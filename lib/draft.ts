@@ -19,6 +19,7 @@
 import * as React from 'react'
 
 import type { BorradorPresupuesto } from '@/lib/types'
+import { esUuid, nuevaClaveAlta } from '@/lib/utils'
 
 /** Clave única del borrador. La home la lee para ofrecer "continuar". */
 export const CLAVE_BORRADOR = 'smilelab:borrador'
@@ -113,7 +114,14 @@ export function leerBorrador(): BorradorPresupuesto | null {
  * después sería peor que el problema que resuelve validarlo.
  */
 function normalizar(b: BorradorPresupuesto): BorradorPresupuesto {
-  return { ...b, cuotas_heredadas: b.cuotas_heredadas ?? false }
+  return {
+    ...b,
+    cuotas_heredadas: b.cuotas_heredadas ?? false,
+    // Un borrador de una versión anterior del wizard no la tiene, y
+    // basura en el storage tampoco: se le da una nueva. Un alta sin
+    // clave sigue funcionando, pero pierde la protección del reintento.
+    clave_alta: esUuid(b.clave_alta) ? b.clave_alta : nuevaClaveAlta(),
+  }
 }
 
 /**

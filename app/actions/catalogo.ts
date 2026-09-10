@@ -16,10 +16,11 @@
  */
 
 import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
 
+import { paraMostrar } from '@/lib/errores'
 import { createClient, getUsuario } from '@/lib/supabase/server'
 import type { ObraSocial, Paciente, Prestacion, Profesional } from '@/lib/types'
+import { z } from '@/lib/zod'
 
 /* ═══════════════════════════════════════════════════════════
    Resultado
@@ -122,7 +123,12 @@ function mensajeDeError(crudo: string): string {
   if (m.includes('violates row-level security') || m.includes('permission denied')) {
     return 'Tu usuario no tiene permiso para esta operación. Avisale al consultorio.'
   }
-  return crudo
+  // Idem `seguimiento.ts`: el `raise exception` de la RPC se muestra, el
+  // «violates check constraint» no.
+  return paraMostrar(
+    crudo,
+    'No se pudo guardar. Refrescá la pantalla y probá de nuevo; si sigue igual, avisale al consultorio.',
+  )
 }
 
 /** Primer mensaje de zod, que es el que se muestra en el formulario. */

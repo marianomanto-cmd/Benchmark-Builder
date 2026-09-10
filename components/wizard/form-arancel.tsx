@@ -20,7 +20,7 @@ import { money, porcentaje as fmtPorcentaje } from '@/lib/formato'
 import type { Arancel, Prestacion } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-import { CabeceraCapa, MarcoCapa, PieCapa } from './capa'
+import { CabeceraCapa, MarcoCapa, PieCapa, useGuardadoUnico } from './capa'
 import { useCrearArancel } from './consultas'
 
 export interface ValoresArancel {
@@ -201,6 +201,7 @@ export function FormArancel({
   const [error, setError] = React.useState<string | null>(null)
 
   const crear = useCrearArancel()
+  const enviar = useGuardadoUnico(guardar)
 
   async function guardar() {
     if (valores.monto <= 0) {
@@ -227,7 +228,7 @@ export function FormArancel({
   }
 
   return (
-    <MarcoCapa onEnviar={() => void guardar()}>
+    <MarcoCapa onEnviar={enviar}>
       <CabeceraCapa
         titulo={`Arancel de ${prestacion.nombre}`}
         ayuda={
@@ -258,7 +259,7 @@ export function FormArancel({
       <PieCapa
         etiqueta="Cargar arancel y seguir"
         onCancelar={onCancelar}
-        onGuardar={() => void guardar()}
+        onGuardar={enviar}
         guardando={crear.isPending}
         deshabilitado={valores.monto <= 0}
       />

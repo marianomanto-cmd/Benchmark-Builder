@@ -79,6 +79,30 @@ export function Capa({
 }
 
 /**
+ * Envuelve el guardado de un mini-form para que no corra dos veces a la vez.
+ *
+ * El botón de guardar se deshabilita mientras la mutación está en
+ * vuelo, pero el Enter de `MarcoCapa` no pasaba por el botón: con el
+ * teclado en repetición —o simplemente apretando Enter dos veces
+ * mientras la red tarda— salían dos pacientes «Gómez, Renata» en la
+ * agenda, o dos prestaciones con el mismo código. El `isPending` de la
+ * mutación no alcanza como guarda porque es estado de React y se ve un
+ * render después; una ref se cierra en el mismo tick.
+ */
+export function useGuardadoUnico(
+  guardar: () => Promise<void>,
+): () => void {
+  const enVuelo = React.useRef(false)
+  return React.useCallback(() => {
+    if (enVuelo.current) return
+    enVuelo.current = true
+    void guardar().finally(() => {
+      enVuelo.current = false
+    })
+  }, [guardar])
+}
+
+/**
  * Marco de un mini-form: lo único que agrega es el Enter.
  *
  * Los mini-forms no son `<form>` —viven adentro del modal del wizard,

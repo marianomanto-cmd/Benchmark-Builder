@@ -19,7 +19,7 @@ import type {
   ItemBorrador,
   Prestacion,
 } from '@/lib/types'
-import { nuevaKey } from '@/lib/utils'
+import { nuevaClaveAlta, nuevaKey } from '@/lib/utils'
 
 /** Las dos vigencias que el consultorio usa el 95 % de las veces. */
 export const VIGENCIAS_RAPIDAS = [30, 60] as const
@@ -57,6 +57,7 @@ export function borradorInicial(): BorradorPresupuesto {
     observaciones: '',
     nota_interna: '',
     estado_inicial: 'realizado',
+    clave_alta: nuevaClaveAlta(),
     guardado_en: new Date().toISOString(),
   }
 }
@@ -187,6 +188,7 @@ export function aPayload(borrador: BorradorPresupuesto): PayloadPresupuesto {
     observaciones: borrador.observaciones.trim() || null,
     nota_interna: borrador.nota_interna.trim() || null,
     estado: borrador.estado_inicial,
+    clave_alta: borrador.clave_alta,
     items: borrador.items.map((i) => ({
       prestacion_id: i.prestacion_id,
       arancel_id: i.arancel_id,

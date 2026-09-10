@@ -1,7 +1,6 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
 
 import {
   MIN_CONTRASENA,
@@ -12,6 +11,7 @@ import {
   usuarioDeMail,
 } from '@/lib/auth/usuarios'
 import { createAdminClient, createClient, getPerfil, type Perfil } from '@/lib/supabase/server'
+import { z } from '@/lib/zod'
 
 export interface Resultado {
   ok: boolean

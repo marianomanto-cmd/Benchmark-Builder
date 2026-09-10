@@ -247,5 +247,14 @@ export interface BorradorPresupuesto {
   observaciones: string
   nota_interna: string
   estado_inicial: Extract<EstadoPresupuesto, 'realizado' | 'enviado'>
+  /**
+   * Clave de idempotencia del alta.
+   *
+   * Se genera una vez, al empezar el borrador, y sobrevive la recarga
+   * porque viaja en localStorage: es lo que permite que «Reintentar»
+   * después de una respuesta perdida devuelva el documento que ya se
+   * emitió en vez de emitir un segundo con otro número.
+   */
+  clave_alta: string
   guardado_en: string
 }
