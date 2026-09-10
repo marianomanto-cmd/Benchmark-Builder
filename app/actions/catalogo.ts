@@ -91,11 +91,21 @@ const fecha = z
 function mensajeDeError(crudo: string): string {
   const m = crudo.toLowerCase()
 
-  if (m.includes('obras_sociales_nombre_plan_key')) {
+  if (m.includes('obras_sociales_nombre_plan_key') || m.includes('obras_sociales_nombre_plan_ci_key')) {
     return 'Ya existe una obra social con ese nombre y ese plan.'
+  }
+  // La unicidad sin plan y sin distinguir mayúsculas: sin este mensaje,
+  // crear «SANCOR» cuando ya existe «Sancor» decía «no se pudo guardar»
+  // y el consultorio terminaba con dos obras sociales iguales igual,
+  // porque probaba escribiéndolo distinto.
+  if (m.includes('obras_sociales_nombre_sin_plan_key')) {
+    return 'Ya existe una obra social con ese nombre. Si es otro plan, cargalo en el campo Plan.'
   }
   if (m.includes('prestaciones_codigo_key')) {
     return 'Ya hay otra prestación con ese código.'
+  }
+  if (m.includes('prestaciones_nombre_key')) {
+    return 'Ya hay una prestación con ese nombre en la biblioteca.'
   }
   if (m.includes('profesionales_user_id_key')) {
     return 'Ese usuario ya tiene una ficha de profesional.'

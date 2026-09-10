@@ -2362,3 +2362,122 @@ comment on function guard_ultimo_admin() is
   'Impide dejar al consultorio sin ningún administrador activo con acceso. '
   'Va AFTER para ver el estado final de la fila, y cuenta las otras fichas '
   'por separado para no depender del orden de los triggers.';
+
+
+-- ─── buscar sin acentos ───────────────────────────────────────
+
+
+create extension if not exists unaccent;
+create extension if not exists pg_trgm;
+
+-- ─────────────────────────────────────────────────────────────
+-- `unaccent()` es STABLE, no IMMUTABLE: depende del diccionario, que en
+-- teoría se puede cambiar. Una columna generada y un índice exigen
+-- IMMUTABLE, así que se envuelve. Es el envoltorio de siempre, y es
+-- seguro mientras nadie toque el diccionario `unaccent`.
+-- ─────────────────────────────────────────────────────────────
+
+
+create or replace function sin_acentos(t text) returns text
+language sql immutable strict parallel safe
+set search_path = public, extensions
+as $$ select lower(unaccent(t)) $$;
+
+
+comment on function sin_acentos(text) is
+  'Texto listo para buscar: sin acentos y en minúsculas. Tiene que dar lo '
+  'mismo que normalizar() en lib/formato.ts — es el par TS/SQL de la búsqueda.';
+
+-- ─────────────────────────────────────────────────────────────
+-- Pacientes: es el picker del wizard, donde el costo de no encontrar
+-- es una ficha duplicada.
+-- ─────────────────────────────────────────────────────────────
+
+alter table pacientes
+  add column if not exists busqueda text
+  generated always as (
+    sin_acentos(
+      coalesce(nombre, '') || ' ' ||
+      coalesce(dni, '') || ' ' ||
+      coalesce(nro_afiliado, '')
+    )
+  ) stored;
+
+create index if not exists pacientes_busqueda_idx
+  on pacientes using gin (busqueda gin_trgm_ops);
+
+-- ─────────────────────────────────────────────────────────────
+-- Presupuestos: home y pipeline. Todo lo que se busca vive en el
+-- snapshot de la propia fila, salvo la prestación principal, que la
+-- resuelve la vista.
+-- ─────────────────────────────────────────────────────────────
+
+alter table presupuestos
+  add column if not exists busqueda text
+  generated always as (
+    sin_acentos(
+      coalesce(numero, '') || ' ' ||
+      coalesce(paciente_nombre, '') || ' ' ||
+      coalesce(paciente_dni, '') || ' ' ||
+      coalesce(paciente_afiliado, '') || ' ' ||
+      coalesce(obra_social_nombre, '') || ' ' ||
+      coalesce(profesional_nombre, '')
+    )
+  ) stored;
+
+create index if not exists presupuestos_busqueda_idx
+  on presupuestos using gin (busqueda gin_trgm_ops);
+
+-- ─────────────────────────────────────────────────────────────
+-- La vista suma la prestación principal a lo buscable.
+--
+-- Se enumeran las columnas en vez de usar `p.*` para conservar el orden
+-- que la vista ya tenía: `create or replace view` sólo deja agregar
+-- columnas AL FINAL, y con `p.*` las nuevas de `presupuestos` se
+-- colarían en el medio y el reemplazo fallaría.
+-- ─────────────────────────────────────────────────────────────
+
+create or replace view presupuestos_listado with (security_invoker = true) as
+select
+  p.id, p.numero, p.paciente_id, p.profesional_id, p.obra_social_id,
+  p.obra_social_nombre, p.paciente_nombre, p.paciente_dni, p.paciente_telefono,
+  p.paciente_afiliado, p.profesional_nombre, p.profesional_matricula,
+  p.fecha_emision, p.valido_hasta, p.subtotal, p.total_cobertura, p.total_a_cargo,
+  p.observaciones, p.estado, p.estado_desde, p.motivo_perdida, p.motivo_perdida_nota,
+  p.nota_interna, p.pdf_path, p.duplicado_de, p.created_at, p.updated_at, p.created_by,
+  (select pi.nombre
+     from presupuesto_items pi
+    where pi.presupuesto_id = p.id
+    order by pi.monto desc, pi.orden asc
+    limit 1) as prestacion_principal,
+  (select count(*) from presupuesto_items pi where pi.presupuesto_id = p.id) as items_count,
+  greatest(0, extract(day from now() - p.estado_desde)::int) as dias_en_estado,
+  -- Lo de la fila ya viene normalizado por la columna generada; la
+  -- prestación se normaliza acá porque vive en otra tabla.
+  p.busqueda || ' ' || coalesce(
+    sin_acentos((select pi.nombre
+                   from presupuesto_items pi
+                  where pi.presupuesto_id = p.id
+                  order by pi.monto desc, pi.orden asc
+                  limit 1)), '') as busqueda
+from presupuestos p;
+
+
+-- ─── catalogo sin duplicados ───────────────────────────────────────
+
+
+-- Sin plan: el nombre solo es la identidad.
+create unique index if not exists obras_sociales_nombre_sin_plan_key
+  on obras_sociales (lower(nombre)) where plan is null;
+
+-- Con plan: el par. El `unique (nombre, plan)` original ya cubre este
+-- caso, pero no sin distinguir mayúsculas.
+create unique index if not exists obras_sociales_nombre_plan_ci_key
+  on obras_sociales (lower(nombre), lower(plan)) where plan is not null;
+
+create unique index if not exists prestaciones_nombre_key
+  on prestaciones (lower(nombre));
+
+comment on index obras_sociales_nombre_sin_plan_key is
+  'Dos NULL no son iguales en Postgres, así que unique (nombre, plan) no '
+  'impide dos obras sociales con el mismo nombre y sin plan. Este índice sí.';
