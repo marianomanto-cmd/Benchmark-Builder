@@ -344,7 +344,16 @@ export function ModalAumentoMasivo({
                   min={PCT_MIN}
                   max={PCT_MAX}
                   value={String(pct)}
-                  onChange={(e) => setPct(Number(e.target.value) || 0)}
+                  /*
+                    Dos decimales, que es la precisión con la que el
+                    resumen lo muestra («12,35 %») y con la que la base
+                    lo aplica. Sin este corte se podía tipear 12,345:
+                    la pantalla decía 12,35 %, el preview calculaba con
+                    12,345 y la base escribía otro número — un peso de
+                    diferencia por arancel, en una operación que toca
+                    veinte de una.
+                  */
+                  onChange={(e) => setPct(Math.round((Number(e.target.value) || 0) * 100) / 100)}
                   invalido={pctFueraDeRango}
                   className="h-11 pr-8 text-right tabular-nums sm:h-9"
                 />

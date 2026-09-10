@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { Banner, Button } from '@/components/ui'
 import { useWizard } from '@/components/wizard/use-wizard'
 import { borrarBorrador, useBorradorGuardado } from '@/lib/draft'
-import { fechaHora, hora, isoDate } from '@/lib/formato'
+import { diaCalendario, fechaHora, hora, isoDate } from '@/lib/formato'
 
 const NOMBRE_PASO: Record<1 | 2 | 3, string> = {
   1: 'Paciente y cobertura',
@@ -33,7 +33,17 @@ export function BannerBorrador() {
 
   const paciente = borrador.paciente_nombre?.trim()
   const guardado = borrador.guardado_en
-  const esDeHoy = guardado.slice(0, 10) === isoDate()
+  /*
+   * `diaCalendario()` y no `guardado.slice(0, 10)`: el sello se escribe
+   * con `toISOString()`, que es UTC, y se comparaba contra el día del
+   * consultorio. Entre las 21:00 y la medianoche de Argentina el sello
+   * ya lleva la fecha de mañana, así que un borrador guardado anoche a
+   * las 22:00 pasaba el test al día siguiente y el banner decía
+   * «guardado hoy a las 22:00» — una hora que todavía no pasó. El caso
+   * espejo también existía: lo guardado hoy a las 21:30 se anunciaba
+   * como «el 10 sep, 21:30» en vez de «hoy».
+   */
+  const esDeHoy = diaCalendario(guardado) === isoDate()
 
   let momento: string
   try {

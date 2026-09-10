@@ -181,3 +181,29 @@ test('diaCalendario agrupa por el día del consultorio, no por UTC', () => {
   assert.equal(diaCalendario(null), '—')
   assert.equal(diaCalendario('no es una fecha'), '—')
 })
+
+test('matricula reconoce el prefijo aunque venga pegado al número', () => {
+  assert.equal(matricula('12345'), 'MP 12345')
+  assert.equal(matricula('MP 12.345'), 'MP 12.345')
+  assert.equal(matricula('M.P.12345'), 'M.P.12345')
+  // Sin espacio, que es como se carga cuando nadie lo pone. Prefijar
+  // una matrícula NACIONAL con MP la falsea.
+  assert.equal(matricula('MP12345'), 'MP12345')
+  assert.equal(matricula('MN9876'), 'MN9876')
+  assert.equal(matricula('mp12345'), 'mp12345')
+  assert.equal(matricula('MP-12345'), 'MP-12345')
+  assert.equal(matricula(null), null)
+  assert.equal(matricula('  '), null)
+})
+
+test('haceCuanto no anuncia como pasado lo que todavía no pasó', () => {
+  const enSegundos = (s: number) => new Date(Date.now() + s * 1000).toISOString()
+  // El reloj de Postgres y el del proceso que renderiza son dos
+  // máquinas distintas: un evento recién creado puede llegar «del
+  // futuro» por unos milisegundos.
+  assert.equal(haceCuanto(enSegundos(0.5)), 'recién')
+  assert.equal(haceCuanto(enSegundos(5)), 'recién')
+  assert.equal(haceCuanto(enSegundos(3 * 86400)), 'recién')
+  assert.equal(haceCuanto(enSegundos(-30)), 'recién')
+  assert.equal(haceCuanto(enSegundos(-7200)), 'hace 2 horas')
+})

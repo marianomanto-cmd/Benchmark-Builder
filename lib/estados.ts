@@ -180,3 +180,24 @@ export const DIAS_SIN_RESPUESTA = 7
 export function estaFrio(estado: EstadoPresupuesto, diasEnEstado: number): boolean {
   return esperaRespuesta(estado) && diasEnEstado > DIAS_SIN_RESPUESTA
 }
+
+/**
+ * Cuántos días lleva un presupuesto en su estado.
+ *
+ * **Períodos completos de 24 h**, que es la misma cuenta que hace la
+ * vista `presupuestos_listado` (`extract(day from now() - estado_desde)`)
+ * y la misma que dispara `marcar_pendientes()` (`interval '7 days'`).
+ *
+ * Existe porque había tres definiciones del mismo reloj y no coincidían:
+ * el detalle lo calculaba con `diasDesde()`, que son días de CALENDARIO
+ * argentinos, así que para un mismo presupuesto el detalle decía «hace
+ * 8 días» y lo pintaba de frío mientras la home y el kanban decían 7 y
+ * no lo pintaban. Un consultorio que ve dos números para lo mismo deja
+ * de creerle a los dos.
+ */
+export function diasEnEstado(estadoDesde: string | Date | null | undefined): number {
+  if (estadoDesde === null || estadoDesde === undefined) return 0
+  const instante = typeof estadoDesde === 'string' ? new Date(estadoDesde) : estadoDesde
+  if (Number.isNaN(instante.getTime())) return 0
+  return Math.max(0, Math.floor((Date.now() - instante.getTime()) / 86_400_000))
+}

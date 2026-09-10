@@ -587,6 +587,12 @@ antes de aceptarlo. Los que resultaron reales:
 | **Soltar una tarjeta FUERA del tablero igual cambiaba el estado**, o abría «¿Por qué se perdió?»: las columnas medían 2138px —cuatro veces el tablero visible— así que dnd-kit encontraba una columna «bajo el puntero» en cualquier parte de la página. Y con teclado, TODO caía en la franja de perdidos: ninguna flecha cambiaba el destino | La causa era una sola: el `h-full` del grid se resolvía contra una fila dimensionada por contenido. `grid-rows-1` la clava en el alto real; las columnas vuelven a medir 574px, scrollean por adentro y sus encabezados dejan de irse de pantalla |
 | «Lo que está en juego» valía tres números distintos en tres pantallas, y el KPI de Home linkeaba justo a la que lo desmentía: $ 8.894.100 en la tarjeta, $ 9.618.700 un clic después. `ESTADOS_PIPELINE` no incluía `iniciado`; el tablero sí | La lista del KPI es la del tablero, con un test que lo ata. Y la tarjeta de estadísticas, que mide otra cosa, se llama «Esperando respuesta» |
 | Una fecha con forma válida pero imposible en la URL (`?desde=2026-13-45`) tumbaba toda la home al estado de falla y le echaba la culpa a la base | La fecha se valida además de la forma: si no existe, se descarta como cualquier otro parámetro basura |
+| El preview del aumento masivo prometía un monto y la RPC escribía otro: `montoConAumento()` trunca el porcentaje a centésimas y `aumento_masivo()` usa el valor completo. Con «12,345 %» sobre $ 13.000, $ 14.606 contra $ 14.605 — y el resumen mostraba «(12,35 %)», o sea que el número de la pantalla tampoco era el que se aplicaba | El porcentaje se redondea a dos decimales en el input y en el schema, y el barrido de paridad ahora cubre el aumento además de la cobertura |
+| El banner de la home decía «guardado hoy a las 22:00» para un borrador de ayer: el sello se escribe en UTC y se comparaba contra el día del consultorio, así que entre las 21:00 y la medianoche el sello ya llevaba la fecha de mañana | `diaCalendario()`, la misma función con la que se agrupa el timeline |
+| Tres definiciones del mismo reloj: el detalle contaba días de calendario y decía «hace 8 días» pintándolo de frío, mientras la home y el kanban —que leen la vista— decían 7 y no lo pintaban | `diasEnEstado()` en `lib/estados.ts`, con la misma cuenta que la vista y que el cron |
+| `matricula()` no reconocía el prefijo pegado al número: «MN9876» salía «MP MN9876» en la cabecera, en el PDF y en el WhatsApp — justo lo que el comentario de la función decía que no podía pasar | La regex deja de exigir separador después de la P/N |
+| El timeline decidía si mostrar el año con los getters de `Date`, que en Vercel son UTC: un movimiento del 31 de diciembre a la noche perdía el año y se leía como del año en curso | `anio()`, que existe exactamente para eso |
+| `haceCuanto()` anunciaba como pasado cualquier instante futuro («hace 3 días» para algo del 14/09), y con el guard en `>= 0` bastaba con que el reloj de Postgres fuera unos milisegundos por delante del de Vercel para que un evento recién creado dijera «hace 1 segundo» en vez de «recién» | Debajo del minuto es «recién», venga del pasado o del futuro |
 
 ### Pendiente
 
@@ -621,13 +627,17 @@ antes de aceptarlo. Los que resultaron reales:
 ## 10 · Cómo se verifica
 
 - `npm run build` · `npm run typecheck` · `npm run lint` — sin errores.
-- `npm test` — 62 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts`,
+- `npm test` — 66 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts`,
   `lib/estadisticas.ts`, `lib/busqueda.ts` y `lib/zod.ts`.
 - `npm run sql:instalar` — regenera los scripts del SQL Editor desde las
   migraciones. Correr después de tocar cualquier migración.
-- `npm run test:paridad` — 220 casos comparando `calcularItem` contra
-  `calcular_cobertura()` en una base real. **Es el que hay que correr después
-  de tocar cualquiera de los dos.**
+- `npm run test:paridad` — 2374 casos contra una base real: `calcularItem`
+  contra `calcular_cobertura()`, y `montoConAumento()` contra la cuenta de
+  `aumento_masivo()`. **Es el que hay que correr después de tocar cualquiera
+  de los cuatro.** El barrido del aumento usa porcentajes de dos decimales
+  porque la acción los redondea antes de llamar a la RPC: sin ese redondeo,
+  un «12,345 %» hace que el preview prometa $ 14.606 y la base escriba
+  $ 14.605.
 - **Regla de redondeo, en los tres lugares donde hay que respetarla**:
   `calcularItem`, `montoConAumento` y `repartirCuotas` multiplican ANTES de
   dividir y trabajan en centésimas enteras, porque así es exacto el `numeric`

@@ -574,10 +574,25 @@ const aumentoSchema = z
     obra_social_id: uuidOpcional,
     /** Ignora las obras sociales y toca sólo el valor particular. */
     solo_particular: z.boolean().default(false),
+    /**
+     * El porcentaje se redondea a dos decimales ANTES de mirarlo.
+     *
+     * `montoConAumento()` en TS trabaja en centésimas —trunca el
+     * porcentaje a dos decimales— y `aumento_masivo()` en SQL usa el
+     * valor completo. Con «12,345 %» sobre $ 13.000 el preview promete
+     * $ 14.606 y la base escribe $ 14.605: la misma divergencia de un
+     * peso que ya se cazó en `calcularItem` y en `repartirCuotas`.
+     *
+     * Se corta acá y no en cada lado porque además arregla la otra
+     * mitad: el resumen del modal muestra «(12,35 %)» —`porcentaje()`
+     * corta en dos decimales— así que el número que la pantalla dice
+     * pasa a ser exactamente el que se aplica.
+     */
     pct: z
       .number()
       .min(-90, 'Una baja de más del 90 % no es un ajuste, es un error de tipeo.')
       .max(300, 'Un aumento de más del 300 % no es un ajuste, es un error de tipeo.')
+      .transform((v) => Math.round(v * 100) / 100)
       .refine((v) => v !== 0, 'Un aumento de 0 % no cambia nada.'),
     desde: fecha,
   })

@@ -10,7 +10,15 @@ import {
 import * as React from 'react'
 
 import { EstadoBadge } from '@/components/ui'
-import { diaCalendario, diasDesde, fechaBreve, fechaHora, haceCuanto, hora } from '@/lib/formato'
+import {
+  anio,
+  diaCalendario,
+  diasDesde,
+  fechaBreve,
+  fechaHora,
+  haceCuanto,
+  hora,
+} from '@/lib/formato'
 import type { PresupuestoEvento, TipoEvento } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -41,16 +49,24 @@ const ICONO: Record<TipoEvento, React.ElementType> = {
   duplicado: Copy,
 }
 
-/** «Hoy» · «Ayer» · «3 sep» · «3 sep 2025» */
+/**
+ * «Hoy» · «Ayer» · «3 sep» · «3 sep 2025»
+ *
+ * El año sale de `anio()` y no de `new Date(iso).getFullYear()`: los
+ * getters de `Date` son los del proceso, que en Vercel corre en UTC.
+ * Para un evento entre las 21:00 y la medianoche del 31 de diciembre el
+ * año UTC ya es el siguiente, así que la etiqueta perdía el año y un
+ * movimiento del año pasado se leía como del año en curso. `anio()`
+ * existe exactamente para esto.
+ */
 function etiquetaDia(iso: string): string {
   const dias = diasDesde(iso)
   if (dias === 0) return 'Hoy'
   if (dias === 1) return 'Ayer'
-  const fecha = new Date(iso)
-  const anoActual = new Date().getFullYear()
-  return fecha.getFullYear() === anoActual
+  const anoDelEvento = anio(iso)
+  return anoDelEvento === anio(new Date())
     ? fechaBreve(iso)
-    : `${fechaBreve(iso)} ${fecha.getFullYear()}`
+    : `${fechaBreve(iso)} ${anoDelEvento}`
 }
 
 /**

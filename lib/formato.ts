@@ -193,7 +193,20 @@ export function haceCuanto(value: string | Date | null | undefined): string {
   const instante = instanteDe(value as string | Date)
   if (Number.isNaN(instante.getTime())) return SIN_FECHA
   const segundos = (Date.now() - instante.getTime()) / 1000
-  if (segundos >= 0 && segundos < 60) return 'recién'
+  /*
+   * El futuro también es «recién», no «hace».
+   *
+   * `formatDistanceToNowStrict` no lleva sufijo, así que el «hace» se
+   * pegaba igual y un instante que todavía no ocurrió se anunciaba como
+   * pasado: «hace 3 días» para un evento del 14/09. Y con el guard
+   * anterior en `>= 0`, bastaba con que el reloj de Postgres fuera unos
+   * milisegundos por delante del proceso que renderiza —en producción
+   * son dos máquinas distintas, la función de Vercel y la base de
+   * Supabase— para que el evento recién creado se saltara «recién» y
+   * mostrara «hace 1 segundo», que es exactamente lo que «recién»
+   * existe para evitar.
+   */
+  if (segundos < 60) return 'recién'
   return `hace ${formatDistanceToNowStrict(instante, { locale: es })}`
 }
 
@@ -296,7 +309,14 @@ export function nombreDePila(nombre: string): string {
 export function matricula(valor: string | null | undefined): string | null {
   const limpio = (valor ?? '').trim()
   if (!limpio) return null
-  return /^m\.?\s?[pn]\b\.?/i.test(limpio) ? limpio : `MP ${limpio}`
+  // Sin `\b` después de la letra: el límite de palabra exige un
+  // separador, así que «MP12345» y «MN9876» —como se carga cuando nadie
+  // pone el espacio— no se reconocían y salían «MP MP12345» y
+  // «MP MN9876». Lo segundo es justo lo que el comentario de arriba
+  // dice que no puede pasar.
+  return /^m\.?\s?[pn]\.?\s?[\d-]/i.test(limpio) || /^m\.?\s?[pn]\.?$/i.test(limpio)
+    ? limpio
+    : `MP ${limpio}`
 }
 
 export function normalizar(texto: string): string {

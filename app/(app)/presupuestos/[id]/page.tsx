@@ -26,7 +26,7 @@ import {
 } from '@/components/presupuesto/tipos'
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui'
 import { compararConHoy, type TotalesLinea } from '@/lib/calculo'
-import { diasDesde } from '@/lib/formato'
+import { diasEnEstado } from '@/lib/estados'
 import { createClient } from '@/lib/supabase/server'
 import type {
   CoberturaTipo,
@@ -300,9 +300,17 @@ export default async function DetallePresupuestoPage(
       ? (eventos.find((e) => e.tipo === 'estado_cambiado' && e.estado_nuevo === 'perdido') ?? null)
       : null
 
-  // Se calcula en el servidor: si lo hiciera el componente de cliente,
-  // el número podría no coincidir al hidratar.
-  const diasEnEstado = cabecera.estado_desde ? diasDesde(cabecera.estado_desde) : 0
+  /*
+   * Se calcula en el servidor: si lo hiciera el componente de cliente,
+   * el número podría no coincidir al hidratar.
+   *
+   * Y con `diasEnEstado()` y no con `diasDesde()`: el primero cuenta
+   * períodos de 24 h, igual que la vista que alimenta la home y el
+   * kanban y que el cron que mueve `enviado → pendiente`. Con días de
+   * calendario, el detalle decía «hace 8 días» y lo pintaba de frío
+   * mientras las otras dos pantallas decían 7 y no.
+   */
+  const dias = cabecera.estado_desde ? diasEnEstado(cabecera.estado_desde) : 0
 
   return (
     <ProveedorDetalle
@@ -359,7 +367,7 @@ export default async function DetallePresupuestoPage(
           {/* En desktop es la columna derecha; en mobile se apila abajo,
               con el historial resumido en vez del timeline completo. */}
           <aside className="no-print flex min-w-0 flex-col gap-5">
-            <PanelSeguimiento diasEnEstado={diasEnEstado} />
+            <PanelSeguimiento diasEnEstado={dias} />
 
             <HistorialMobile eventos={eventos} className="md:hidden" />
 

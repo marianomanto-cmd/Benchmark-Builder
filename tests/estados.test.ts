@@ -16,6 +16,7 @@ import {
   esEditable,
   estaFrio,
   DIAS_SIN_RESPUESTA,
+  diasEnEstado,
 } from '../lib/estados.ts'
 
 test('los ocho estados tienen etiqueta y estilo', () => {
@@ -115,4 +116,27 @@ test('estaFrio se dispara pasados los 7 días esperando respuesta', () => {
   assert.equal(estaFrio('pendiente', 30), true)
   // Un aceptado con 30 días no está frío: ya contestó.
   assert.equal(estaFrio('aceptado', 30), false)
+})
+
+test('los días en el estado se cuentan igual que en la base', () => {
+  const hace = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
+  // Períodos completos de 24 h, como `extract(day from now() - estado_desde)`.
+  assert.equal(diasEnEstado(hace(0)), 0)
+  assert.equal(diasEnEstado(hace(23)), 0)
+  assert.equal(diasEnEstado(hace(24)), 1)
+  assert.equal(diasEnEstado(hace(7 * 24 - 1)), 6)
+  assert.equal(diasEnEstado(hace(7 * 24)), 7)
+  assert.equal(diasEnEstado(hace(8 * 24)), 8)
+  // Y nunca tira ni devuelve negativos.
+  assert.equal(diasEnEstado(null), 0)
+  assert.equal(diasEnEstado('no es una fecha'), 0)
+  assert.equal(diasEnEstado(hace(-48)), 0)
+})
+
+test('el umbral de frío es el mismo que el del cron', () => {
+  // `marcar_pendientes()` usa `interval '7 days'`.
+  assert.equal(DIAS_SIN_RESPUESTA, 7)
+  assert.ok(!estaFrio('enviado', 7), 'a los 7 justos todavía no está frío')
+  assert.ok(estaFrio('enviado', 8))
+  assert.ok(!estaFrio('aceptado', 30), 'un aceptado no espera respuesta')
 })

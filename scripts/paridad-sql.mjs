@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
-import { calcularItem } from '../lib/calculo.ts'
+import { calcularItem, montoConAumento } from '../lib/calculo.ts'
 
 const aqui = dirname(fileURLToPath(import.meta.url))
 const { casos } = JSON.parse(
@@ -122,7 +122,68 @@ for (const [i, [m, t, v]] of barrido.entries()) {
   }
 }
 
-const total = casos.length + barrido.length
+/* ═══════════════════════════════════════════════════════════
+   El aumento masivo, que es el otro par TS/SQL
+   ═══════════════════════════════════════════════════════════
+
+   `montoConAumento()` trabaja en centésimas y `aumento_masivo()` en SQL
+   usa el porcentaje completo. Mientras el porcentaje tenga a lo sumo
+   dos decimales —la acción lo redondea antes de llamar a la RPC— los
+   dos dan el mismo número. Este barrido es lo que ata esa promesa: sin
+   él, cualquiera puede sacar el redondeo del schema sin que nada se
+   queje, y el preview del aumento vuelve a prometer un peso más o menos
+   por arancel que el que la base escribe.
+   ═══════════════════════════════════════════════════════════ */
+
+const aumentos = []
+for (let i = 0; i < 2000; i++) {
+  aumentos.push([
+    Math.floor(Math.random() * 900_000) + 1,
+    Math.round((Math.random() * 390 - 90) * 100) / 100,
+  ])
+}
+for (const pct of [0.01, 0.5, 1, 2.5, 10, 12.35, 33.33, 50, 66.67, 99.99, 100, 300, -90, -33.33]) {
+  for (const monto of [1, 3, 7, 999, 1000, 12345, 13000, 99999, 100001, 500000, 899999]) {
+    aumentos.push([monto, pct])
+  }
+}
+
+// La consulta va por stdin y no por `-c`: dos mil casos en la línea de
+// comandos se pasan del límite del sistema (`spawnSync psql E2BIG`).
+const consultaAumentos = `
+  select i - 1, round(m * (100 + p) / 100)
+    from unnest(
+      array[${aumentos.map(([m]) => m).join(',')}]::numeric[],
+      array[${aumentos.map(([, p]) => p).join(',')}]::numeric[]
+    ) with ordinality as t(m, p, i);`
+
+const salidaAumentos = execFileSync(
+  'psql',
+  [url, '-t', '-A', '-F', '|', '-v', 'ON_ERROR_STOP=1', '-f', '-'],
+  { encoding: 'utf8', input: consultaAumentos, maxBuffer: 64 * 1024 * 1024 },
+)
+
+const sqlAumentos = new Map(
+  salidaAumentos
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((l) => {
+      const [i, v] = l.split('|')
+      return [Number(i), Number(v)]
+    }),
+)
+
+for (const [i, [m, p]] of aumentos.entries()) {
+  const ts = montoConAumento(m, p)
+  const sql = sqlAumentos.get(i)
+  if (ts !== sql) {
+    fallos++
+    console.error(`✗ aumento monto=${m} pct=${p} — TS: ${ts} · SQL: ${sql} (diferencia ${ts - sql})`)
+  }
+}
+
+const total = casos.length + barrido.length + aumentos.length
 
 if (fallos > 0) {
   console.error(
@@ -131,4 +192,6 @@ if (fallos > 0) {
   process.exit(1)
 }
 
-console.log(`✓ ${total} casos: lib/calculo.ts y calcular_cobertura() coinciden exactamente.`)
+console.log(
+  `✓ ${total} casos: lib/calculo.ts coincide exactamente con calcular_cobertura() y con la cuenta de aumento_masivo().`,
+)
