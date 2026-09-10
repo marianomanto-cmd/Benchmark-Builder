@@ -26,7 +26,11 @@ export function SelectorRango({ actual }: { actual: ClaveRango }) {
     if (clave === actual) return
     const siguiente = new URLSearchParams(params)
     siguiente.set('rango', clave)
-    arrancar(() => router.replace(`/estadisticas?${siguiente}`, { scroll: false }))
+    // `push` y no `replace`: el comentario de arriba promete que el
+    // back vuelve al rango anterior, y con `replace` cada selección
+    // pisaba la entrada del historial —después de mirar tres rangos, un
+    // back sacaba al usuario de la pantalla—.
+    arrancar(() => router.push(`/estadisticas?${siguiente}`, { scroll: false }))
   }
 
   return (

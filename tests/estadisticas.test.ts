@@ -39,7 +39,7 @@ test('caidaEmbudo mide contra la última etapa con gente, no contra la vacía', 
     { estado: 'interesado' as const, alcanzaron: 30, monto: 0 },
   ]
 
-  const r = caidaEmbudo(etapas)
+  const r = caidaEmbudo(etapas, 100)
   assert.equal(r[0].pctDelTotal, 100)
   assert.equal(r[0].pctDeLaAnterior, null, 'la primera no tiene contra qué comparar')
   assert.equal(r[1].pctDeLaAnterior, 60)
@@ -49,10 +49,27 @@ test('caidaEmbudo mide contra la última etapa con gente, no contra la vacía', 
   assert.equal(r[3].pctDelTotal, 30)
 })
 
-test('caidaEmbudo sin datos no divide por cero', () => {
-  const r = caidaEmbudo([{ estado: 'realizado', alcanzaron: 0, monto: 0 }])
-  assert.equal(r[0].pctDelTotal, 0)
+test('caidaEmbudo sin universo no inventa un 0 %', () => {
+  // Sin base no hay porcentaje. Un 0 % con presupuestos en la etapa es
+  // una afirmación falsa; «—» es la verdad.
+  const r = caidaEmbudo([{ estado: 'realizado', alcanzaron: 0, monto: 0 }], 0)
+  assert.equal(r[0].pctDelTotal, null)
   assert.equal(r[0].pctDeLaAnterior, null)
+})
+
+test('caidaEmbudo mide contra lo emitido, no contra la primera etapa', () => {
+  // El caso del consultorio que siempre cierra mandando el WhatsApp:
+  // ningún presupuesto pasa por «realizado», pero los 20 existen.
+  const etapas = [
+    { estado: 'realizado' as const, alcanzaron: 0, monto: 0 },
+    { estado: 'enviado' as const, alcanzaron: 20, monto: 0 },
+    { estado: 'aceptado' as const, alcanzaron: 5, monto: 0 },
+  ]
+
+  const r = caidaEmbudo(etapas, 20)
+  assert.equal(r[0].pctDelTotal, 0, 'realizado: 0 de 20 es un 0 % legítimo')
+  assert.equal(r[1].pctDelTotal, 100, 'enviado: los 20 emitidos pasaron por acá')
+  assert.equal(r[2].pctDelTotal, 25)
 })
 
 test('techoEje sube a un número que se puede leer', () => {

@@ -107,6 +107,8 @@ Migraciones en `supabase/migrations/`, en este orden:
 | `20260101001400_admin.sql` | `es_admin` en `profesionales` + guarda de escalada |
 | `20260101001500_guarda_alta_admin.sql` | La guarda de `es_admin` cubre también el `INSERT`, con el rol de servicio exento |
 | `20260101001600_estadisticas.sql` | Las funciones `stats_*` que agregan la historia para la pantalla 15 |
+| `20260101001700_agujeros.sql` | Un ítem no se muda de presupuesto · el vínculo de identidad (`user_id`) y la baja son permisos · el historial se firma en el servidor |
+| `20260101001800_estadisticas_honestas.sql` | La serie mensual arranca donde arranca el consultorio · el ticket de un mes vacío es `null`, no 0 |
 
 **Sin la CLI**: `supabase/instalar.sql` e `instalar-storage.sql` son las mismas
 migraciones concatenadas en orden, para pegar en el SQL Editor de Supabase. Se
@@ -159,6 +161,7 @@ que las toca.
 | `registrar_evento(id, tipo, desc)` | Evento suelto (nota, PDF, WhatsApp) |
 | `marcar_pendientes()` | `enviado → pendiente` a los 7 días. Sólo `service_role` |
 | `stats_ganado(estado)` | Qué cuenta como aceptado. **Misma definición que la Home**: `aceptado` o `iniciado` |
+| `firmar_evento()` | Trigger que reescribe autor y fecha del historial con lo que dice el servidor: el cliente los mandaba en el body |
 | `stats_resumen`, `stats_embudo`, `stats_tiempos`, `stats_mensual`, `stats_motivos`, `stats_obras_sociales`, `stats_prestaciones`, `stats_profesionales`, `stats_pacientes`, `stats_aging`, `stats_precios` | Las once lecturas de la pantalla 15. Todas `stable` y con derechos de invocador: la RLS sigue mandando |
 
 ### Vistas
@@ -515,6 +518,20 @@ antes de aceptarlo. Los que resultaron reales:
 | `SelectValue asChild` metía un `Slot` de Radix sobre un Fragment: React lo marcaba en consola en cada render de la Home | El texto va como `children`, que consigue lo mismo sin envoltorio |
 | Los rieles de las barras de estadísticas medían distinto en cada fila —el detalle de cada una se comía un ancho distinto—, así que dos barras del mismo largo no representaban el mismo valor | Columna de ancho fijo: el riel mide lo mismo en todas las filas del gráfico |
 | En mobile los montos del encabezado de estadísticas se partían después del signo y se salían de su tarjeta | El número héroe escala con el ancho; 34px son 180px de «$ 4.528.600» en una tarjeta de 170 |
+| **Un PATCH le sacaba los ítems a un presupuesto emitido.** `guard_item_emitido()` resolvía contra qué presupuesto validar con `coalesce(new, old)`, y en un UPDATE `new` nunca es null: miraba sólo el DESTINO. Mover los ítems a un borrador pasaba la guarda. Verificado: 2026-0002 quedó con 0 ítems cobrando $ 54.600 | Un ítem no cambia de presupuesto: es parte de ese documento (migración 18) |
+| **Cualquiera del equipo se hacía admin** reapuntando `profesionales.user_id` a su propio uid en dos PATCH. La migración 16 custodiaba `es_admin` y se olvidó del vínculo de identidad, que es por donde `es_admin()` resuelve quién es quién. La misma maniobra dejaba al consultorio con cero admins con acceso | `user_id` y `activo` también son permisos: sólo un admin los cambia (migración 18) |
+| **El historial se podía firmar a nombre de otro y con la fecha que uno quisiera**: el INSERT aceptaba `autor_id`, `autor_nombre` y `created_at` del body, y por diseño después nadie los puede corregir | Un trigger los reescribe con `auth.uid()`, `actor_nombre()` y `now()` |
+| **Vaciar un campo de fecha con Backspace tumbaba la pantalla entera**: `format()` de date-fns tira `RangeError: Invalid time value` y el error subía hasta el boundary con el wizard a medio cargar | Las diez funciones de fecha de `lib/formato.ts` devuelven «—» en vez de tirar. El arreglo va en la fuente: taparlo en el wizard dejaba las otras nueve pantallas esperando el mismo Backspace |
+| **El embudo se medía contra «realizado» y no contra lo emitido.** El wizard emite directo en «enviado» al cerrar mandando el WhatsApp —el camino más usado—, así que esos presupuestos quedaban fuera del denominador: etapas de más del 100 %, y si el consultorio siempre manda por WhatsApp TODO el embudo se dibujaba en 0 % con presupuestos en cada etapa | El universo es `resumen.emitidos`, el techo del eje es el mayor de lo que hay que dibujar, y sin base el porcentaje es «—» y no 0 % |
+| El rango «Todo» arrancaba en el centinela 2000-01-01: 321 meses, 311 vacíos, 927 avisos de React por claves repetidas y la información real comprimida en el último 3 % del ancho | La serie arranca en el primer mes con actividad, y en una base vacía no arranca |
+| Toda la pantalla de estadísticas estaba detrás de `resumen.emitidos > 0`: si fallaba ESA lectura, las otras nueve no se dibujaban, con el banner diciendo «lo que se ve es lo que sí llegó» sobre una pantalla vacía | El portón mira todas las lecturas, y «A quién llamar hoy» queda afuera porque no depende de la ventana |
+| Una lectura caída se mostraba como una afirmación tranquilizadora: «No hay ningún presupuesto esperando respuesta», «Todavía no se perdió ninguno. Buena noticia» | El fallo se propaga por bloque: el que no volvió lo dice |
+| La grilla del gráfico de líneas se repartía sobre el contenedor, que además abraza la fila de meses: la línea que se lee como el cero caía 25px por debajo del cero real | La grilla va dentro del área de dibujo |
+| En el celular el tooltip de los gráficos se abría y se cerraba en el mismo toque —la secuencia de compatibilidad del navegador dispara `mouseleave` después del `focus`—, y como el gráfico de líneas no imprime los números, los valores mensuales no se podían leer con el dedo | `onPointerLeave` filtrado por mouse y `onPointerDown` para fijar el punto |
+| El ticket promedio de un mes sin presupuestos se informaba como $ 0 y hundía la línea al piso del eje, como si el consultorio hubiera regalado el trabajo | `null` es un hueco y el trazo se corta ahí |
+| La baja de un profesional desde Biblioteca no cortaba el acceso ni exigía ser admin, así que `/equipo` mostraba «De baja» a alguien que seguía entrando | `activo` sale del formulario de Biblioteca: una columna, un significado, un solo camino (`cambiarActivo`) |
+| El back del navegador no volvía al rango anterior de estadísticas —`router.replace` pisaba el historial— aunque el comentario del componente prometía lo contrario | `router.push` |
+| «Presupuestos por paciente» redondeaba 1,33 a «1» —justo el valor que significa «nadie volvió»— al lado de «Volvieron 33 %» | Se muestra con sus decimales |
 | La home se cortaba en 200 filas y la única salida ofrecida era «achicá el rango de fechas»: con 500 presupuestos, a los 300 más viejos no se llegaba nunca | Paginado por URL (`?p=`, 50 por página) con el total exacto: el back del navegador vuelve y el link se comparte |
 | Un `?p=` fuera de rango —un link viejo, o un filtro que achicó el resultado— dejaba la pantalla en «ningún presupuesto con esos filtros» | `.range()` viaja como `offset`/`limit` y vuelve vacío, no con error: con el conteo real se cae a la última página que existe |
 | Un rango de fechas dado vuelta (`?desde=` posterior a `?hasta=`) devolvía cero y se leía como «no hay» | `parseFiltros` lo endereza |
@@ -572,7 +589,7 @@ antes de aceptarlo. Los que resultaron reales:
 ## 10 · Cómo se verifica
 
 - `npm run build` · `npm run typecheck` · `npm run lint` — sin errores.
-- `npm test` — 54 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts` y
+- `npm test` — 56 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts` y
   `lib/estadisticas.ts`.
 - `npm run sql:instalar` — regenera los scripts del SQL Editor desde las
   migraciones. Correr después de tocar cualquier migración.

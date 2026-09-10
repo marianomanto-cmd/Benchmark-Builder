@@ -58,7 +58,10 @@ function filas(data: unknown): Fila[] {
   return Array.isArray(data) ? (data as Fila[]) : []
 }
 
-async function cargar(desde: string, hasta: string): Promise<{ datos: Estadisticas; fallo: boolean }> {
+async function cargar(
+  desde: string,
+  hasta: string,
+): Promise<{ datos: Estadisticas; fallo: boolean; fallos: Record<string, boolean> }> {
   const supabase = await createClient()
   const args = { p_desde: desde, p_hasta: hasta }
 
@@ -80,20 +83,36 @@ async function cargar(desde: string, hasta: string): Promise<{ datos: Estadistic
     supabase.rpc('stats_aging'),
   ])
 
-  const respuestas = [
+  /**
+   * Qué lectura falló, no sólo que alguna falló.
+   *
+   * Antes esto era un `some(r => r.error)` y aguas abajo un bloque sin
+   * datos no se distinguía de un bloque que no volvió: «A quién llamar
+   * hoy» decía «No hay ningún presupuesto esperando respuesta» y «Por
+   * qué se pierden» decía «Todavía no se perdió ninguno. Buena
+   * noticia» cuando la verdad era que la lectura se había caído. Una
+   * pantalla de números que afirma lo contrario de lo que pasa es peor
+   * que una pantalla vacía.
+   */
+  const respuestas = {
     resumen, embudo, tiempos, meses, motivos,
     obrasSociales, prestaciones, profesionales, recurrencia, aging,
-  ]
-  const fallo = respuestas.some((r) => r.error)
-  for (const r of respuestas) {
-    if (r.error) console.error('[estadisticas] no se pudo leer', r.error.message)
   }
+  const fallos: Record<string, boolean> = {}
+  for (const [nombre, r] of Object.entries(respuestas)) {
+    if (r.error) {
+      fallos[nombre] = true
+      console.error(`[estadisticas] no se pudo leer ${nombre}`, r.error.message)
+    }
+  }
+  const fallo = Object.keys(fallos).length > 0
 
   const filaResumen = filas(resumen.data)[0]
   const filaRecurrencia = filas(recurrencia.data)[0]
 
   return {
     fallo,
+    fallos,
     datos: {
       resumen: filaResumen
         ? {
@@ -129,7 +148,7 @@ async function cargar(desde: string, hasta: string): Promise<{ datos: Estadistic
         perdidos: num(f.perdidos),
         montoEmitido: num(f.monto_emitido),
         montoGanado: num(f.monto_ganado),
-        ticket: num(f.ticket),
+        ticket: numOnulo(f.ticket),
       })),
 
       motivos: filas(motivos.data).map((f): Motivo => ({
@@ -198,7 +217,14 @@ export default async function EstadisticasPage(props: PageProps<'/estadisticas'>
   const rango = esRango(searchParams.rango) ? searchParams.rango : RANGO_POR_DEFECTO
   const { desde, hasta } = ventanaRango(rango)
 
-  const { datos, fallo } = await cargar(desde, hasta)
+  const { datos, fallo, fallos } = await cargar(desde, hasta)
 
-  return <PantallaEstadisticas datos={datos} rango={rango} desde={desde} hasta={hasta} fallo={fallo} />
+  return <PantallaEstadisticas
+      datos={datos}
+      rango={rango}
+      desde={desde}
+      hasta={hasta}
+      fallo={fallo}
+      fallos={fallos}
+    />
 }

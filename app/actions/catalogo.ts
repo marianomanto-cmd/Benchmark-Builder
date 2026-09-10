@@ -258,10 +258,27 @@ export async function actualizarPaciente(
    Profesionales
    ═══════════════════════════════════════════════════════════ */
 
+/**
+ * `activo` NO está acá a propósito.
+ *
+ * Es la misma columna que `/equipo` usa para el acceso, y ahí la baja
+ * hace tres cosas más: exige ser admin, no deja que nadie se dé de baja
+ * a sí mismo, no deja al consultorio sin ningún administrador que pueda
+ * entrar, y banea al usuario en GoTrue. Desde acá se cambiaba a secas,
+ * así que `/equipo` mostraba «De baja» a alguien que seguía entrando
+ * con su usuario y viendo todos los montos.
+ *
+ * Una columna, un significado, un solo camino para cambiarla:
+ * `cambiarActivo()` en `app/actions/equipo.ts`.
+ */
 const profesionalSchema = z.object({
   nombre: textoRequerido(160, 'El profesional necesita un nombre.'),
   matricula: textoOpcional(60),
   especialidad: textoOpcional(120),
+})
+
+/** El alta sí nace activa; después la baja se maneja desde Equipo. */
+const altaProfesionalSchema = profesionalSchema.extend({
   activo: z.boolean().default(true),
 })
 
@@ -273,7 +290,7 @@ export async function crearProfesional(
   const supabase = await conSesion()
   if (!supabase) return { ok: false, error: SIN_SESION }
 
-  const parseado = profesionalSchema.safeParse(entrada)
+  const parseado = altaProfesionalSchema.safeParse(entrada)
   if (!parseado.success) return { ok: false, error: mensajeDeZod(parseado.error) }
 
   const { data, error } = await supabase

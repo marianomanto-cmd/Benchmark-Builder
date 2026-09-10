@@ -113,39 +113,70 @@ function toDate(value: string | Date): Date {
   return relojDelConsultorio(instanteDe(value))
 }
 
+/** Lo que se muestra cuando no hay fecha que mostrar. */
+const SIN_FECHA = '—'
+
+/** Ni fecha ni instante: `null`, `undefined` o un string en blanco. */
+function vacia(value: string | Date | null | undefined): boolean {
+  return value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
+}
+
+/**
+ * Formatea, o dice que no hay fecha. **Nunca tira.**
+ *
+ * `format()` de date-fns lanza `RangeError: Invalid time value` con una
+ * fecha inválida, y acá abajo eso no es una hipótesis: los campos de
+ * fecha del wizard son `<input type="date">`, y vaciar uno con Backspace
+ * —algo que cualquiera hace para corregir— manda `''`. Eso llegaba a
+ * `fechaLarga()` y se llevaba puesta la pantalla entera: el error subía
+ * hasta el boundary y la recepción veía «Se rompió algo» en medio de
+ * cargar un presupuesto.
+ *
+ * El arreglo va en la fuente y no en cada pantalla: son diez funciones
+ * de fecha usadas en toda la app, y taparlo en el wizard dejaba las
+ * otras nueve esperando el mismo Backspace.
+ */
+function formatear(value: string | Date | null | undefined, patron: string): string {
+  if (vacia(value)) return SIN_FECHA
+  const fecha = toDate(value as string | Date)
+  if (Number.isNaN(fecha.getTime())) return SIN_FECHA
+  return format(fecha, patron, { locale: es })
+}
+
 /** «Ahora» en hora del consultorio. Es el hoy contra el que se compara. */
 export function ahora(): Date {
   return relojDelConsultorio(new Date())
 }
 
 /** `8 de septiembre de 2026` */
-export function fechaLarga(value: string | Date): string {
-  return format(toDate(value), "d 'de' MMMM 'de' yyyy", { locale: es })
+export function fechaLarga(value: string | Date | null | undefined): string {
+  return formatear(value, "d 'de' MMMM 'de' yyyy")
 }
 
 /** `08/09/2026` */
-export function fechaCorta(value: string | Date): string {
-  return format(toDate(value), 'dd/MM/yyyy', { locale: es })
+export function fechaCorta(value: string | Date | null | undefined): string {
+  return formatear(value, 'dd/MM/yyyy')
 }
 
 /** `8 sep` — para timelines y metadatos apretados. */
-export function fechaBreve(value: string | Date): string {
-  return format(toDate(value), 'd MMM', { locale: es })
+export function fechaBreve(value: string | Date | null | undefined): string {
+  return formatear(value, 'd MMM')
 }
 
 /** `8 sep, 14:32` */
-export function fechaHora(value: string | Date): string {
-  return format(toDate(value), "d MMM, HH:mm", { locale: es })
+export function fechaHora(value: string | Date | null | undefined): string {
+  return formatear(value, 'd MMM, HH:mm')
 }
 
 /** `14:32` */
-export function hora(value: string | Date): string {
-  return format(toDate(value), 'HH:mm', { locale: es })
+export function hora(value: string | Date | null | undefined): string {
+  return formatear(value, 'HH:mm')
 }
 
 /** El año calendario del consultorio — para no repetirlo si es el actual. */
-export function anio(value: string | Date): number {
-  return toDate(value).getFullYear()
+export function anio(value: string | Date | null | undefined): number {
+  const fecha = vacia(value) ? null : toDate(value as string | Date)
+  return fecha && !Number.isNaN(fecha.getTime()) ? fecha.getFullYear() : ahora().getFullYear()
 }
 
 /**
@@ -157,25 +188,38 @@ export function anio(value: string | Date): number {
  * timeline aparecía anunciando «hace 0 segundos», que se lee como un
  * error de la app y no como «esto lo acabás de hacer vos».
  */
-export function haceCuanto(value: string | Date): string {
-  const instante = instanteDe(value)
+export function haceCuanto(value: string | Date | null | undefined): string {
+  if (vacia(value)) return SIN_FECHA
+  const instante = instanteDe(value as string | Date)
+  if (Number.isNaN(instante.getTime())) return SIN_FECHA
   const segundos = (Date.now() - instante.getTime()) / 1000
   if (segundos >= 0 && segundos < 60) return 'recién'
   return `hace ${formatDistanceToNowStrict(instante, { locale: es })}`
 }
 
 /** Días transcurridos desde una fecha, en días de calendario del consultorio. */
-export function diasDesde(value: string | Date): number {
-  return Math.max(0, differenceInCalendarDays(ahora(), toDate(value)))
+export function diasDesde(value: string | Date | null | undefined): number {
+  if (vacia(value)) return 0
+  const fecha = toDate(value as string | Date)
+  if (Number.isNaN(fecha.getTime())) return 0
+  return Math.max(0, differenceInCalendarDays(ahora(), fecha))
 }
 
 /** Días que faltan para una fecha. Negativo = ya venció. */
-export function diasHasta(value: string | Date): number {
-  return differenceInCalendarDays(toDate(value), ahora())
+export function diasHasta(value: string | Date | null | undefined): number {
+  if (vacia(value)) return 0
+  const fecha = toDate(value as string | Date)
+  if (Number.isNaN(fecha.getTime())) return 0
+  return differenceInCalendarDays(fecha, ahora())
 }
 
 /** `vence en 12 días` · `vencido hace 3 días` · `vence hoy` */
-export function vigenciaTexto(validoHasta: string | Date): string {
+export function vigenciaTexto(validoHasta: string | Date | null | undefined): string {
+  // `diasHasta` devuelve 0 ante una fecha inválida —es un default sano
+  // para comparar— pero acá 0 significa «vence hoy», que sería una
+  // afirmación inventada. Se valida antes de hablar.
+  if (vacia(validoHasta)) return SIN_FECHA
+  if (Number.isNaN(toDate(validoHasta as string | Date).getTime())) return SIN_FECHA
   const d = diasHasta(validoHasta)
   if (d === 0) return 'vence hoy'
   if (d < 0) return `vencido hace ${Math.abs(d)} ${Math.abs(d) === 1 ? 'día' : 'días'}`
@@ -192,6 +236,9 @@ export function vigenciaTexto(validoHasta: string | Date): string {
  * `startOfMonth`) sobre su propio calendario.
  */
 export function isoDate(value: Date = ahora()): string {
+  // Una fecha inválida acá devolvía un throw que no tenía dónde caer:
+  // se usa para armar rangos y para el `value` de los inputs.
+  if (Number.isNaN(value.getTime())) return format(ahora(), 'yyyy-MM-dd')
   return format(value, 'yyyy-MM-dd')
 }
 

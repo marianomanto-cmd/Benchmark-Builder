@@ -40,7 +40,8 @@ export interface Mes {
   perdidos: number
   montoEmitido: number
   montoGanado: number
-  ticket: number
+  /** `null` en un mes sin presupuestos: no hay promedio, no es 0. */
+  ticket: number | null
 }
 
 export interface Motivo {

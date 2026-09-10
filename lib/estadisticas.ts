@@ -82,19 +82,34 @@ export function ventanaRango(clave: ClaveRango, hoyIso: string = isoDate()): {
  * y se puede pasar de «enviado» derecho a «aceptado»—, así que una
  * etapa vacía en el medio hacía aparecer una caída del 100 % seguida de
  * un crecimiento imposible.
+ *
+ * **El universo se pasa aparte y no se deduce de la primera etapa.**
+ * Antes el 100 % era `etapas[0]`, o sea «realizado», y un presupuesto
+ * no tiene por qué pasar por ahí: el wizard lo emite directo en
+ * «enviado» cuando se cierra mandando el WhatsApp, que es el camino
+ * más usado del consultorio. Con eso el denominador quedaba más chico
+ * que la realidad —etapas de más del 100 %— y, si el consultorio
+ * siempre manda por WhatsApp, `realizado` daba 0 y TODO el embudo se
+ * dibujaba en 0 % con presupuestos en cada etapa.
+ *
+ * Sin universo no hay porcentaje: `pctDelTotal` es `null`, igual que
+ * `variacion` con base cero. Inventar un 0 % es peor que no decir nada.
  */
-export function caidaEmbudo<T extends EtapaContada>(etapas: T[]): {
+export function caidaEmbudo<T extends EtapaContada>(
+  etapas: T[],
+  universo: number,
+): {
   etapa: T
-  /** Porcentaje sobre el arranque del embudo. */
-  pctDelTotal: number
+  /** Porcentaje sobre el total emitido, o `null` si no hay base. */
+  pctDelTotal: number | null
   /** Porcentaje sobre la etapa poblada anterior, o `null` en la primera. */
   pctDeLaAnterior: number | null
 }[] {
-  const arranque = etapas[0]?.alcanzaron ?? 0
   let anterior: number | null = null
 
   return etapas.map((etapa) => {
-    const pctDelTotal = arranque === 0 ? 0 : Math.round((etapa.alcanzaron / arranque) * 100)
+    const pctDelTotal =
+      universo <= 0 ? null : Math.round((etapa.alcanzaron / universo) * 100)
     const pctDeLaAnterior =
       anterior === null || anterior === 0 ? null : Math.round((etapa.alcanzaron / anterior) * 100)
 

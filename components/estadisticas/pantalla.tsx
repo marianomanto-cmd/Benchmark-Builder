@@ -34,15 +34,38 @@ export function PantallaEstadisticas({
   desde,
   hasta,
   fallo,
+  fallos = {},
 }: {
   datos: Estadisticas
   rango: ClaveRango
   desde: string
   hasta: string
   fallo: boolean
+  /** Qué lectura no volvió, por nombre. Ver `cargar()` en la página. */
+  fallos?: Record<string, boolean>
 }) {
   const { resumen, embudo, tiempos, meses, motivos, obrasSociales, prestaciones, profesionales, recurrencia, aging } = datos
-  const hayDatos = resumen.emitidos > 0
+
+  /**
+   * «Hay algo que mostrar» se decide sobre TODAS las lecturas, no sobre
+   * `resumen`.
+   *
+   * Antes todo el cuerpo estaba detrás de `resumen.emitidos > 0`: si esa
+   * única lectura fallaba, la página la reemplazaba por ceros y las
+   * nueve secciones que sí habían llegado no se dibujaban, con el
+   * banner de arriba diciendo «lo que se ve es lo que sí llegó» sobre
+   * una pantalla vacía.
+   */
+  const hayDatos =
+    resumen.emitidos > 0 ||
+    embudo.some((e) => e.alcanzaron > 0) ||
+    meses.some((m) => m.emitidos > 0) ||
+    obrasSociales.length > 0 ||
+    prestaciones.length > 0 ||
+    profesionales.length > 0
+
+  /** Lo abierto no depende de la ventana: es la foto de hoy. */
+  const hayAbiertos = aging.some((t) => t.casos > 0)
 
   return (
     <div className="flex flex-col gap-5 animate-enter">
@@ -65,9 +88,15 @@ export function PantallaEstadisticas({
         </Banner>
       )}
 
+      {/* Fuera del portón: no depende de la ventana elegida, y es el
+          único bloque de la pantalla accionable hoy a la mañana. */}
+      {!hayDatos && hayAbiertos && <BloqueAging aging={aging} fallo={fallos.aging} />}
+
       {!hayDatos ? (
         <SinDatos>
-          No hay presupuestos emitidos en esta ventana. Probá con un rango más largo.
+          {fallo
+            ? 'No se pudieron leer los números. Recargá para reintentar.'
+            : 'No hay presupuestos emitidos en esta ventana. Probá con un rango más largo.'}
         </SinDatos>
       ) : (
         <>
@@ -77,7 +106,7 @@ export function PantallaEstadisticas({
             titulo="Dónde se cae la venta"
             pregunta="De todos los que se emitieron, cuántos llegaron a cada etapa. No es la foto de hoy: es por dónde pasó cada uno."
           >
-            <Embudo etapas={embudo} />
+            <Embudo etapas={embudo} emitidos={resumen.emitidos} />
           </Bloque>
 
           <div className="grid gap-5 lg:grid-cols-2">
@@ -125,7 +154,11 @@ export function PantallaEstadisticas({
               pregunta="Mediana de días que un presupuesto pasa en cada etapa antes de moverse. Mediana y no promedio: uno olvidado tres meses corre el promedio."
             >
               {tiempos.length === 0 ? (
-                <SinDatos>Todavía no hay ningún paso completo para medir.</SinDatos>
+                <SinDatos>
+                  {fallos.tiempos
+                    ? 'No se pudo leer este bloque. Recargá para reintentar.'
+                    : 'Todavía no hay ningún paso completo para medir.'}
+                </SinDatos>
               ) : (
                 <Barras
                   tono="rampa"
@@ -146,7 +179,9 @@ export function PantallaEstadisticas({
             >
               {motivos.length === 0 ? (
                 <SinDatos>
-                  Todavía no se perdió ninguno con motivo cargado. Buena noticia.
+                  {fallos.motivos
+                    ? 'No se pudo leer este bloque. Recargá para reintentar.'
+                    : 'Todavía no se perdió ninguno con motivo cargado. Buena noticia.'}
                 </SinDatos>
               ) : (
                 <Barras
@@ -163,26 +198,7 @@ export function PantallaEstadisticas({
             </Bloque>
           </div>
 
-          <Bloque
-            titulo="A quién llamar hoy"
-            pregunta="Hace cuánto que no se mueve cada presupuesto que sigue en juego. No depende del rango: es la foto de hoy."
-          >
-            {aging.every((t) => t.casos === 0) ? (
-              <SinDatos>No hay ningún presupuesto esperando respuesta.</SinDatos>
-            ) : (
-              <Barras
-                tono="rampa"
-                anchoEtiqueta="sm:w-[110px] md:w-[130px]"
-                datos={aging.map((t) => ({
-                  clave: t.tramo,
-                  etiqueta: t.tramo,
-                  valor: t.casos,
-                  texto: numero(t.casos),
-                  detalle: money(t.monto),
-                }))}
-              />
-            )}
-          </Bloque>
+          <BloqueAging aging={aging} fallo={fallos.aging} />
 
           <Bloque
             titulo="Obras sociales"
@@ -236,7 +252,13 @@ export function PantallaEstadisticas({
                 />
                 <Dato
                   etiqueta="Presupuestos por paciente"
-                  valor={numero(recurrencia.promPorPaciente)}
+                  // `numero()` redondea, y 1,33 se mostraba como «1»
+                  // —justo el valor que significa «nadie volvió»—
+                  // al lado de «Volvieron 33 %». Es el único dato de la
+                  // pantalla donde los decimales dicen algo.
+                  valor={recurrencia.promPorPaciente.toLocaleString('es-AR', {
+                    maximumFractionDigits: 2,
+                  })}
                 />
                 <Dato
                   etiqueta="Entre uno y el siguiente"
@@ -324,26 +346,77 @@ function Dato({ etiqueta, valor, ayuda }: { etiqueta: string; valor: string; ayu
   )
 }
 
+/* ── A quién llamar hoy ────────────────────────────────────── */
+
+function BloqueAging({
+  aging,
+  fallo,
+}: {
+  aging: Estadisticas['aging']
+  fallo?: boolean
+}) {
+  return (
+    <Bloque
+      titulo="A quién llamar hoy"
+      pregunta="Hace cuánto que no se mueve cada presupuesto que sigue en juego. No depende del rango: es la foto de hoy."
+    >
+      {aging.every((t) => t.casos === 0) ? (
+        <SinDatos>
+          {fallo
+            ? 'No se pudo leer este bloque. Recargá para reintentar.'
+            : 'No hay ningún presupuesto esperando respuesta.'}
+        </SinDatos>
+      ) : (
+        <Barras
+          tono="rampa"
+          anchoEtiqueta="sm:w-[110px] md:w-[130px]"
+          datos={aging.map((t) => ({
+            clave: t.tramo,
+            etiqueta: t.tramo,
+            valor: t.casos,
+            texto: numero(t.casos),
+            detalle: money(t.monto),
+          }))}
+        />
+      )}
+    </Bloque>
+  )
+}
+
 /* ── Embudo ────────────────────────────────────────────────── */
 
-function Embudo({ etapas }: { etapas: Estadisticas['embudo'] }) {
+function Embudo({
+  etapas,
+  emitidos,
+}: {
+  etapas: Estadisticas['embudo']
+  /** El universo: TODO lo emitido en la ventana. Ver `caidaEmbudo`. */
+  emitidos: number
+}) {
   if (etapas.every((e) => e.alcanzaron === 0)) {
     return <SinDatos>Todavía no hay recorrido para dibujar.</SinDatos>
   }
 
-  const filas = caidaEmbudo(etapas)
-  const arranque = etapas[0]?.alcanzaron ?? 0
+  const filas = caidaEmbudo(etapas, emitidos)
+  // El techo del eje es el mayor de lo que hay que dibujar, no la
+  // primera etapa: si una etapa supera a la primera —pasa cuando el
+  // presupuesto nace en «enviado»— la barra se recortaba al 100 % y dos
+  // valores distintos se veían iguales.
+  const techo = Math.max(emitidos, ...etapas.map((e) => e.alcanzaron), 1)
 
   return (
     <>
       <Barras
         tono="rampa"
-        maximo={arranque}
+        maximo={techo}
         datos={filas.map(({ etapa, pctDelTotal, pctDeLaAnterior }) => ({
           clave: etapa.estado,
           etiqueta: ETIQUETA_ESTADO[etapa.estado],
           valor: etapa.alcanzaron,
-          texto: `${numero(etapa.alcanzaron)} · ${pctDelTotal} %`,
+          texto:
+            pctDelTotal === null
+              ? numero(etapa.alcanzaron)
+              : `${numero(etapa.alcanzaron)} · ${pctDelTotal} %`,
           detalle:
             pctDeLaAnterior === null ? (
               money(etapa.monto)
@@ -355,7 +428,8 @@ function Embudo({ etapas }: { etapas: Estadisticas['embudo'] }) {
         }))}
       />
       <p className="mt-3 t-helper">
-        El porcentaje grande es sobre los {numero(arranque)} que arrancaron el circuito.
+        El porcentaje grande es sobre los {numero(emitidos)} presupuestos emitidos en esta
+        ventana.
       </p>
     </>
   )

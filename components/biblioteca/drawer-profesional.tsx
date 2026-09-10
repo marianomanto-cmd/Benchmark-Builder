@@ -1,12 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import * as React from 'react'
 import { toast } from 'sonner'
 
 import { actualizarProfesional, crearProfesional } from '@/app/actions/catalogo'
-import { Field, Input, Switch } from '@/components/ui'
+import { Field, Input } from '@/components/ui'
 import type { FilaProfesional } from './tipos'
-import { DrawerForm, FilaCampos, FilaSwitch } from './drawer-form'
+import { DrawerForm, FilaCampos } from './drawer-form'
 
 /**
  * Alta y edición de profesionales.
@@ -28,7 +29,6 @@ export function DrawerProfesional({
   const [nombre, setNombre] = React.useState(profesional?.nombre ?? '')
   const [matricula, setMatricula] = React.useState(profesional?.matricula ?? '')
   const [especialidad, setEspecialidad] = React.useState(profesional?.especialidad ?? '')
-  const [activo, setActivo] = React.useState(profesional?.activo ?? true)
 
   const [error, setError] = React.useState<string | null>(null)
   const [guardando, iniciar] = React.useTransition()
@@ -37,7 +37,7 @@ export function DrawerProfesional({
     setError(null)
 
     iniciar(async () => {
-      const entrada = { nombre, matricula, especialidad, activo }
+      const entrada = { nombre, matricula, especialidad }
 
       const resultado = profesional
         ? await actualizarProfesional(profesional.id, entrada)
@@ -98,13 +98,19 @@ export function DrawerProfesional({
         </Field>
       </FilaCampos>
 
-      <FilaSwitch
-        id="profesional-activo"
-        titulo="Activo"
-        ayuda="Los inactivos no se ofrecen al emitir, pero siguen firmando los presupuestos viejos."
-      >
-        <Switch id="profesional-activo" checked={activo} onCheckedChange={setActivo} />
-      </FilaSwitch>
+      {/* La baja del profesional se hace en «Equipo y accesos» y no
+          acá: ahí es donde además se le corta el acceso a la app, se
+          verifica que quien la da sea admin y que no quede el
+          consultorio sin ninguno. Este mismo interruptor cambiaba la
+          columna a secas, y después `/equipo` mostraba «De baja» a
+          alguien que seguía entrando. */}
+      <p className="t-helper">
+        Para dar de baja a alguien del equipo —y cortarle el acceso— entrá a{' '}
+        <Link href="/equipo" className="text-primary underline-offset-4 hover:underline">
+          Equipo y accesos
+        </Link>
+        .
+      </p>
     </DrawerForm>
   )
 }

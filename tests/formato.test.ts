@@ -15,6 +15,11 @@ import {
   normalizar,
   telefonoWhatsApp,
   matricula,
+  fechaHora,
+  hora,
+  haceCuanto,
+  diasDesde,
+  anio,
 } from '../lib/formato.ts'
 
 test('money usa el formato del consultorio: $ 128.400', () => {
@@ -141,4 +146,24 @@ test('matricula no repite el prefijo que ya trae cargado', () => {
   assert.equal(matricula(null), null)
   assert.equal(matricula(undefined), null)
   assert.equal(matricula('   '), null)
+})
+
+test('las fechas nunca tiran: un campo vaciado no se lleva puesta la pantalla', () => {
+  // El caso real: `<input type="date">` vaciado con Backspace manda ''.
+  // Antes esto era `RangeError: Invalid time value` desde date-fns y
+  // el error subía hasta el boundary con el wizard a medio cargar.
+  for (const malo of ['', '  ', 'no-es-fecha', '2026-13-45', null, undefined]) {
+    assert.equal(fechaLarga(malo as never), '—', `fechaLarga(${String(malo)})`)
+    assert.equal(fechaHora(malo as never), '—', `fechaHora(${String(malo)})`)
+    assert.equal(hora(malo as never), '—', `hora(${String(malo)})`)
+    assert.equal(haceCuanto(malo as never), '—', `haceCuanto(${String(malo)})`)
+    assert.equal(vigenciaTexto(malo as never), '—', `vigenciaTexto(${String(malo)})`)
+    // Los que devuelven número no pueden devolver NaN: se usan para comparar.
+    assert.equal(diasDesde(malo as never), 0, `diasDesde(${String(malo)})`)
+    assert.ok(Number.isFinite(anio(malo as never)), `anio(${String(malo)})`)
+  }
+
+  // Y con una fecha buena siguen diciendo lo de siempre.
+  assert.equal(fechaLarga('2026-09-08'), '8 de septiembre de 2026')
+  assert.equal(diasDesde('2026-09-08') >= 0, true)
 })
