@@ -51,11 +51,24 @@ export function Listado({
         {hayPaginas && `. Página ${pagina.actual} de ${pagina.paginas}`}
       </p>
 
-      <div className="hidden md:block">
+      {/*
+        La tabla aparece en `xl`, no en `md`.
+
+        Son nueve columnas y necesitan ~1.150px: mostrarlas desde 768
+        hacía que la Home entera scrolleara de costado en un iPad
+        apaisado o en media pantalla de laptop. Y achicarlas hasta que
+        entren en 768 deja «Gómez, Rena…» y «Consulta odontoló…», que es
+        peor que la card, donde el nombre entra completo.
+
+        Las cards no son «la versión de mobile»: son la versión que
+        funciona cuando no hay ancho para nueve columnas. El corte va
+        donde la tabla realmente entra.
+      */}
+      <div className="hidden xl:block">
         <TablaPresupuestos filas={filas} />
       </div>
 
-      <div className="md:hidden">
+      <div className="xl:hidden">
         <ListaMobile filas={filas} />
       </div>
 

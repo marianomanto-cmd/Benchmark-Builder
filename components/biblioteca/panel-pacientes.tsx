@@ -277,7 +277,14 @@ export function PanelPacientes({
             </p>
           )}
 
-          <div className="hidden overflow-hidden rounded-card border border-hairline bg-card shadow-rest md:block">
+          {/*
+            La tabla aparece en `lg`, no en `md`: su ancho mínimo es de
+            1003px y mostrarla desde 768 hacía que la página entera
+            scrolleara de costado. Debajo de eso mandan las cards, que
+            no son «la versión de mobile» sino la que funciona cuando no
+            hay ancho para todas las columnas.
+          */}
+          <div className="hidden overflow-hidden rounded-card border border-hairline bg-card shadow-rest lg:block">
             <Tabla>
               <Thead>
                 <tr>
@@ -331,7 +338,7 @@ export function PanelPacientes({
             </Tabla>
           </div>
 
-          <ul className="flex flex-col gap-3 md:hidden">
+          <ul className="flex flex-col gap-3 lg:hidden">
             {visibles.map((fila) => (
               <li key={fila.id}>
                 <Card className={cn('p-4', recien === fila.id && 'bg-tint')}>

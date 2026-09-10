@@ -182,6 +182,30 @@ export function PasoQuien({
     toast.info(`${partes.join(' · ')}.`)
   }
 
+  /**
+   * La obra social del borrador cuando no está entre las activas.
+   *
+   * Se da de baja una obra social en la biblioteca y los pacientes que
+   * la tenían en la ficha la siguen teniendo. El picker sólo lista las
+   * activas, así que el campo se veía VACÍO —placeholder gris— mientras
+   * el presupuesto se cotizaba y se emitía con ella igual: la pantalla
+   * decía una cosa y el documento guardaba otra.
+   *
+   * Se arma con lo que el borrador ya tiene, sin pedirle nada más a la
+   * base: el nombre viene congelado desde que se eligió el paciente.
+   */
+  const obraSocialDeBaja = React.useMemo(() => {
+    const id = borrador.obra_social_id
+    if (!id) return null
+    if (obras.some((o) => o.id === id)) return null
+    return {
+      id,
+      nombre: borrador.obra_social_nombre ?? 'Obra social dada de baja',
+      plan: null,
+      activa: false,
+    } as ObraSocial
+  }, [borrador.obra_social_id, borrador.obra_social_nombre, obras])
+
   async function elegirPaciente(p: Paciente) {
     // El turno se pide acá y no en `cambiarCobertura`: entre medio hay
     // un `await` para resolver la obra social de la ficha, y sin
@@ -337,6 +361,7 @@ export function PasoQuien({
             value={borrador.obra_social_id}
             onChange={elegirObraSocial}
             onCrear={(texto) => setCapa({ tipo: 'obra-social', texto })}
+            elegidaFueraDeLista={obraSocialDeBaja}
           />
         </Field>
 

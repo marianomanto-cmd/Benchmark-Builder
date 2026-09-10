@@ -114,6 +114,7 @@ Migraciones en `supabase/migrations/`, en este orden:
 | `20260101002100_baja_y_borrado.sql` | `es_admin()` mira `activo` · las fichas del equipo no se borran desde una sesión (se dan de baja) · el consultorio nunca queda sin un administrador con acceso |
 | `20260101002200_buscar_sin_acentos.sql` | `unaccent` + `sin_acentos()` · columna `busqueda` generada en `pacientes` y `presupuestos` con índice trigram · la vista `presupuestos_listado` la expone sumándole la prestación principal |
 | `20260101002300_catalogo_sin_duplicados.sql` | Unicidad real del catálogo: dos NULL no son iguales en Postgres, así que `unique (nombre, plan)` dejaba pasar dos obras sociales con el mismo nombre y sin plan. Índices parciales sobre `lower(nombre)`, y lo mismo para `prestaciones` |
+| `20260101002400_afiliado_de_su_obra_social.sql` | El nro de afiliado se congela sólo si el presupuesto es para la MISMA obra social que la ficha. Con la cobertura cambiada a mano, el documento salía con el número de la otra |
 
 **Sin la CLI**: `supabase/instalar.sql` e `instalar-storage.sql` son las mismas
 migraciones concatenadas en orden, para pegar en el SQL Editor de Supabase. Se
@@ -595,6 +596,12 @@ antes de aceptarlo. Los que resultaron reales:
 | `matricula()` no reconocía el prefijo pegado al número: «MN9876» salía «MP MN9876» en la cabecera, en el PDF y en el WhatsApp — justo lo que el comentario de la función decía que no podía pasar | La regex deja de exigir separador después de la P/N |
 | El timeline decidía si mostrar el año con los getters de `Date`, que en Vercel son UTC: un movimiento del 31 de diciembre a la noche perdía el año y se leía como del año en curso | `anio()`, que existe exactamente para eso |
 | `haceCuanto()` anunciaba como pasado cualquier instante futuro («hace 3 días» para algo del 14/09), y con el guard en `>= 0` bastaba con que el reloj de Postgres fuera unos milisegundos por delante del de Vercel para que un evento recién creado dijera «hace 1 segundo» en vez de «recién» | Debajo del minuto es «recién», venga del pasado o del futuro |
+| **La topbar desbordaba entre 768 y 911px y arrastraba a TODA la app**: la fila necesita 909px fijos —logo, cuatro links con etiqueta y tecla, «Nuevo presupuesto» y el avatar— y se enciende en `md`, o sea 768. En un iPad vertical o media pantalla de laptop, la página entera se corría 141px de costado y el menú de usuario quedaba fuera de pantalla. No se veía ni a 390 ni a 1440, que eran los dos únicos anchos con los que se hacía QA | Menos aire y sin las teclas de atajo por debajo de 1024. Las etiquetas se quedan: un menú de íconos ahorra más pero deja de decir a dónde lleva cada cosa. Y el QA ahora barre quince anchos |
+| Las tablas de Home, Pacientes y Prestaciones se mostraban desde `md` (768px) necesitando 1.150, 1.003 y 843: al sacarle el scroll a `Tabla`, la página entera scrolleaba en su lugar | Cada tabla aparece donde realmente entra. Las cards no son «la versión de mobile»: son la que funciona cuando no hay ancho para todas las columnas |
+| **El picker de paciente del wizard sólo veía las 1.000 fichas más nuevas** y filtraba en memoria. Con la agenda real de 5.523, el 82 % era invisible, y lo único que la pantalla ofrecía a continuación era «Crear paciente»: así se llena una agenda de fichas duplicadas de gente que ya estaba, con el historial partido entre las dos. Medido: «Perez» devolvía 8 de 37 | La búsqueda va contra la base, con el mismo criterio que el listado. Ahora «Perez» devuelve los 37 y «Suarez» los 28. Cuando la búsqueda toca el tope de 40, la lista lo dice en vez de callarlo |
+| **El nro de afiliado salía en el documento aunque fuera de OTRA obra social.** El paso 1 ofrece cambiar la cobertura sólo para ese presupuesto —y lo dice— pero el alta copiaba el afiliado de la ficha sin mirar para qué obra social se presupuestaba: «APROSS · Afiliado 8000060447207010002» con un número de Swiss Medical. `duplicar_presupuesto` ya lo resolvía bien | El afiliado se congela sólo si es de esa obra social (migración 25). Y el detalle deja de mostrarlo en un presupuesto particular, como ya hacían el PDF y la vista previa |
+| Con la obra social de la ficha dada de baja, el campo del wizard se veía VACÍO pero el presupuesto se cotizaba y se emitía con ella igual: la pantalla decía una cosa y el documento guardaba otra | La dada de baja aparece en el picker cuando es la elegida, diciendo que lo está |
+| `money()` usaba un espacio partible: a 320–360px el «$» quedaba en un renglón y los dígitos en el de abajo. `<Monto>` pone `whitespace-nowrap` y su comentario dice «todo monto pasa por acá», pero hay 48 llamadas directas que no pasan —el PDF y el WhatsApp entre ellas | Espacio duro (U+00A0) en el string, con un test que lo cuida |
 | **Ninguna tabla scrollea de costado.** `Tabla` envolvía todas las tablas en un `overflow-x-auto`: avisaba con sombras, sí, pero la solución a una tabla que no entra no es una barra —arrastrar de costado para leer una fila es incómodo con mouse y hostil con el dedo, y esconde columnas enteras detrás de un gesto que mucha gente no descubre. La grilla de aranceles era el caso extremo: 7.464px de tabla dentro de una caja de 1.114 | La primitiva no scrollea y las celdas parten el texto largo, así que el contenido tiene que entrar; si una tabla nueva no entra, se nota en seguida en vez de esconderse. Medido en las diez pantallas, a 1440 y a 390: cero tablas con desborde horizontal |
 | **La grilla de aranceles era una matriz prestación × obra social.** Con las 42 obras sociales del consultorio son 2.451 celdas para 110 precios: el 95 % de la pantalla decía «Sin cargar», y cada tarjeta ofrecía «Faltan 38 obras sociales» como si fuera deuda, cuando es el estado normal —el consultorio negocia con unas pocas | Una lista por prestación, la misma en desktop y en mobile: nombre y precio particular en una fila, los precios de obra social que EXISTEN como pastillas, y una sola acción para agregar otro. Más un selector de obra social que reemplaza a las columnas: se elige una y cada prestación muestra el particular y esa, que es como se carga una lista de precios entera |
 | **Dos obras sociales con el mismo nombre convivían.** `unique (nombre, plan)` no impide el duplicado que importa: en Postgres dos NULL no son iguales, y la mayoría de las obras sociales de un consultorio no tienen plan. Los aranceles cuelgan de una de las dos filas y los pacientes se reparten entre las dos: los que caen del lado sin aranceles se presupuestan como particulares —con el precio de lista completo— sin que nada avise. Lo encontré cargando los datos reales del consultorio: mi propio script de importación duplicó las 42 obras sociales al correrlo dos veces | Índices únicos parciales sobre `lower(nombre)`, sin distinguir mayúsculas porque estos nombres se tipean a mano. Lo mismo para `prestaciones`, donde `codigo` es único pero acepta null (migración 24) |
@@ -633,7 +640,7 @@ antes de aceptarlo. Los que resultaron reales:
 ## 10 · Cómo se verifica
 
 - `npm run build` · `npm run typecheck` · `npm run lint` — sin errores.
-- `npm test` — 66 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts`,
+- `npm test` — 67 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts`,
   `lib/estadisticas.ts`, `lib/busqueda.ts` y `lib/zod.ts`.
 - `npm run sql:instalar` — regenera los scripts del SQL Editor desde las
   migraciones. Correr después de tocar cualquier migración.
@@ -661,6 +668,11 @@ antes de aceptarlo. Los que resultaron reales:
 - **La idempotencia del alta se prueba con dos pedidos simultáneos**, no con
   dos seguidos: dos transacciones con la misma `clave_alta` tienen que dejar
   UN documento y devolverle el mismo id a las dos.
+- **Barrido de anchos**: 320, 360, 390, 414, 640, 768, 834, 900, 1024, 1180,
+  1275, 1280, 1366, 1440 y 1920. Ninguna pantalla puede scrollear de costado en
+  ninguno. Hacer QA sólo en 390 y 1440 dejaba ciego justo el hueco de los
+  768–1024 —un iPad, media pantalla de laptop—, que es donde estaban la topbar
+  desbordada y las tablas que no entraban.
 - **QA con navegador, en mobile (390×844) y desktop (1440×900).** Se abre la
   app real —no un mock— contra un Postgres local con el seed, se entra con
   usuario y contraseña, se recorre cada pantalla y se carga un presupuesto

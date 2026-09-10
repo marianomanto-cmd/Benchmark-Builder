@@ -56,6 +56,15 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
   }
 
   return (
+    /*
+      Los anchos máximos de las columnas de texto son responsivos.
+      Fijos, sumaban 1.192px de tabla, así que entre 1024 y 1275 —un
+      iPad apaisado, media pantalla de laptop— la Home entera scrolleaba
+      de costado. Truncar más fuerte y aflojar recién en `xl` mantiene
+      las nueve columnas: la alternativa era sacar «Total» u «Obra
+      social», y las dos se miran de un vistazo desde el listado.
+      El `title` sigue teniendo el texto completo.
+    */
     <div className="overflow-hidden rounded-card border border-hairline bg-card shadow-rest">
       <Tabla>
         <Thead>
@@ -107,7 +116,7 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
 
                   <Td>
                     <span
-                      className="block max-w-[190px] truncate font-medium text-ink"
+                      className="block max-w-[130px] truncate font-medium text-ink xl:max-w-[190px]"
                       title={fila.paciente_nombre}
                     >
                       {fila.paciente_nombre}
@@ -120,7 +129,7 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
                   <Td>
                     <span className="flex items-center gap-2">
                       <span
-                        className="block max-w-[220px] truncate"
+                        className="block max-w-[150px] truncate xl:max-w-[220px]"
                         title={fila.prestacion_principal ?? undefined}
                       >
                         {fila.prestacion_principal ?? 'Sin prestaciones'}
@@ -133,7 +142,7 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
 
                   <Td>
                     <span
-                      className="block max-w-[150px] truncate"
+                      className="block max-w-[110px] truncate xl:max-w-[150px]"
                       title={fila.obra_social_nombre ?? 'Particular'}
                     >
                       {fila.obra_social_nombre ?? 'Particular'}
@@ -142,7 +151,7 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
 
                   <Td>
                     <span
-                      className="block max-w-[150px] truncate"
+                      className="block max-w-[110px] truncate xl:max-w-[150px]"
                       title={fila.profesional_nombre}
                     >
                       {fila.profesional_nombre}

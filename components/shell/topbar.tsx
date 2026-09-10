@@ -57,7 +57,21 @@ export function Topbar({ perfil }: { perfil: Perfil }) {
       <SheetCuenta perfil={perfil} />
 
       <header className="sticky top-0 z-40 hidden border-b border-hairline bg-page/85 backdrop-blur-md md:block">
-        <div className="mx-auto flex h-16 w-full max-w-[1180px] items-center gap-7 px-8">
+        {/*
+          Los espacios se achican antes de 1024px.
+
+          La topbar necesitaba 909px de contenido y en una ventana de
+          768 —un iPad vertical, o media pantalla de laptop— hay 704:
+          la barra empujaba el ancho del documento y TODA la app
+          scrolleaba de costado, con la topbar yéndose con ella y medio
+          viewport en blanco. Sólo se veía entre 768 y ~900px, que es
+          justo el hueco entre los dos anchos con los que se hacía QA.
+
+          Se recorta lo prescindible —el aire y las teclas de atajo— y
+          no las etiquetas: un menú de íconos sin texto ahorra más pero
+          deja de decir a dónde lleva cada cosa.
+        */}
+        <div className="mx-auto flex h-16 w-full max-w-[1180px] items-center gap-3 px-4 lg:gap-7 lg:px-8">
           <Link
             href="/"
             className="rounded-input transition-opacity hover:opacity-85"
@@ -77,7 +91,7 @@ export function Topbar({ perfil }: { perfil: Perfil }) {
                       href={destino.href}
                       aria-current={activo ? 'page' : undefined}
                       className={cn(
-                        'flex h-9 items-center gap-2 rounded-pill px-3 t-ui transition-colors',
+                        'flex h-9 items-center gap-2 rounded-pill px-2.5 t-ui transition-colors lg:px-3',
                         activo
                           ? 'bg-tint text-primary-hover'
                           : 'text-muted hover:bg-tint hover:text-ink',
@@ -88,8 +102,13 @@ export function Topbar({ perfil }: { perfil: Perfil }) {
                         aria-hidden
                       />
                       {destino.etiqueta}
-                      {/* La tecla a la vista: un atajo que nadie ve no existe. */}
-                      {tecla && <Kbd className="ml-0.5">{tecla}</Kbd>}
+                      {/*
+                        La tecla a la vista: un atajo que nadie ve no
+                        existe. Pero por debajo de 1024 el espacio se
+                        necesita para que la barra entre, y quien usa
+                        atajos ya los tiene en la ayuda (?).
+                      */}
+                      {tecla && <Kbd className="ml-0.5 md:hidden lg:inline-flex">{tecla}</Kbd>}
                     </Link>
                   </li>
                 )

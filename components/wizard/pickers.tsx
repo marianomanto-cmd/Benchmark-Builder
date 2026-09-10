@@ -12,9 +12,12 @@
 import * as React from 'react'
 
 import { Combobox, MicroBadge, type OpcionCombobox } from '@/components/ui'
+import { palabrasBusqueda } from '@/lib/busqueda'
 import type { ObraSocial, Paciente, Prestacion, Profesional } from '@/lib/types'
 
 import {
+  TOPE_BUSQUEDA,
+  useBuscarPacientes,
   useObrasSociales,
   usePacientes,
   usePrestaciones,
@@ -54,8 +57,23 @@ export function PickerPaciente({
   value: string | null
   onChange: (paciente: Paciente) => void
 }) {
-  const { data: pacientes = [], isPending } = usePacientes()
+  /*
+   * La búsqueda va contra la BASE, no contra lo que ya se bajó.
+   *
+   * `usePacientes()` trae las 1.000 fichas más nuevas, que es lo que se
+   * ofrece antes de tipear nada. Filtrar sobre esas 1.000 era el bug:
+   * con una agenda real de 5.523, el 82 % era invisible para el
+   * wizard, y lo único que la pantalla ofrecía a continuación era
+   * «Crear paciente». Así se llena una agenda de fichas duplicadas de
+   * gente que ya estaba, con el historial partido entre las dos.
+   */
+  const [texto, setTexto] = React.useState('')
+  const { data: recientesRaw = [], isPending } = usePacientes()
+  const { data: encontrados = [], isFetching: buscando } = useBuscarPacientes(texto)
   const { data: obras = [] } = useObrasSociales()
+
+  const hayBusqueda = palabrasBusqueda(texto).join('').length >= 2
+  const pacientes = hayBusqueda ? encontrados : recientesRaw
 
   const nombrePorId = React.useMemo(() => {
     const mapa = new Map<string, string>()
@@ -63,25 +81,29 @@ export function PickerPaciente({
     return mapa
   }, [obras])
 
-  const opciones = React.useMemo<OpcionCombobox[]>(
-    () =>
-      pacientes.map((p) => ({
-        value: p.id,
-        label: p.nombre,
-        detalle: [
-          p.dni ? `DNI ${p.dni}` : null,
-          p.obra_social_id ? nombrePorId.get(p.obra_social_id) : 'Particular',
-        ]
-          .filter(Boolean)
-          .join(' · '),
-        busqueda: `${p.dni ?? ''} ${p.telefono ?? ''} ${p.nro_afiliado ?? ''}`,
-      })),
-    [pacientes, nombrePorId],
+  const aOpcion = React.useCallback(
+    (p: Paciente): OpcionCombobox => ({
+      value: p.id,
+      label: p.nombre,
+      detalle: [
+        p.dni ? `DNI ${p.dni}` : null,
+        p.obra_social_id ? nombrePorId.get(p.obra_social_id) : 'Particular',
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      busqueda: `${p.dni ?? ''} ${p.telefono ?? ''} ${p.nro_afiliado ?? ''}`,
+    }),
+    [nombrePorId],
   )
 
-  // La consulta ya viene ordenada por alta descendente: los primeros
-  // son los últimos pacientes cargados.
-  const recientes = React.useMemo(() => opciones.slice(0, RECIENTES), [opciones])
+  const opciones = React.useMemo(() => pacientes.map(aOpcion), [pacientes, aOpcion])
+
+  // Los últimos cargados, para cuando todavía no se escribió nada: la
+  // consulta viene ordenada por alta descendente.
+  const recientes = React.useMemo(
+    () => recientesRaw.slice(0, RECIENTES).map(aOpcion),
+    [recientesRaw, aOpcion],
+  )
 
   return (
     <Combobox
@@ -89,13 +111,22 @@ export function PickerPaciente({
       value={value}
       opciones={opciones}
       recientes={recientes}
-      cargando={isPending}
+      cargando={isPending || buscando}
       disabled={disabled}
       invalido={invalido}
       placeholder="Buscar por nombre, DNI o teléfono…"
       vacio="Ningún paciente coincide"
       etiquetaCrear="Crear paciente"
       onCrear={onCrear}
+      onTextoCambia={setTexto}
+      nota={
+        hayBusqueda && encontrados.length >= TOPE_BUSQUEDA
+          ? `Se muestran los primeros ${TOPE_BUSQUEDA}. Escribí también el nombre para achicar la lista.`
+          : undefined
+      }
+      // Con búsqueda, `opciones` ya viene filtrada por la base: volver a
+      // pasarle el filtro local le sacaría filas que sí coinciden.
+      filtrarEnMemoria={!hayBusqueda}
       onChange={(valor) => {
         const paciente = pacientes.find((p) => p.id === valor)
         if (paciente) onChange(paciente)
@@ -164,15 +195,47 @@ export function PickerObraSocial({
   onCrear,
   invalido,
   disabled,
+  elegidaFueraDeLista,
 }: PropsBase & {
   /** `null` = particular. */
   value: string | null
   onChange: (obraSocial: ObraSocial | null) => void
+  /**
+   * La obra social elegida, cuando no está en el listado de activas.
+   *
+   * `useObrasSociales()` filtra `activa = true`, así que la obra social
+   * de un paciente cuya cobertura se dio de baja NO estaba entre las
+   * opciones y el campo se veía VACÍO —con el placeholder en gris—
+   * mientras el presupuesto se cotizaba y se emitía con ella igual. Lo
+   * que la pantalla decía y lo que el documento guardaba eran dos cosas
+   * distintas.
+   */
+  elegidaFueraDeLista?: ObraSocial | null
 }) {
   const { data: obras = [], isPending } = useObrasSociales()
 
-  const opciones = React.useMemo<OpcionCombobox[]>(
-    () => [
+  const opciones = React.useMemo<OpcionCombobox[]>(() => {
+    const activas = obras.map((os) => ({
+      value: os.id,
+      label: nombreObraSocial(os),
+      detalle: os.plan ? `Plan ${os.plan}` : undefined,
+    }))
+
+    // La dada de baja se agrega SÓLO si es la elegida, y dice que lo
+    // está: se puede seguir con ella —el paciente la tiene— pero nadie
+    // la elige por error desde el listado.
+    const deBaja =
+      elegidaFueraDeLista && !obras.some((o) => o.id === elegidaFueraDeLista.id)
+        ? [
+            {
+              value: elegidaFueraDeLista.id,
+              label: nombreObraSocial(elegidaFueraDeLista),
+              detalle: 'Dada de baja en la biblioteca',
+            },
+          ]
+        : []
+
+    return [
       // "Particular" es una opción de primera, no la ausencia de una:
       // buena parte de los presupuestos del consultorio no tienen obra social.
       {
@@ -181,14 +244,10 @@ export function PickerObraSocial({
         detalle: 'Sin obra social',
         busqueda: 'sin obra social ninguna particular',
       },
-      ...obras.map((os) => ({
-        value: os.id,
-        label: nombreObraSocial(os),
-        detalle: os.plan ? `Plan ${os.plan}` : undefined,
-      })),
-    ],
-    [obras],
-  )
+      ...deBaja,
+      ...activas,
+    ]
+  }, [obras, elegidaFueraDeLista])
 
   return (
     <Combobox

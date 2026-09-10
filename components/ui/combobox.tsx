@@ -38,6 +38,9 @@ export function Combobox({
   onCrear,
   etiquetaCrear = 'Crear',
   cargando,
+  onTextoCambia,
+  filtrarEnMemoria = true,
+  nota,
   disabled,
   id,
   invalido,
@@ -52,6 +55,25 @@ export function Combobox({
   onCrear?: (texto: string) => void
   etiquetaCrear?: string
   cargando?: boolean
+  /**
+   * Avisa lo que se está tipeando, para que quien llama pueda buscar
+   * contra la base en vez de sobre lo que ya se bajó.
+   */
+  onTextoCambia?: (texto: string) => void
+  /**
+   * `false` cuando `opciones` ya viene filtrada por el servidor.
+   *
+   * Filtrar de nuevo en memoria sobre un resultado de búsqueda no es
+   * inofensivo: el servidor busca en toda la agenda y con su propio
+   * criterio, y volver a pasarle el filtro local le saca filas que sí
+   * coinciden.
+   */
+  filtrarEnMemoria?: boolean
+  /**
+   * Aviso al pie de la lista. Se usa para no callar un tope: «40 de 52»
+   * mostrado como 40 a secas se lee como que hay 40.
+   */
+  nota?: React.ReactNode
   disabled?: boolean
   id?: string
   invalido?: boolean
@@ -69,6 +91,7 @@ export function Combobox({
   )
 
   const filtradas = React.useMemo(() => {
+    if (!filtrarEnMemoria) return opciones
     if (!texto.trim()) return opciones
     /*
      * `coincide()` y no un `includes()` del término entero: los
@@ -81,17 +104,26 @@ export function Combobox({
     return opciones.filter((o) =>
       coincide(`${o.label} ${o.detalle ?? ''} ${o.busqueda ?? ''}`, texto),
     )
-  }, [opciones, texto])
+  }, [opciones, texto, filtrarEnMemoria])
 
   const recientesVisibles = React.useMemo(
     () => (texto ? [] : recientes.filter((r) => !filtradas.some((f) => f.value === r.value))),
     [recientes, filtradas, texto],
   )
 
+  /** Único lugar que escribe el texto: así el aviso nunca se olvida. */
+  const escribir = React.useCallback(
+    (valor: string) => {
+      setTexto(valor)
+      onTextoCambia?.(valor)
+    },
+    [onTextoCambia],
+  )
+
   function elegir(o: OpcionCombobox) {
     onChange(o.value, o)
     setAbierto(false)
-    setTexto('')
+    escribir('')
   }
 
   return (
@@ -138,7 +170,7 @@ export function Combobox({
               <Command.Input
                 autoFocus
                 value={texto}
-                onValueChange={setTexto}
+                onValueChange={escribir}
                 placeholder={placeholder}
                 className="h-10 w-full bg-transparent font-sans text-[14px] text-ink outline-none placeholder:text-faint"
               />
@@ -169,6 +201,10 @@ export function Combobox({
                 </Command.Group>
               )}
 
+              {nota && filtradas.length > 0 && (
+                <p className="px-2.5 pb-1 pt-2 text-[12px] text-muted">{nota}</p>
+              )}
+
               {/* "Crear «lo tipeado»" siempre visible. */}
               {onCrear && (
                 <Command.Item
@@ -176,7 +212,7 @@ export function Combobox({
                   onSelect={() => {
                     setAbierto(false)
                     onCrear(texto.trim())
-                    setTexto('')
+                    escribir('')
                   }}
                   className={cn(
                     'flex cursor-pointer items-center gap-2 rounded-input px-2.5 py-2',

@@ -33,12 +33,28 @@ const NUM = new Intl.NumberFormat('es-AR', {
   maximumFractionDigits: 0,
 })
 
-/** `$ 128.400` — negativo como `− $ 1.234`, nunca `$ -1.234`. */
+/**
+ * `$ 128.400` — negativo como `− $ 1.234`, nunca `$ -1.234`.
+ *
+ * El espacio entre el signo y los dígitos es DURO (U+00A0). Con un
+ * espacio común el navegador puede cortar ahí, y a 320-360px eso se ve:
+ * en las tarjetas de Estadísticas quedaba «$» solo en un renglón y
+ * «1.765.700» en el de abajo. `<Monto>` pone `whitespace-nowrap` y su
+ * comentario dice «todo monto en pantalla pasa por acá», pero hay 48
+ * llamadas directas a `money()` que no pasan: en los títulos de las
+ * tarjetas, en el sheet de WhatsApp, en el PDF. Arreglarlo en el string
+ * las cubre todas y no depende de que cada lugar se acuerde de la
+ * clase.
+ */
+const DURO = '\u00A0'
+
 export function money(valor: number | string | null | undefined): string {
   const n = typeof valor === 'string' ? Number(valor) : (valor ?? 0)
-  if (!Number.isFinite(n)) return '$ 0'
+  if (!Number.isFinite(n)) return `$${DURO}0`
   const entero = Math.round(n)
-  return entero < 0 ? `− $ ${NUM.format(-entero)}` : `$ ${NUM.format(entero)}`
+  return entero < 0
+    ? `−${DURO}$${DURO}${NUM.format(-entero)}`
+    : `$${DURO}${NUM.format(entero)}`
 }
 
 /** `128.400`, sin símbolo — para celdas que ya tienen el `$` en el header. */

@@ -23,20 +23,38 @@ import {
   diaCalendario,
 } from '../lib/formato.ts'
 
+/** El espacio de `money()` es duro: ver el test de abajo. */
+const D = '\u00A0'
+
 test('money usa el formato del consultorio: $ 128.400', () => {
-  assert.equal(money(128400), '$ 128.400')
-  assert.equal(money(0), '$ 0')
-  assert.equal(money(1000), '$ 1.000')
-  assert.equal(money(999), '$ 999')
-  assert.equal(money(1234567), '$ 1.234.567')
+  assert.equal(money(128400), `$${D}128.400`)
+  assert.equal(money(0), `$${D}0`)
+  assert.equal(money(1000), `$${D}1.000`)
+  assert.equal(money(999), `$${D}999`)
+  assert.equal(money(1234567), `$${D}1.234.567`)
   // Sin decimales: los montos se manejan en pesos enteros.
-  assert.equal(money(1500.6), '$ 1.501')
+  assert.equal(money(1500.6), `$${D}1.501`)
   // numeric(12,2) llega como string desde Postgres.
-  assert.equal(money('48000.00'), '$ 48.000')
+  assert.equal(money('48000.00'), `$${D}48.000`)
   // Nada de "$ NaN" en pantalla.
-  assert.equal(money(null), '$ 0')
-  assert.equal(money(undefined), '$ 0')
-  assert.equal(money('no es un número'), '$ 0')
+  assert.equal(money(null), `$${D}0`)
+  assert.equal(money(undefined), `$${D}0`)
+  assert.equal(money('no es un número'), `$${D}0`)
+  // El negativo lleva el menos tipográfico y su propio espacio duro.
+  assert.equal(money(-1234), `−${D}$${D}1.234`)
+})
+
+test('el espacio de money() no se puede partir en dos renglones', () => {
+  // Con un espacio común, el navegador corta ahí: en las tarjetas de
+  // Estadísticas a 320px quedaba «$» arriba y «1.765.700» abajo.
+  // `<Monto>` pone `whitespace-nowrap`, pero hay 48 llamadas directas a
+  // `money()` que no pasan por él — el PDF y el WhatsApp entre ellas.
+  for (const valor of [128400, 0, -1234, 1_000_000]) {
+    assert.ok(
+      !/\u0020/.test(money(valor)),
+      `money(${valor}) = ${JSON.stringify(money(valor))} tiene un espacio partible`,
+    )
+  }
 })
 
 test('numero no lleva símbolo', () => {

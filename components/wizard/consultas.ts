@@ -13,8 +13,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { createClient } from '@/lib/supabase/client'
+import { palabrasBusqueda, patronDeDigitos } from '@/lib/busqueda'
 import { isoDate } from '@/lib/formato'
+import { createClient } from '@/lib/supabase/client'
 import type {
   Arancel,
   CoberturaTipo,
@@ -49,6 +50,18 @@ export const CLAVES = {
    Lecturas
    ═══════════════════════════════════════════════════════════ */
 
+/**
+ * Los últimos pacientes cargados. Es lo que el picker ofrece ANTES de
+ * que se escriba nada: en el mostrador, el que acaba de entrar suele
+ * ser uno de los últimos que se dieron de alta.
+ *
+ * NO es la agenda: son las 1.000 fichas más nuevas. Buscar sobre esta
+ * lista era el bug — con 5.523 pacientes, 4.523 (el 82 %) eran
+ * invisibles para el wizard, y lo único que la pantalla ofrecía a
+ * continuación era «Crear paciente», así que la agenda se llenaba de
+ * duplicados de gente que ya estaba. La búsqueda va contra la base
+ * (`useBuscarPacientes`).
+ */
 export function usePacientes() {
   return useQuery({
     queryKey: CLAVES.pacientes,
@@ -58,6 +71,40 @@ export function usePacientes() {
         .select('*')
         .order('created_at', { ascending: false })
         .limit(TOPE)
+      if (error) throw new Error(error.message)
+      return (data ?? []) as Paciente[]
+    },
+  })
+}
+
+/** Cuántas fichas trae una búsqueda: más que esto no se lee, se afina. */
+export const TOPE_BUSQUEDA = 40
+
+/**
+ * Busca pacientes en la BASE, no en lo que ya se bajó.
+ *
+ * Mismo criterio que el listado y que `buscarPacientes()` del servidor:
+ * palabra por palabra contra la columna `busqueda`, que la base
+ * mantiene sin acentos y en minúsculas. Ver `lib/busqueda.ts`.
+ */
+export function useBuscarPacientes(termino: string) {
+  const palabras = palabrasBusqueda(termino)
+  const clave = palabras.join(' ')
+
+  return useQuery({
+    queryKey: ['wizard', 'buscar-pacientes', clave] as const,
+    // Con menos de dos caracteres la búsqueda trae media agenda: hasta
+    // ahí alcanzan los recientes.
+    enabled: clave.replace(/\s/g, '').length >= 2,
+    queryFn: async (): Promise<Paciente[]> => {
+      let consulta = db().from('pacientes').select('*')
+      for (const palabra of palabras) {
+        const digitos = patronDeDigitos(palabra)
+        consulta = digitos
+          ? consulta.or(`busqueda.like.%${palabra}%,busqueda.like.${digitos}`)
+          : consulta.like('busqueda', `%${palabra}%`)
+      }
+      const { data, error } = await consulta.order('nombre').limit(TOPE_BUSQUEDA)
       if (error) throw new Error(error.message)
       return (data ?? []) as Paciente[]
     },

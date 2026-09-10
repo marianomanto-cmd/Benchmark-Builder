@@ -128,11 +128,19 @@ export function Cabecera({ cabecera }: { cabecera: CabeceraPresupuesto }) {
             etiqueta="Obra social"
             valor={cabecera.obra_social_nombre ?? 'Particular'}
             extra={
-              cabecera.paciente_afiliado
-                ? `Afiliado ${cabecera.paciente_afiliado}`
-                : cabecera.obra_social_nombre
-                  ? 'Sin número de afiliado'
-                  : 'Sin cobertura'
+              // El afiliado se muestra sólo si HAY obra social. Sin ella
+              // el número no significa nada —pertenece a otra cobertura,
+              // la que el paciente tiene en la ficha— y quedaba
+              // «Particular · Afiliado AP-884120», que se lee como que
+              // el presupuesto sí tiene cobertura. El PDF y la vista
+              // previa del wizard ya lo hacían bien, con un comentario
+              // que lo dice: «Sin obra social no hay afiliado que
+              // mostrar».
+              !cabecera.obra_social_nombre
+                ? 'Sin cobertura'
+                : cabecera.paciente_afiliado
+                  ? `Afiliado ${cabecera.paciente_afiliado}`
+                  : 'Sin número de afiliado'
             }
           />
           <Dato

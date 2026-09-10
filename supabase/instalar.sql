@@ -612,6 +612,7 @@ declare
   v_prof          profesionales%rowtype;
   v_os_nombre     text;
   v_os_id         uuid;
+  v_afiliado      text;
   v_estado        estado_presupuesto;
   v_item          jsonb;
   v_cuota         jsonb;
@@ -660,6 +661,16 @@ begin
   select nombre || coalesce(' ' || plan, '') into v_os_nombre
     from obras_sociales where id = v_os_id;
 
+  -- ── El afiliado, sólo si es de ESTA obra social ──
+  -- Sin obra social (particular) no hay afiliado que mostrar; con una
+  -- distinta a la de la ficha, el número de la ficha no aplica. En los
+  -- dos casos el documento sale sin número, que es la verdad.
+  v_afiliado := case
+                  when v_os_id is not null and v_os_id = v_pac.obra_social_id
+                    then v_pac.nro_afiliado
+                  else null
+                end;
+
   insert into presupuestos (
     paciente_id, profesional_id, obra_social_id, obra_social_nombre,
     paciente_nombre, paciente_dni, paciente_telefono, paciente_afiliado,
@@ -668,7 +679,7 @@ begin
     estado, created_by, clave_alta
   ) values (
     v_pac.id, v_prof.id, v_os_id, v_os_nombre,
-    v_pac.nombre, v_pac.dni, v_pac.telefono, v_pac.nro_afiliado,
+    v_pac.nombre, v_pac.dni, v_pac.telefono, v_afiliado,
     v_prof.nombre, v_prof.matricula,
     coalesce((p_payload ->> 'fecha_emision')::date, current_date),
     coalesce((p_payload ->> 'valido_hasta')::date, current_date + 30),
@@ -761,10 +772,6 @@ begin
   return v_id;
 
 exception
-  -- Dos pedidos con la misma clave a la vez: el que pierde la carrera
-  -- llega acá, su inserción parcial se deshace sola con la subtransacción
-  -- y devuelve el documento del que ganó. Cualquier otra violación de
-  -- unicidad sigue su camino de siempre.
   when unique_violation then
     if v_clave is null then raise; end if;
     select id into v_id from presupuestos where clave_alta = v_clave;
@@ -2481,3 +2488,10 @@ create unique index if not exists prestaciones_nombre_key
 comment on index obras_sociales_nombre_sin_plan_key is
   'Dos NULL no son iguales en Postgres, así que unique (nombre, plan) no '
   'impide dos obras sociales con el mismo nombre y sin plan. Este índice sí.';
+
+
+-- ─── afiliado de su obra social ───────────────────────────────────────
+
+
+revoke execute on function crear_presupuesto(jsonb) from public, anon;
+grant execute on function crear_presupuesto(jsonb) to authenticated;
