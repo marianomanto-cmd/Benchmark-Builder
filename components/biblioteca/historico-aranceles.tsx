@@ -16,11 +16,11 @@ import {
   Thead,
   Tr,
 } from '@/components/ui'
-import { fechaCorta, normalizar, numero } from '@/lib/formato'
+import { fechaCorta, isoDate, normalizar, numero } from '@/lib/formato'
 import { useAtajos } from '@/lib/hooks/use-atajos'
 
 import { CampoBusqueda } from './campo-busqueda'
-import { etiquetaCobertura, type FilaHistorico } from './tipos'
+import { estadoVigencia, etiquetaCobertura, type FilaHistorico } from './tipos'
 
 const ID_BUSQUEDA = 'busqueda-historico'
 
@@ -60,7 +60,7 @@ export function HistoricoAranceles({
     const q = normalizar(busqueda)
     if (!q) return filas
     return filas.filter((f) =>
-      normalizar(`${f.prestacion} ${f.rubro ?? ''} ${f.obra_social}`).includes(q),
+      normalizar(`${f.prestacion} ${f.codigo ?? ''} ${f.rubro ?? ''} ${f.obra_social}`).includes(q),
     )
   }, [filas, busqueda])
 
@@ -89,9 +89,14 @@ export function HistoricoAranceles({
         <EmptyState
           icono={<SearchX className="size-7" aria-hidden />}
           titulo="Ninguna vigencia coincide"
-          descripcion={`Nada en el histórico cargado responde a «${busqueda}». Puede estar más atrás: se muestran las ${numero(
-            limite,
-          )} más recientes.`}
+          descripcion={
+            // Culpar al truncado cuando no lo hay manda a buscar un
+            // problema de paginado que no existe: con 32 vigencias
+            // cargadas de un tope de 300, lo que falla es la búsqueda.
+            truncado
+              ? `Nada en el histórico cargado responde a «${busqueda}». Puede estar más atrás: se muestran las ${numero(limite)} más recientes.`
+              : `Ninguna de las ${numero(filas.length)} vigencias del histórico responde a «${busqueda}». Se busca por prestación, código, rubro y obra social.`
+          }
           acciones={
             <Button variant="secondary" size="touch" onClick={() => setBusqueda('')}>
               Limpiar la búsqueda
@@ -102,6 +107,52 @@ export function HistoricoAranceles({
         <ListaHistorico filas={visibles} totales={filas.length} truncado={truncado} limite={limite} />
       )}
     </div>
+  )
+}
+
+/**
+ * Cómo se ve una vigencia según en qué momento está.
+ *
+ * Antes esto era un `f.vigente_hasta === null ? … : …` repetido cuatro
+ * veces —dos en la tabla, dos en las cards— y con la semántica vieja:
+ * la abierta se pintaba como la que rige. Ahora hay tres estados y una
+ * sola definición.
+ */
+function EtiquetaVigencia({ fila, hoy }: { fila: FilaHistorico; hoy: string }) {
+  const estado = estadoVigencia(fila, hoy)
+
+  if (estado === 'rige') {
+    return (
+      <span className="flex items-center gap-2">
+        <MicroBadge tono="primary">Vigente</MicroBadge>
+        <span className="t-helper tabular-nums">
+          desde {fechaCorta(fila.vigente_desde)}
+          {/*
+            Una vigencia que rige hoy Y tiene fecha de cierre es
+            justamente la que tiene un aumento programado detrás: decir
+            hasta cuándo es la mitad útil del dato.
+          */}
+          {fila.vigente_hasta !== null && ` · hasta ${fechaCorta(fila.vigente_hasta)}`}
+        </span>
+      </span>
+    )
+  }
+
+  if (estado === 'programada') {
+    return (
+      <span className="flex items-center gap-2">
+        <MicroBadge tono="warm">Programada</MicroBadge>
+        <span className="t-helper tabular-nums">
+          desde {fechaCorta(fila.vigente_desde)}
+        </span>
+      </span>
+    )
+  }
+
+  return (
+    <span className="t-helper tabular-nums">
+      {fechaCorta(fila.vigente_desde)} → {fechaCorta(fila.vigente_hasta)}
+    </span>
   )
 }
 
@@ -116,6 +167,11 @@ function ListaHistorico({
   truncado: boolean
   limite: number
 }) {
+  // Una sola lectura del día para toda la lista: si se calculara por
+  // fila, una vigencia que arranca mañana podría caer de un lado en la
+  // tabla y del otro en las cards al cruzar la medianoche.
+  const hoy = isoDate()
+
   return (
     <div className="flex flex-col gap-3">
       <p className="t-label" aria-live="polite">
@@ -131,6 +187,11 @@ function ListaHistorico({
         </p>
       )}
 
+      {/*
+        El estado se decide con la fecha de hoy, no con `vigente_hasta
+        === null`: la vigencia abierta puede ser un aumento programado
+        que todavía no cotiza nadie. Ver `estadoVigencia`.
+      */}
       <div className="hidden overflow-hidden rounded-card border border-hairline bg-card shadow-rest md:block">
         <Tabla>
           <Thead>
@@ -157,23 +218,12 @@ function ListaHistorico({
                 <Td numerico>
                   <Monto
                     valor={f.monto}
-                    jerarquia={f.vigente_hasta === null ? 'fuerte' : 'apagado'}
+                    jerarquia={estadoVigencia(f, hoy) === 'rige' ? 'fuerte' : 'apagado'}
                   />
                 </Td>
                 <Td>{etiquetaCobertura(f.cobertura_tipo, Number(f.cobertura_valor))}</Td>
                 <Td>
-                  {f.vigente_hasta === null ? (
-                    <span className="flex items-center gap-2">
-                      <MicroBadge tono="primary">Vigente</MicroBadge>
-                      <span className="t-helper tabular-nums">
-                        desde {fechaCorta(f.vigente_desde)}
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="t-helper tabular-nums">
-                      {fechaCorta(f.vigente_desde)} → {fechaCorta(f.vigente_hasta)}
-                    </span>
-                  )}
+                  <EtiquetaVigencia fila={f} hoy={hoy} />
                 </Td>
                 <Td numerico className="pr-5">
                   {numero(f.usos)}
@@ -195,7 +245,7 @@ function ListaHistorico({
                 </div>
                 <Monto
                   valor={f.monto}
-                  jerarquia={f.vigente_hasta === null ? 'fuerte' : 'apagado'}
+                  jerarquia={estadoVigencia(f, hoy) === 'rige' ? 'fuerte' : 'apagado'}
                   className="shrink-0"
                 />
               </div>
@@ -206,18 +256,7 @@ function ListaHistorico({
               </p>
 
               <p className="mt-2 flex items-center gap-2">
-                {f.vigente_hasta === null ? (
-                  <>
-                    <MicroBadge tono="primary">Vigente</MicroBadge>
-                    <span className="t-helper tabular-nums">
-                      desde {fechaCorta(f.vigente_desde)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="t-helper tabular-nums">
-                    {fechaCorta(f.vigente_desde)} → {fechaCorta(f.vigente_hasta)}
-                  </span>
-                )}
+                <EtiquetaVigencia fila={f} hoy={hoy} />
               </p>
             </Card>
           </li>

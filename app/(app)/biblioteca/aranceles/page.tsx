@@ -238,6 +238,7 @@ export default async function ArancelesPage(props: PageProps<'/biblioteca/arance
         id: a.id,
         prestacion_id: a.prestacion_id,
         prestacion: prestacion?.nombre ?? 'Prestación',
+        codigo: prestacion?.codigo ?? null,
         rubro: prestacion?.rubro ?? null,
         obra_social_id: a.obra_social_id,
         obra_social: a.obra_social_id

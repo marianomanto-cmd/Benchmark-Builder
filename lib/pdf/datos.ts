@@ -170,7 +170,7 @@ export async function cargarDocumentoPdf(
 ): Promise<DatosPdf> {
   const id = String(fila.id)
 
-  const [{ data: items }, { data: cuotas }] = await Promise.all([
+  const [resItems, resCuotas] = await Promise.all([
     supabase
       .from('presupuesto_items')
       .select(COLUMNAS_ITEM)
@@ -183,8 +183,39 @@ export async function cargarDocumentoPdf(
       .order('orden', { ascending: true }),
   ])
 
-  const filasItems = (items ?? []) as unknown as Record<string, unknown>[]
-  const filasCuotas = (cuotas ?? []) as unknown as Record<string, unknown>[]
+  /*
+   * Acá NO se puede seguir de largo con `?? []`.
+   *
+   * Los totales vienen de la cabecera, que ya llegó. Si la lectura de
+   * los ítems falla —timeout de la sentencia, 500 de PostgREST, pool
+   * agotado, un corte en cualquiera de los viajes paralelos— y se la
+   * trata como «este presupuesto no tiene prestaciones», el documento
+   * sale con la tabla PRESTACIONES vacía y «A CARGO DEL PACIENTE
+   * $ 260.400» abajo. Un presupuesto que cobra sin decir por qué es
+   * justo lo que la regla del snapshot existe para impedir, y encima
+   * ese PDF se sube al bucket y queda cacheado COMO el documento: la
+   * próxima visita ni siquiera vuelve a intentar.
+   *
+   * Un error acá termina en 502 y el consultorio ve que algo falló, que
+   * es lo único honesto que se puede mostrar.
+   */
+  if (resItems.error) {
+    throw new Error(`No se pudieron leer las prestaciones: ${resItems.error.message}`)
+  }
+  if (resCuotas.error) {
+    throw new Error(`No se pudieron leer las condiciones de pago: ${resCuotas.error.message}`)
+  }
+
+  const filasItems = (resItems.data ?? []) as unknown as Record<string, unknown>[]
+  const filasCuotas = (resCuotas.data ?? []) as unknown as Record<string, unknown>[]
+
+  // Cero ítems en un documento emitido es un estado imposible: la RPC
+  // exige al menos una prestación y `guard_item_emitido` no deja
+  // sacarlas después. Si igual llega vacío, algo se rompió y no hay PDF
+  // que valga la pena imprimir.
+  if (filasItems.length === 0 && fila.estado !== 'borrador') {
+    throw new Error(`El presupuesto ${String(fila.numero ?? id)} volvió sin prestaciones`)
+  }
 
   return {
     numero: String(fila.numero ?? ''),

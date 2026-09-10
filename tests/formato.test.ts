@@ -20,6 +20,7 @@ import {
   haceCuanto,
   diasDesde,
   anio,
+  diaCalendario,
 } from '../lib/formato.ts'
 
 test('money usa el formato del consultorio: $ 128.400', () => {
@@ -166,4 +167,17 @@ test('las fechas nunca tiran: un campo vaciado no se lleva puesta la pantalla', 
   // Y con una fecha buena siguen diciendo lo de siempre.
   assert.equal(fechaLarga('2026-09-08'), '8 de septiembre de 2026')
   assert.equal(diasDesde('2026-09-08') >= 0, true)
+})
+
+test('diaCalendario agrupa por el día del consultorio, no por UTC', () => {
+  // 02:30 UTC del 8 de septiembre son las 23:30 del 7 en Buenos Aires:
+  // es el evento que el timeline archivaba bajo el día siguiente.
+  assert.equal(diaCalendario('2026-09-08T02:30:00Z'), '2026-09-07')
+  assert.equal(diaCalendario('2026-09-08T14:00:00Z'), '2026-09-08')
+  // Un `YYYY-MM-DD` pelado es un día del calendario: se respeta tal cual.
+  assert.equal(diaCalendario('2026-09-08'), '2026-09-08')
+  // Y nunca tira, como el resto de las funciones de fecha.
+  assert.equal(diaCalendario(''), '—')
+  assert.equal(diaCalendario(null), '—')
+  assert.equal(diaCalendario('no es una fecha'), '—')
 })

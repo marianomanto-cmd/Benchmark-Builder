@@ -130,6 +130,16 @@ export function Prestaciones({
                 )}
               </div>
               {item.detalle && <p className="t-helper mt-0.5">{item.detalle}</p>}
+              {/*
+                La descripción no es decoración: es la plantilla del
+                catálogo que se COPIA al ítem al emitir, y es lo que
+                define el alcance de lo presupuestado («incluye
+                provisorio y cementado»). Está en el snapshot, en la
+                tabla de escritorio y en el PDF; faltaba acá, que es
+                donde el consultorio mira el documento la mayoría de las
+                veces.
+              */}
+              {item.descripcion && <p className="t-helper mt-0.5">{item.descripcion}</p>}
 
               <dl className="mt-3 flex flex-col gap-1.5">
                 <div className="flex items-baseline justify-between gap-3">

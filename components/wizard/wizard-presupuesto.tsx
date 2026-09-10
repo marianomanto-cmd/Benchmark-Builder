@@ -18,12 +18,16 @@ import { useRouter } from 'next/navigation'
 import * as React from 'react'
 import { toast } from 'sonner'
 
-import { crearPresupuesto, type PasoWizard } from '@/app/actions/presupuestos'
+import {
+  crearPresupuesto,
+  type PasoWizard,
+  type ResultadoCrear,
+} from '@/app/actions/presupuestos'
 import { Banner, Button, Kbd, ResponsiveModal, Skeleton, useEsDesktop } from '@/components/ui'
 import { cuotasSuman100 } from '@/lib/calculo'
 import { borrarBorrador, leerBorrador, useAutoguardado } from '@/lib/draft'
 import type { BorradorPresupuesto, CuotaBorrador, ItemBorrador } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, nuevaClaveAlta } from '@/lib/utils'
 
 import { useAtajosWizard } from './atajos'
 import { aPayload, borradorInicial } from './borrador'
@@ -82,6 +86,23 @@ function WizardInterno() {
    * presupuesto emitido dos veces, con dos números y dos PDFs.
    */
   const enVuelo = React.useRef(false)
+
+  /**
+   * Huella del último payload que se mandó, para saber si un reintento
+   * es el MISMO pedido o uno distinto.
+   *
+   * La `clave_alta` protege el reintento después de una respuesta
+   * perdida: la RPC ve la clave, reconoce el pedido y devuelve el
+   * documento que ya emitió. Pero si entre el fallo y el reintento se
+   * agregó una prestación, eso ya no es el mismo pedido: devolver el
+   * documento viejo dejaría al consultorio mirando un presupuesto sin
+   * la prestación que acaba de cargar. Ahí corresponde una clave nueva.
+   *
+   * El estado inicial queda afuera de la huella a propósito: cerrar por
+   * WhatsApp después de haber intentado con «Guardar» es el mismo
+   * presupuesto, no uno nuevo.
+   */
+  const ultimaHuella = React.useRef<string | null>(null)
 
   const { valor: valorCapa, setContenedor, hayCapa } = useContenedorCapas()
 
@@ -235,7 +256,44 @@ function WizardInterno() {
     enVuelo.current = true
     setFallo(null)
     setGuardando(destino)
-    const resultado = await crearPresupuesto(aPayload(aGuardar))
+
+    const payload = aPayload(aGuardar)
+    const huella = JSON.stringify({ ...payload, clave_alta: null, estado: null })
+    if (ultimaHuella.current !== null && ultimaHuella.current !== huella) {
+      const clave = nuevaClaveAlta()
+      payload.clave_alta = clave
+      // Que quede en el borrador también: si se recarga la página en el
+      // medio, el próximo intento tiene que seguir siendo este pedido.
+      parche({ clave_alta: clave })
+    }
+    ultimaHuella.current = huella
+
+    /**
+     * El `try/catch` de la server action cubre la pata SERVIDOR →
+     * Supabase. Esta cubre la otra: NAVEGADOR → servidor, que es la que
+     * se corta cuando se cae el wifi del consultorio, que es lo que
+     * pasa. Ahí la promesa de la action se rechaza, y sin este `catch`
+     * `guardar()` salía por arriba dejando `guardando` puesto y
+     * `enVuelo` en true: spinner para siempre, todos los botones
+     * deshabilitados —la X de mobile incluida— y ninguna forma de
+     * reintentar ni de salir sin recargar la página, con el presupuesto
+     * entero cargado.
+     */
+    let resultado: ResultadoCrear
+    try {
+      resultado = await crearPresupuesto(payload)
+    } catch (e) {
+      console.error('[wizard] la server action no contestó', e)
+      pestanaPdf?.close()
+      setGuardando(null)
+      enVuelo.current = false
+      setFallo({
+        mensaje:
+          'Se cortó la conexión antes de tener respuesta. Probá "Reintentar" cuando vuelva: lo cargado sigue acá y, si el presupuesto llegó a emitirse, no se va a duplicar.',
+        destino,
+      })
+      return
+    }
 
     if (!resultado.ok) {
       pestanaPdf?.close()

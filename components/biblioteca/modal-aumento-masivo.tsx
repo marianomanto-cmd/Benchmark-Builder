@@ -179,6 +179,8 @@ export function ModalAumentoMasivo({
   // El input date puede quedar vacío si se borra a mano: sin fecha no hay
   // dónde empezar la vigencia nueva.
   const fechaInvalida = !/^\d{4}-\d{2}-\d{2}$/.test(desde)
+  /** Comparación de strings `YYYY-MM-DD`: ordenan igual que las fechas. */
+  const esPasada = !fechaInvalida && desde < hoy
 
   const cierre = fechaInvalida ? 'el día anterior' : fechaLarga(subDays(parseISO(desde), 1))
 
@@ -384,6 +386,29 @@ export function ModalAumentoMasivo({
             />
           </Field>
         </div>
+
+        {/*
+          Una fecha pasada reescribe el historial de precios hacia atrás:
+          cierra vigencias que SÍ estuvieron rigiendo. Puede ser
+          legítimo —el aumento se decidió el 1° y se carga el 10— así que
+          no se prohíbe, pero tampoco se hace en silencio: es la única
+          operación de la biblioteca que toca lo ya ocurrido. La base
+          además rechaza el caso que rompe un documento (cerrar antes de
+          un presupuesto emitido que cita ese arancel).
+        */}
+        {esPasada && !fechaInvalida && (
+          <Banner
+            tono="warm"
+            icono={<CalendarClock className="size-5" aria-hidden />}
+            titulo="Esa fecha ya pasó"
+          >
+            Las vigencias actuales van a quedar cerradas el {cierre}, o sea hacia atrás. Los
+            presupuestos ya emitidos no cambian —llevan el precio copiado—, pero el historial
+            va a decir que el precio viejo dejó de regir antes de hoy. Si alguno de estos
+            aranceles se citó en un presupuesto emitido después de esa fecha, el aumento se
+            rechaza entero.
+          </Banner>
+        )}
 
         {fueraDeAlcance > 0 && (
           <p className="t-helper">

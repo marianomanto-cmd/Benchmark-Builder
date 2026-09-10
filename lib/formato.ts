@@ -242,6 +242,27 @@ export function isoDate(value: Date = ahora()): string {
   return format(value, 'yyyy-MM-dd')
 }
 
+/**
+ * El día del calendario del consultorio para un instante dado.
+ *
+ * `isoDate()` formatea un `Date` tal cual: sirve para armar rangos y
+ * para el `value` de un input, donde quien llama ya eligió el día. Esto
+ * es lo otro: agarra un `created_at` en UTC y contesta bajo qué día lo
+ * archiva el consultorio.
+ *
+ * Es la clave con la que hay que agrupar cualquier lista por día. Si se
+ * agrupa con los getters locales del proceso —que en Vercel es UTC— un
+ * evento de las 23:30 cae bajo el día siguiente, mientras su propia
+ * etiqueta, que sí pasa por `America/Argentina/Buenos_Aires`, dice el
+ * día correcto: la misma tarjeta se contradice.
+ */
+export function diaCalendario(value: string | Date | null | undefined): string {
+  if (vacia(value)) return SIN_FECHA
+  const fecha = toDate(value as string | Date)
+  if (Number.isNaN(fecha.getTime())) return SIN_FECHA
+  return format(fecha, 'yyyy-MM-dd')
+}
+
 /** Iniciales para avatares: `Gómez, Renata` → `GR` */
 export function iniciales(nombre: string): string {
   return nombre

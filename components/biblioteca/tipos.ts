@@ -44,6 +44,32 @@ export function etiquetaCoberturaLarga(tipo: CoberturaTipo, valor: number): stri
   return 'Sin cobertura: queda todo a cargo del paciente'
 }
 
+/**
+ * En qué momento de su vida está una vigencia, mirada desde hoy.
+ *
+ * `vigente_hasta === null` NO significa «rige hoy». Desde que existen
+ * los aumentos programados (migración 0600), `nueva_vigencia()` cierra
+ * la vigencia actual con una fecha futura y deja abierta la que va a
+ * empezar: la que tiene el `hasta` en null es la del año que viene.
+ * Decidir por ese null pone el badge «Vigente» sobre un precio que
+ * todavía no cotiza nadie y apaga el que el wizard está usando ahora
+ * mismo — que es exactamente el número que el consultorio vino a mirar.
+ *
+ * La definición tiene que ser la misma que la de `arancel_vigente()` en
+ * SQL y la de la vista `aranceles_vigentes`: rige hoy la que ya empezó
+ * y todavía no terminó.
+ */
+export type EstadoVigencia = 'rige' | 'programada' | 'cerrada'
+
+export function estadoVigencia(
+  vigencia: { vigente_desde: string; vigente_hasta: string | null },
+  hoy: string,
+): EstadoVigencia {
+  if (vigencia.vigente_desde > hoy) return 'programada'
+  if (vigencia.vigente_hasta !== null && vigencia.vigente_hasta < hoy) return 'cerrada'
+  return 'rige'
+}
+
 export const ETIQUETA_TIPO_COBERTURA: Record<CoberturaTipo, string> = {
   porcentaje: 'Porcentaje',
   monto: 'Monto fijo',
@@ -203,6 +229,8 @@ export interface FilaHistorico {
   id: string
   prestacion_id: string
   prestacion: string
+  /** Se busca por código igual que en la grilla: la búsqueda cruza de vista. */
+  codigo: string | null
   rubro: string | null
   obra_social_id: string | null
   obra_social: string

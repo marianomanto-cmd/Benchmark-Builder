@@ -10,7 +10,7 @@ import {
 import * as React from 'react'
 
 import { EstadoBadge } from '@/components/ui'
-import { diasDesde, fechaBreve, fechaHora, haceCuanto, hora } from '@/lib/formato'
+import { diaCalendario, diasDesde, fechaBreve, fechaHora, haceCuanto, hora } from '@/lib/formato'
 import type { PresupuestoEvento, TipoEvento } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -72,14 +72,23 @@ interface Grupo {
   eventos: PresupuestoEvento[]
 }
 
-/** Agrupa por día de calendario, respetando el orden que ya traen. */
+/**
+ * Agrupa por día de calendario del consultorio, respetando el orden.
+ *
+ * La clave la arma `diaCalendario()` y no los getters de `Date`: en
+ * Vercel el proceso corre en UTC y el timeline se renderiza en el
+ * servidor, así que `getDate()` devolvía el día UTC. La etiqueta del
+ * grupo, en cambio, sale de `etiquetaDia()`, que sí pasa por la hora
+ * argentina. Entre las 21:00 y la medianoche las dos cuentas no
+ * coincidían: un evento de las 23:30 del 7 caía en el grupo del 8 y
+ * quedaba listado bajo «8 sep» mientras su propio tooltip decía «7 sep,
+ * 23:30». Y cuando el grupo mal armado era el de hoy, salían dos
+ * encabezados «Hoy» seguidos.
+ */
 function agruparPorDia(eventos: PresupuestoEvento[]): Grupo[] {
   const grupos: Grupo[] = []
   for (const evento of eventos) {
-    const fecha = new Date(evento.created_at)
-    const clave = Number.isNaN(fecha.getTime())
-      ? evento.created_at
-      : `${fecha.getFullYear()}-${fecha.getMonth()}-${fecha.getDate()}`
+    const clave = diaCalendario(evento.created_at)
     const ultimo = grupos[grupos.length - 1]
     if (ultimo && ultimo.clave === clave) {
       ultimo.eventos.push(evento)

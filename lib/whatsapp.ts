@@ -55,6 +55,17 @@ export interface DatosMensaje {
   numero: string
   /** Lo que queda a cargo del paciente, en pesos enteros. */
   montoACargo: number
+  /**
+   * Si la obra social cubrió algo de este presupuesto.
+   *
+   * El mensaje afirmaba siempre «ya con la cobertura descontada». A un
+   * paciente particular eso le dice que de un precio mayor se le
+   * descontó algo, cuando el número que está leyendo es el precio de
+   * lista completo. El PDF y el detalle sí lo distinguen —«calculado
+   * como particular: no se aplicó cobertura»—, así que el criterio ya
+   * existía en el producto: lo que faltaba era que el mensaje lo usara.
+   */
+  hayCobertura: boolean
   /** `YYYY-MM-DD`. */
   validoHasta: string
   profesionalNombre: string
@@ -105,12 +116,17 @@ export function armarMensaje(plantilla: PlantillaWhatsApp, datos: DatosMensaje):
   const nombre = nombreDePila(datos.pacienteNombre)
   const monto = money(datos.montoACargo)
   const vigencia = textoVigencia(datos.validoHasta)
+  // Sin cobertura el monto ES el total, y decirlo así es más claro que
+  // callarlo: el paciente particular sabe que no hay descuento detrás.
+  const conCobertura = datos.hayCobertura
+    ? ', ya con la cobertura descontada'
+    : ', que es el total del tratamiento'
 
   const cuerpo: Record<PlantillaWhatsApp, string> = {
     primer_envio: [
       `Hola ${nombre}, ¿cómo estás?`,
       '',
-      `Te paso el presupuesto ${datos.numero} de lo que vimos en la consulta. Queda a cargo tuyo ${monto}, ya con la cobertura descontada.`,
+      `Te paso el presupuesto ${datos.numero} de lo que vimos en la consulta. Queda a cargo tuyo ${monto}${conCobertura}.`,
       '',
       `${vigencia} Cualquier duda escribime por acá y lo vemos juntos.`,
     ].join('\n'),

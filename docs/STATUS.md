@@ -110,6 +110,7 @@ Migraciones en `supabase/migrations/`, en este orden:
 | `20260101001700_agujeros.sql` | Un ítem no se muda de presupuesto · el vínculo de identidad (`user_id`) y la baja son permisos · el historial se firma en el servidor |
 | `20260101001800_estadisticas_honestas.sql` | La serie mensual arranca donde arranca el consultorio · el ticket de un mes vacío es `null`, no 0 |
 | `20260101001900_alta_idempotente.sql` | `presupuestos.clave_alta` + índice único parcial · `crear_presupuesto` devuelve el documento que ya emitió esa clave, incluso con dos pedidos a la vez · la clave queda congelada al emitir |
+| `20260101002000_arancel_append_only.sql` | Append-only literal: desde una sesión del equipo NINGUNA columna de `aranceles` se edita (antes sólo si el arancel ya estaba usado) · no pueden regir dos precios el mismo día para la misma celda · una vigencia no se cierra antes del presupuesto emitido que la cita |
 
 **Sin la CLI**: `supabase/instalar.sql` e `instalar-storage.sql` son las mismas
 migraciones concatenadas en orden, para pegar en el SQL Editor de Supabase. Se
@@ -567,6 +568,15 @@ antes de aceptarlo. Los que resultaron reales:
 | Los errores que ninguna traducción supo nombrar se mostraban crudos: «new row for relation "presupuesto_items" violates check constraint …» en el banner del wizard y en la biblioteca | `lib/errores.ts` decide qué es texto para leer y qué es jerga; el crudo queda en el log del servidor |
 | Los mensajes de zod sin texto propio salían en inglés («Too big: expected string to have <=200 characters») | Locale de zod en castellano como red de abajo, y mensaje escrito a mano en cada regla alcanzable desde la pantalla |
 | Duplicar no distinguía «no se pudo» de «no sé»: una caída de red después del commit se reportaba como fallo y quien reintentaba se llevaba dos duplicados | Ahí el mensaje no promete: pide refrescar el listado antes de repetir. En `cambiar_estado` sí se puede invitar a repetir, porque la RPC sale sola si el estado ya es el pedido |
+| **El wizard se congelaba para siempre si se cortaba la conexión.** El `try/catch` de la server action cubre la pata servidor → Supabase; la otra —navegador → servidor, que es la que se cae cuando se corta el wifi del consultorio— no la cubría nadie: la promesa se rechazaba, `guardar()` salía por arriba y dejaba `guardando` puesto. Spinner eterno, todos los botones deshabilitados, y ninguna forma de reintentar ni de salir sin recargar, con el presupuesto entero cargado | `try/catch` alrededor de la llamada, con un mensaje que dice qué pasó y deja «Reintentar» a mano |
+| **El PDF salía con la tabla de prestaciones VACÍA y el total a cargo entero** si fallaba la lectura de los ítems: `cargarDocumentoPdf` desestructuraba sólo `data` y el `?? []` convertía «no pude leer» en «no tiene prestaciones». Los totales vienen de la cabecera, que sí llegó. Y ese PDF se subía al bucket y quedaba cacheado COMO el documento: la próxima visita ni lo reintentaba | Un error en la lectura de ítems o de cuotas corta el render (502). Cero ítems en un emitido también: es un estado que las guardas no permiten, así que si llega, algo se rompió |
+| **«Histórico completo» ponía el badge «Vigente» sobre el aumento todavía no arrancado** y apagaba el precio que sí rige hoy: decidía con `vigente_hasta === null`, que es la semántica anterior a los aumentos programados. Verificado: la fila de $ 792.000 «desde 01/03/2027» salía como vigente mientras el wizard cotizaba los $ 720.000 de la otra | `estadoVigencia()` decide por fecha, con la misma definición que `arancel_vigente()` en SQL, y hay tres estados: Vigente, Programada y cerrada |
+| **Un arancel sin usar se podía reescribir en el lugar** —monto, cobertura y fechas— desde cualquier sesión del equipo: `guard_arancel_inmutable` sólo miraba `if exists (…presupuesto_items…)`, o sea la regla 2 y no la 1. Moviéndole `vigente_desde` quedaban DOS aranceles rigiendo el mismo día para la misma celda, que el índice `aranceles_una_vigente` no agarra porque cubre sólo la abierta | Ninguna columna se edita desde una sesión del equipo, usada o no; las escrituras legítimas entran por las RPC. Y un trigger nuevo prohíbe que dos vigencias se pisen (migración 21) |
+| El aumento masivo aceptaba una fecha «rige desde» en el pasado sin decir nada, y podía cerrar hacia atrás una vigencia ya citada por un presupuesto emitido: el documento quedaba citando un precio que, según la base, ya no regía el día en que se emitió | La fecha pasada sigue permitida —puede ser legítima— pero avisa en el modal, y la base rechaza el caso que rompe un documento |
+| **El timeline agrupaba por día en UTC**: `getDate()` sobre un proceso que en Vercel corre en UTC. Un evento de las 23:30 caía bajo el día siguiente mientras su propio tooltip decía el día correcto —la misma tarjeta se contradecía—, y cuando el grupo mal armado era el de hoy salían dos encabezados «Hoy» seguidos | `diaCalendario()` en `lib/formato.ts`: la clave del grupo sale de la misma hora argentina que la etiqueta |
+| El WhatsApp le decía «ya con la cobertura descontada» a un paciente particular, que no tiene ninguna cobertura: el monto que estaba leyendo era el precio de lista completo. El PDF y el detalle sí lo distinguen, así que el criterio ya existía en el producto | El mensaje mira `total_cobertura` y dice «que es el total del tratamiento» cuando no hubo cobertura |
+| En mobile la card de cada prestación se comía la `descripcion`, que está en el snapshot, en la tabla de escritorio y en el PDF. No es decoración: es lo que define el alcance de lo presupuestado («incluye provisorio y cementado») | Se imprime también en la card |
+| El histórico no buscaba por código —la grilla sí— aunque la búsqueda cruza de vista por la URL, y el vacío culpaba a un truncado que no existía: mandaba a buscar un problema de paginado con 32 vigencias de un tope de 300 | Se busca por prestación, código, rubro y obra social, y el texto del vacío sólo habla del tope cuando lo hay |
 
 ### Pendiente
 
@@ -601,7 +611,7 @@ antes de aceptarlo. Los que resultaron reales:
 ## 10 · Cómo se verifica
 
 - `npm run build` · `npm run typecheck` · `npm run lint` — sin errores.
-- `npm test` — 58 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts`,
+- `npm test` — 59 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts`,
   `lib/estadisticas.ts` y `lib/zod.ts`.
 - `npm run sql:instalar` — regenera los scripts del SQL Editor desde las
   migraciones. Correr después de tocar cualquier migración.
@@ -618,7 +628,10 @@ antes de aceptarlo. Los que resultaron reales:
   aplicando las migraciones desde cero: cada regla se intentó violar y tiene
   que fallar (ítems de un emitido, arancel usado, borrado de aranceles,
   edición del historial, vuelta a borrador, reapuntado de un arancel, mudanza
-  de un ítem a otro presupuesto, reapuntado de `clave_alta` en un emitido).
+  de un ítem a otro presupuesto, reapuntado de `clave_alta` en un emitido,
+  reescritura en el lugar de un arancel todavía sin usar, dos vigencias
+  pisándose para la misma celda, y cerrar una vigencia antes del presupuesto
+  emitido que la cita).
 - **La idempotencia del alta se prueba con dos pedidos simultáneos**, no con
   dos seguidos: dos transacciones con la misma `clave_alta` tienen que dejar
   UN documento y devolverle el mismo id a las dos.
