@@ -24,12 +24,23 @@ export function Totales({
   cobertura,
   aCargo,
   cuotas,
+  fallaronCuotas,
   observaciones,
 }: {
   subtotal: number
   cobertura: number
   aCargo: number
   cuotas: PresupuestoCuota[]
+  /**
+   * La lectura de las condiciones de pago no llegó.
+   *
+   * Un presupuesto sin condiciones se paga en un solo momento, así que
+   * no dibujar el bloque es una afirmación: «esto se paga de una». Si
+   * lo que pasó es que la lectura falló, hay que decirlo — el paciente
+   * puede tener un plan de pagos acordado que la pantalla estaría
+   * negando.
+   */
+  fallaronCuotas?: boolean
   observaciones: string | null
 }) {
   const { estado } = useDetalle()
@@ -64,7 +75,15 @@ export function Totales({
         </div>
       </dl>
 
-      {cuotas.length > 0 && (
+      {fallaronCuotas && (
+        <p className="t-helper rounded-input border border-hairline bg-card p-4">
+          No se pudieron cargar las condiciones de pago. Recargá la página antes de
+          decirle nada al paciente: puede que este presupuesto tenga un plan
+          acordado.
+        </p>
+      )}
+
+      {!fallaronCuotas && cuotas.length > 0 && (
         <div className="rounded-input border border-primary/15 bg-card p-4">
           <h3 className="t-label">Condiciones de pago</h3>
           <ol className="mt-2 flex flex-col divide-y divide-hairline">

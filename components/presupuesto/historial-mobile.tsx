@@ -20,12 +20,31 @@ import { UltimoEvento } from './timeline'
 export function HistorialMobile({
   eventos,
   className,
+  fallo,
 }: {
   eventos: PresupuestoEvento[]
   className?: string
+  /** La lectura no llegó: no es lo mismo que «no pasó nada». */
+  fallo?: boolean
 }) {
   const { abrirHistorial } = useDetalle()
   const ultimo = eventos[0] ?? null
+
+  if (fallo) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle>Historial</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <p className="t-helper">
+            No se pudo cargar el historial. Recargá la página: el registro está
+            completo, lo que falló fue la lectura.
+          </p>
+        </CardBody>
+      </Card>
+    )
+  }
 
   return (
     <Card className={className}>

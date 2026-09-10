@@ -53,6 +53,16 @@ interface DetalleCompleto {
   items: PresupuestoItem[]
   cuotas: PresupuestoCuota[]
   eventos: PresupuestoEvento[]
+  /**
+   * Lecturas accesorias que no llegaron.
+   *
+   * «No hay condiciones de pago» y «todavía no hay movimientos» son
+   * afirmaciones sobre el documento: no se pueden decir cuando lo que
+   * pasó es que la lectura falló. El documento en sí sigue siendo
+   * legible, así que la pantalla se dibuja igual, avisando.
+   */
+  fallaronCuotas: boolean
+  fallaronEventos: boolean
 }
 
 /**
@@ -87,12 +97,44 @@ async function cargarDetalle(id: string): Promise<Lectura> {
   }
   if (!resCabecera.data) return { estado: 'no-existe' }
 
+  /*
+   * Los ítems SON el documento, así que su lectura se trata como la de
+   * la cabecera y no con un `?? []`.
+   *
+   * Los totales vienen de la cabecera, que sí llegó. Si esta lectura
+   * falla —el `select *` se pasa del statement timeout, PostgREST
+   * contesta 500, se cae uno de los cuatro viajes paralelos— y se la
+   * lee como «este presupuesto no tiene prestaciones», la pantalla
+   * dibuja «A CARGO DEL PACIENTE $ 260.400» arriba de una tabla vacía.
+   * Y el detalle es imprimible: ese papel puede terminar en la mano del
+   * paciente.
+   *
+   * Es la misma omisión que ya se cerró del lado del PDF
+   * (`lib/pdf/datos.ts`); acá quedaba viva.
+   */
+  if (resItems.error) {
+    console.error('[detalle] no se pudieron leer las prestaciones', resItems.error)
+    return { estado: 'error' }
+  }
+
+  // Cuotas e historial son accesorios: si no llegan, la pantalla sirve
+  // igual. Pero no pueden dibujarse como «no hay», que es una
+  // afirmación sobre el documento. Se avisa y listo.
+  if (resCuotas.error) {
+    console.error('[detalle] no se pudieron leer las condiciones de pago', resCuotas.error)
+  }
+  if (resEventos.error) {
+    console.error('[detalle] no se pudo leer el historial', resEventos.error)
+  }
+
   return {
     estado: 'ok',
     cabecera: aCabecera(resCabecera.data as unknown as FilaCruda),
     items: ((resItems.data ?? []) as FilaCruda[]).map(aItem),
     cuotas: ((resCuotas.data ?? []) as FilaCruda[]).map(aCuota),
     eventos: ((resEventos.data ?? []) as FilaCruda[]).map(aEvento),
+    fallaronCuotas: Boolean(resCuotas.error),
+    fallaronEventos: Boolean(resEventos.error),
   }
 }
 
@@ -270,7 +312,7 @@ export default async function DetallePresupuestoPage(
     throw new Error('No se pudo leer el presupuesto')
   }
 
-  const { cabecera, items, cuotas, eventos } = lectura
+  const { cabecera, items, cuotas, eventos, fallaronCuotas, fallaronEventos } = lectura
 
   const hoy = await calcularHoy(cabecera, items)
   const comparacion = compararConHoy(
@@ -360,6 +402,7 @@ export default async function DetallePresupuestoPage(
               cobertura={cabecera.total_cobertura}
               aCargo={cabecera.total_a_cargo}
               cuotas={cuotas}
+              fallaronCuotas={fallaronCuotas}
               observaciones={cabecera.observaciones}
             />
           </div>
@@ -369,7 +412,7 @@ export default async function DetallePresupuestoPage(
           <aside className="no-print flex min-w-0 flex-col gap-5">
             <PanelSeguimiento diasEnEstado={dias} />
 
-            <HistorialMobile eventos={eventos} className="md:hidden" />
+            <HistorialMobile eventos={eventos} fallo={fallaronEventos} className="md:hidden" />
 
             <Card className="hidden animate-enter md:block">
               <CardHeader>
@@ -377,7 +420,7 @@ export default async function DetallePresupuestoPage(
                 <p className="t-helper">No se edita ni se borra.</p>
               </CardHeader>
               <CardBody>
-                <Timeline eventos={eventos} />
+                <Timeline eventos={eventos} fallo={fallaronEventos} />
               </CardBody>
             </Card>
 

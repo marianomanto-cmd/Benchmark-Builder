@@ -118,10 +118,28 @@ function agruparPorDia(eventos: PresupuestoEvento[]): Grupo[] {
 export function Timeline({
   eventos,
   className,
+  fallo,
 }: {
   eventos: PresupuestoEvento[]
   className?: string
+  /**
+   * La lectura del historial no llegó.
+   *
+   * Sin esto, un fallo se dibujaba como «Todavía no hay movimientos»,
+   * que es una afirmación sobre el documento: el consultorio abre un
+   * presupuesto que sí se mandó por WhatsApp y lee que nunca pasó nada.
+   * El historial es append-only justamente para poder confiar en él.
+   */
+  fallo?: boolean
 }) {
+  if (fallo) {
+    return (
+      <p className={cn('t-helper', className)}>
+        No se pudo cargar el historial. Recargá la página: el registro está
+        completo, lo que falló fue la lectura.
+      </p>
+    )
+  }
   if (eventos.length === 0) {
     return (
       <p className={cn('t-helper', className)}>

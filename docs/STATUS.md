@@ -593,6 +593,7 @@ antes de aceptarlo. Los que resultaron reales:
 | `matricula()` no reconocía el prefijo pegado al número: «MN9876» salía «MP MN9876» en la cabecera, en el PDF y en el WhatsApp — justo lo que el comentario de la función decía que no podía pasar | La regex deja de exigir separador después de la P/N |
 | El timeline decidía si mostrar el año con los getters de `Date`, que en Vercel son UTC: un movimiento del 31 de diciembre a la noche perdía el año y se leía como del año en curso | `anio()`, que existe exactamente para eso |
 | `haceCuanto()` anunciaba como pasado cualquier instante futuro («hace 3 días» para algo del 14/09), y con el guard en `>= 0` bastaba con que el reloj de Postgres fuera unos milisegundos por delante del de Vercel para que un evento recién creado dijera «hace 1 segundo» en vez de «recién» | Debajo del minuto es «recién», venga del pasado o del futuro |
+| **La misma omisión del PDF, viva en el detalle**: `cargarDetalle()` chequeaba `resCabecera.error` pero leía los ítems con `?? []`. Un timeout en esa lectura dibujaba «A CARGO DEL PACIENTE $ 260.400» arriba de una tabla vacía — y el detalle es imprimible, así que ese papel puede terminar en la mano del paciente. La encontró el escéptico revisando el arreglo del PDF | Los ítems son el documento: su lectura corta la pantalla como la de la cabecera. Cuotas e historial son accesorios y degradan avisando, en vez de afirmar «no hay condiciones de pago» o «todavía no hay movimientos» sobre lecturas que nunca llegaron |
 
 ### Pendiente
 
