@@ -300,14 +300,30 @@ export function TableroPipeline({
    * tablero no decía dónde iba a caer. Filtrando acá, `over` es siempre
    * una zona y el resaltado sale solo.
    *
-   * El puntero manda mientras hay mouse; con teclado no hay puntero y
-   * se cae a la geometría de las zonas.
+   * SEGUNDO BUG QUE ARREGLA: el `closestCorners` de reserva se usaba
+   * también con mouse, y esa función SIEMPRE devuelve algo — inventa el
+   * destino más cercano aunque el puntero esté a 150px del borde del
+   * tablero, sobre el fondo de la página. Con eso, soltar afuera
+   * escribía un cambio de estado real, con su RPC y su línea en el
+   * historial append-only, sin confirmar nada. Medido: soltar en
+   * (1430, 500) —152px a la derecha del tablero, sobre el `bg-page`—
+   * pasaba el presupuesto a «Aceptado».
+   *
+   * Y de paso, la rama defensiva de `alSoltar` y el anuncio «lo soltaste
+   * fuera del tablero: quedó donde estaba» eran inalcanzables: código
+   * que existía para un caso que nunca llegaba.
+   *
+   * Con puntero, entonces, manda el puntero y nada más: soltar donde no
+   * hay zona es cancelar, que es lo que cualquiera espera de un
+   * arrastre. `closestCorners` queda para el teclado, que no tiene
+   * puntero y necesita que siempre haya un destino para moverse con las
+   * flechas.
    */
   const deteccion = React.useCallback<CollisionDetection>((args) => {
     const zonas = args.droppableContainers.filter((c) => esZonaDeDrop(String(c.id)))
     const argsZonas = { ...args, droppableContainers: zonas }
-    const bajoElPuntero = pointerWithin(argsZonas)
-    return bajoElPuntero.length > 0 ? bajoElPuntero : closestCorners(argsZonas)
+    if (args.pointerCoordinates) return pointerWithin(argsZonas)
+    return closestCorners(argsZonas)
   }, [])
 
   const anuncios = React.useMemo<Announcements>(() => {
