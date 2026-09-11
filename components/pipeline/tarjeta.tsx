@@ -135,32 +135,45 @@ const TarjetaBase = React.forwardRef<HTMLElement, TarjetaBaseProps>(function Tar
       title={fija ? 'Ya iniciado: el estado se cambia desde el detalle' : undefined}
       {...props}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          {/* El link no arranca un arrastre: el sensor escucha en la tarjeta. */}
-          <Link
-            href={`/presupuestos/${fila.id}`}
-            onPointerDown={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-            className="block truncate font-sans text-[14px] font-semibold text-ink hover:text-primary-hover hover:underline"
-          >
-            {fila.paciente_nombre}
-          </Link>
-          <p className="t-helper truncate">
-            {fila.prestacion_principal ?? 'Sin prestaciones cargadas'}
-          </p>
-        </div>
+      {/*
+        El nombre ocupa el ancho entero de la tarjeta, y el monto bajó a
+        la fila de abajo.
 
-        <div className="shrink-0 text-right">
-          <span className="t-label block text-[9.5px] tracking-[0.12em] text-muted">A cargo</span>
-          <Monto valor={fila.total_a_cargo} jerarquia="fuerte" className="text-[14px]" />
-        </div>
+        Antes iban lado a lado: el bloque del monto es `shrink-0` y se
+        lleva ~90px, así que en una columna de 182 al nombre le
+        quedaban 60 y el tablero mostraba «Abril, Ro…», «Meghrun…»,
+        «Gómez,…». Un tablero donde no se sabe de quién es la tarjeta no
+        sirve para lo único que hace, que es mirar de quién hay que
+        acordarse hoy. Abajo el monto convive con la obra social sin
+        pelearle el ancho a nada.
+      */}
+      <div className="min-w-0">
+        {/* El link no arranca un arrastre: el sensor escucha en la tarjeta. */}
+        <Link
+          href={`/presupuestos/${fila.id}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          className="block truncate font-sans text-[14px] font-semibold text-ink hover:text-primary-hover hover:underline"
+        >
+          {fila.paciente_nombre}
+        </Link>
+        <p className="t-helper truncate">
+          {fila.prestacion_principal ?? 'Sin prestaciones cargadas'}
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
         <MicroBadge tono={fila.obra_social_nombre ? 'neutro' : 'primary'}>
           {fila.obra_social_nombre ?? 'Particular'}
         </MicroBadge>
+
+        {/* Sin etiqueta a la vista: en el tablero todo monto es el que
+            queda a cargo del paciente. Para un lector de pantalla la
+            etiqueta sí está. */}
+        <span className="shrink-0">
+          <span className="sr-only">A cargo del paciente: </span>
+          <Monto valor={fila.total_a_cargo} jerarquia="fuerte" className="text-[14px]" />
+        </span>
 
         {/* Aceptado e iniciado comparten columna: sin este badge, un
             tratamiento que ya arrancó no se distingue de uno que

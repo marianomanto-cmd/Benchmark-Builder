@@ -393,7 +393,13 @@ export default async function DetallePresupuestoPage(
           </div>
         )}
 
-        <div className="detalle-columnas grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_330px]">
+        {/* Dos columnas recién en `lg`. En `md` la columna principal
+            quedaba en 354px —768 menos las sangrías y los 330 del
+            costado— y la tabla de prestaciones necesita 424: se cortaba
+            «A cargo», que es el número del documento. Apilado hay ancho
+            de sobra y el seguimiento queda abajo, que es donde se mira
+            después de leer el presupuesto. */}
+        <div className="detalle-columnas grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_330px]">
           <div className="flex min-w-0 flex-col gap-5">
             <Prestaciones items={items} fechaEmision={cabecera.fecha_emision} />
 

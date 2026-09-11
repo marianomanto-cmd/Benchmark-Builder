@@ -45,14 +45,22 @@ export function MarcaSmileLab({
   )
 }
 
-/** Marca + wordmark. `soloMarca` para lugares angostos. */
+/**
+ * Marca + wordmark. `soloMarca` para lugares angostos.
+ *
+ * `textoDesde="lg"` esconde el wordmark abajo de 1024px sin sacarlo del
+ * DOM: lo usa la topbar, que es una fila apretada. En el login o en un
+ * error hay ancho de sobra y el nombre va siempre.
+ */
 export function Logo({
   tamano = 'md',
   soloMarca = false,
+  textoDesde = 'siempre',
   className,
 }: {
   tamano?: TamanoLogo
   soloMarca?: boolean
+  textoDesde?: 'siempre' | 'lg'
   className?: string
 }) {
   const t = TAMANOS[tamano]
@@ -63,7 +71,21 @@ export function Logo({
       {!soloMarca && (
         <span
           className={cn(
-            'font-display font-semibold leading-none tracking-[-0.03em] text-primary',
+            /*
+              El wordmark no se parte nunca.
+
+              Sin `whitespace-nowrap` se partía en «Smile» / «Lab» y la
+              topbar crecía un renglón; con él puesto y a la vista en
+              768, la fila pasaba a pedir 784px y la página ENTERA
+              scrolleaba 16px de costado, en todas las pantallas a la
+              vez. La salida no es ninguna de las dos: donde la fila
+              está apretada va el símbolo solo (`textoDesde="lg"`), que
+              es lo que hace cualquier barra angosta. El nombre sigue en
+              el `sr-only` de abajo: quien usa lector de pantalla lo
+              escucha igual.
+            */
+            'whitespace-nowrap font-display font-semibold leading-none tracking-[-0.03em] text-primary',
+            textoDesde === 'lg' && 'hidden lg:inline',
             t.texto,
           )}
         >

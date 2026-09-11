@@ -22,7 +22,7 @@ export function AvisoMobile({ filtros }: { filtros: FiltrosHome }) {
     <EmptyState
       icono={<LayoutGrid className="size-8" />}
       titulo="El kanban se usa en escritorio"
-      descripcion="Arrastrar tarjetas entre columnas necesita mouse y pantalla ancha. Desde el teléfono, el pipeline es el listado de Home filtrado por los estados que están en juego."
+      descripcion="Las cinco columnas necesitan una pantalla ancha, y arrastrar tarjetas necesita mouse. Mientras tanto, el pipeline es el listado de Home filtrado por los estados que están en juego: los mismos presupuestos, en una lista."
       acciones={
         <Button asChild variant="primary" size="touch" full>
           <Link href={urlHomePipeline(filtros)}>

@@ -166,7 +166,7 @@ export function PanelObrasSociales({ filas }: { filas: FilaObraSocial[] }) {
                       )}
                     </Td>
                     <Td>
-                      <span className="block max-w-[280px] truncate t-helper">
+                      <span className="line-clamp-2 max-w-[280px] t-helper [overflow-wrap:anywhere]">
                         {fila.notas ?? '—'}
                       </span>
                     </Td>

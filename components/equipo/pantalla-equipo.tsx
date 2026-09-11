@@ -228,7 +228,15 @@ export function PantallaEquipo({
                         />
                       </Td>
                       <Td className="pr-5">
-                        <div className="flex justify-end gap-2">
+                        {/* `flex-wrap`: «Contraseña» y «Dar de baja» en
+                            una línea son 245px de ancho MÍNIMO para la
+                            columna, y a 768 la tabla entera no entraba
+                            en su caja —se cortaba la derecha sin barra,
+                            que es peor que scrollear—. Envolviendo, el
+                            mínimo pasa a ser el botón más ancho. Los dos
+                            siguen con texto: dar de baja es destructivo
+                            y nunca va como ícono solo. */}
+                        <div className="flex flex-wrap justify-end gap-2">
                           <Acciones
                             miembro={m}
                             soyYo={soyYo}

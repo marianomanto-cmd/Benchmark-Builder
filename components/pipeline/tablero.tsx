@@ -464,12 +464,27 @@ export function TableroPipeline({
         filtrado={hayFiltros(filtros)}
       />
 
-      {/* Mobile: la ruta existe, la experiencia no. */}
-      <div className="md:hidden">
+      {/*
+        El tablero aparece en `lg`, no en `md`.
+
+        En `md` la caja mide 768 y las cinco columnas necesitan 940: el
+        envoltorio tenía `overflow-x-auto`, así que en un iPad vertical
+        el tablero se arrastraba de costado — y arrastrar de costado un
+        tablero donde además hay que arrastrar tarjetas es pedirle al
+        mouse dos gestos que se pisan. Debajo de `lg`, el mismo camino
+        que en el teléfono: el listado de Home filtrado por los estados
+        que están en juego.
+
+        A 1024 justo entra: 960 de caja contra 940 de piso, o sea
+        columnas de 182px. Por eso el piso bajó de 980 a 940 en vez de
+        correr el corte a `xl` y dejar sin tablero a media pantalla de
+        laptop.
+      */}
+      <div className="lg:hidden">
         <AvisoMobile filtros={filtros} />
       </div>
 
-      <div className="hidden flex-col gap-4 md:flex">
+      <div className="hidden flex-col gap-4 lg:flex">
         <FiltrosPipeline
           filtros={filtros}
           profesionales={profesionales}
@@ -503,9 +518,11 @@ export function TableroPipeline({
             style={{ height: altoZona ?? 'calc(100dvh - 330px)' }}
             className="flex min-h-[320px] flex-col gap-3"
           >
-            {/* Sangra hasta los bordes del `<main>` para que el scroll
-                horizontal del tablero no recorte las tarjetas. */}
-            <div className="-mx-8 min-h-0 flex-1 overflow-x-auto scroll-visible px-8 pb-1">
+            {/* Sangra hasta los bordes del `<main>` para que las
+                tarjetas de las columnas de los extremos respiren. Sin
+                `overflow-x`: el tablero sólo se dibuja donde las cinco
+                columnas entran, así que no hay nada que arrastrar. */}
+            <div className="-mx-8 min-h-0 flex-1 px-8 pb-1">
               {/*
                 `grid-rows-1` es `grid-template-rows: minmax(0, 1fr)`, y
                 sin él nada de esto funciona: el `h-full` del grid le
@@ -525,7 +542,7 @@ export function TableroPipeline({
                 estado— y con teclado la franja de perdidos ganaba
                 siempre el `closestCorners`.
               */}
-              <div className="grid h-full min-w-[980px] grid-cols-5 grid-rows-1 gap-3">
+              <div className="grid h-full min-w-[940px] grid-cols-5 grid-rows-1 gap-3">
                 {CLAVES_COLUMNA.map((clave) => (
                   <Columna
                     key={clave}

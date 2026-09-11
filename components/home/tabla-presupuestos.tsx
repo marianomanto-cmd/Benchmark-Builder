@@ -26,10 +26,11 @@ import type { FilaPresupuesto } from './tipos'
 /**
  * Tabla de desktop. En mobile no se usa nunca: ahí va `ListaMobile`.
  *
- * Jerarquía de los dos montos: `A cargo` en peso 600 y `Total` en gris.
- * El primero es el número que se conversa con el paciente; el segundo
- * es contexto. En un presupuesto cerrado (perdido o iniciado) los dos
- * se apagan: ya no está en juego.
+ * Los dos montos van juntos en una celda: `a cargo` en peso 600 y, si
+ * difieren, el total debajo en gris. El primero es el número que se
+ * conversa con el paciente; el segundo es de cuánto sale. En un
+ * presupuesto cerrado (perdido o iniciado) los dos se apagan: ya no
+ * está en juego.
  *
  * Cada fila va envuelta en `TransicionPresupuesto`: al abrir el detalle
  * la fila se transforma en su cabecera en lugar de desaparecer, así no
@@ -57,13 +58,28 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
 
   return (
     /*
-      Los anchos máximos de las columnas de texto son responsivos.
-      Fijos, sumaban 1.192px de tabla, así que entre 1024 y 1275 —un
-      iPad apaisado, media pantalla de laptop— la Home entera scrolleaba
-      de costado. Truncar más fuerte y aflojar recién en `xl` mantiene
-      las nueve columnas: la alternativa era sacar «Total» u «Obra
-      social», y las dos se miran de un vistazo desde el listado.
-      El `title` sigue teniendo el texto completo.
+      Las celdas de texto ENVUELVEN y se cortan a dos líneas; no van en
+      una sola línea truncada.
+
+      La diferencia no es estética, es de ancho mínimo. `truncate` es
+      `white-space: nowrap`, así que la columna le pide al navegador el
+      largo entero del texto —topeado por `max-w`— y esa suma es el
+      mínimo de la tabla: con los datos reales del consultorio
+      —«TRABAJADORES PASTELEROS, CONFITEROS, PIZZEROS Y AL», «Corona de
+      zirconio + reconstrucción de muñón con fibras»— daba 1.408px
+      dentro de una caja de 1.114, y la Home volvía a scrollear de
+      costado. Con el seed no se veía: los nombres del seed son cortos y
+      nunca llegaban al tope.
+
+      Envolviendo, el mínimo de una columna pasa a ser su palabra más
+      larga (~100px), no la frase entera. `line-clamp-2` le pone techo
+      de dos líneas para que la fila no crezca, y `overflow-wrap:
+      anywhere` cubre el caso de una sola palabra más ancha que la
+      columna. El `title` sigue teniendo el texto completo.
+
+      Y los dos montos van en una celda: «a cargo» grande y el total
+      debajo, sólo cuando difieren. Son una columna menos y se leen
+      mejor juntos — la pregunta es cuánto paga el paciente DE cuánto.
     */
     <div className="overflow-hidden rounded-card border border-hairline bg-card shadow-rest">
       <Tabla>
@@ -75,7 +91,6 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
             <Th>Obra social</Th>
             <Th>Profesional</Th>
             <Th>Fecha</Th>
-            <Th numerico>Total</Th>
             <Th numerico>A cargo</Th>
             <Th>Estado</Th>
             <Th className="pr-5 text-right">
@@ -116,7 +131,7 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
 
                   <Td>
                     <span
-                      className="block max-w-[130px] truncate font-medium text-ink xl:max-w-[190px]"
+                      className="line-clamp-2 max-w-[190px] font-medium text-ink [overflow-wrap:anywhere]"
                       title={fila.paciente_nombre}
                     >
                       {fila.paciente_nombre}
@@ -129,7 +144,7 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
                   <Td>
                     <span className="flex items-center gap-2">
                       <span
-                        className="block max-w-[150px] truncate xl:max-w-[220px]"
+                        className="line-clamp-2 max-w-[220px] [overflow-wrap:anywhere]"
                         title={fila.prestacion_principal ?? undefined}
                       >
                         {fila.prestacion_principal ?? 'Sin prestaciones'}
@@ -142,7 +157,7 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
 
                   <Td>
                     <span
-                      className="block max-w-[110px] truncate xl:max-w-[150px]"
+                      className="line-clamp-2 max-w-[150px] [overflow-wrap:anywhere]"
                       title={fila.obra_social_nombre ?? 'Particular'}
                     >
                       {fila.obra_social_nombre ?? 'Particular'}
@@ -151,7 +166,7 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
 
                   <Td>
                     <span
-                      className="block max-w-[110px] truncate xl:max-w-[150px]"
+                      className="line-clamp-2 max-w-[150px] [overflow-wrap:anywhere]"
                       title={fila.profesional_nombre}
                     >
                       {fila.profesional_nombre}
@@ -163,11 +178,15 @@ export function TablaPresupuestos({ filas }: { filas: FilaPresupuesto[] }) {
                   </Td>
 
                   <Td numerico>
-                    <Monto valor={fila.subtotal} jerarquia={cerrado ? 'apagado' : 'normal'} />
-                  </Td>
-
-                  <Td numerico>
                     <Monto valor={fila.total_a_cargo} jerarquia={cerrado ? 'apagado' : 'fuerte'} />
+                    {/* El total sólo cuando dice algo: si la obra social
+                        no cubre nada, repetir el mismo número abajo es
+                        ruido. */}
+                    {fila.subtotal !== fila.total_a_cargo && (
+                      <span className="block t-helper tabular-nums">
+                        de <Monto valor={fila.subtotal} jerarquia="apagado" className="text-[12px]" />
+                      </span>
+                    )}
                   </Td>
 
                   <Td>

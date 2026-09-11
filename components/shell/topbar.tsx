@@ -77,7 +77,7 @@ export function Topbar({ perfil }: { perfil: Perfil }) {
             className="rounded-input transition-opacity hover:opacity-85"
             aria-label="Smile Lab · Presupuestos, ir a Home"
           >
-            <Logo tamano="sm" />
+            <Logo tamano="sm" textoDesde="lg" />
           </Link>
 
           <nav aria-label="Navegación principal">

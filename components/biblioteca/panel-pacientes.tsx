@@ -278,11 +278,11 @@ export function PanelPacientes({
           )}
 
           {/*
-            La tabla aparece en `lg`, no en `md`: su ancho mínimo es de
-            1003px y mostrarla desde 768 hacía que la página entera
-            scrolleara de costado. Debajo de eso mandan las cards, que
-            no son «la versión de mobile» sino la que funciona cuando no
-            hay ancho para todas las columnas.
+            La tabla aparece en `lg`, no en `md`: con seis columnas no
+            entra en 768 y la página entera scrolleaba de costado.
+            Debajo de eso mandan las cards, que no son «la versión de
+            mobile» sino la que funciona cuando no hay ancho para todas
+            las columnas.
           */}
           <div className="hidden overflow-hidden rounded-card border border-hairline bg-card shadow-rest lg:block">
             <Tabla>
@@ -307,7 +307,15 @@ export function PanelPacientes({
                         <span className="font-medium text-ink">{fila.nombre}</span>
                         {recien === fila.id && <MicroBadge tono="primary">Guardado</MicroBadge>}
                       </span>
-                      {fila.email && <span className="block t-helper">{fila.email}</span>}
+                      {/* Un mail es UNA palabra: sin `overflow-wrap`
+                          su ancho entero es el mínimo de la columna
+                          —315px— y a 1024 la tabla se salía de su caja.
+                          Partido, el mínimo pasa a ser el del nombre. */}
+                      {fila.email && (
+                        <span className="block t-helper [overflow-wrap:anywhere]">
+                          {fila.email}
+                        </span>
+                      )}
                     </Td>
                     <Td className="tabular-nums">{fila.dni ?? '—'}</Td>
                     <Td>
