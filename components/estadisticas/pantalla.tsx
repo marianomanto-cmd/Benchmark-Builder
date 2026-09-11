@@ -289,7 +289,17 @@ function Resumen({ datos }: { datos: Estadisticas }) {
   const tasa = resumen.emitidos === 0 ? null : Math.round((resumen.ganados / resumen.emitidos) * 100)
 
   return (
-    <section aria-label="Resumen" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <section
+      aria-label="Resumen"
+      /* Una sola columna abajo de 360px. En dos, la tarjeta mide 138 y
+         le quedan 106 para el número: «$ 12.345.678» necesita 139 y se
+         salía por la derecha, arrastrando a la página entera. Achicar
+         más la tipografía no alcanzaba —a 16px un monto de ocho cifras
+         sigue sin entrar— y un monto ilegible tampoco sirve. Apilado
+         hay 288px de ancho y entra cualquier cifra que el consultorio
+         pueda facturar. */
+      className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3 lg:grid-cols-4"
+    >
       <Tarjeta
         etiqueta="Emitidos"
         valor={numero(resumen.emitidos)}
@@ -330,13 +340,12 @@ function Tarjeta({ etiqueta, valor, ayuda }: { etiqueta: string; valor: string; 
   return (
     <article className="flex flex-col gap-1 rounded-card border border-hairline bg-card p-4 shadow-rest sm:p-5">
       <p className="t-label">{etiqueta}</p>
-      {/* No usa `t-hero-num` en mobile a propósito: 34px son ~180px de
-          «$ 4.528.600», y la tarjeta mide 170. El número se partía
-          después del signo y se salía de la tarjeta. Acá el dato es
-          plata, no una cantidad de dos dígitos como en la Home. */}
-      <p className="font-display text-[23px] font-semibold leading-tight tracking-[-0.02em] text-ink tabular-nums sm:text-[28px] lg:text-[34px]">
-        {valor}
-      </p>
+      {/* Esta escala vivía acá suelta porque `t-hero-num` era 34px
+          fijos y «$ 4.528.600» medía ~180 en una tarjeta de 170. Ahora
+          el token escala solo —y arranca más chico todavía—, así que el
+          número héroe de Estadísticas y el de la Home vuelven a ser el
+          mismo y se define en un solo lugar. */}
+      <p className="t-hero-num">{valor}</p>
       <p className="t-helper">{ayuda}</p>
     </article>
   )

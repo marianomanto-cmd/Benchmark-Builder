@@ -95,7 +95,11 @@ export function Segmented<T extends string>({
     <div
       role="radiogroup"
       className={cn(
-        'inline-flex items-center gap-1 rounded-pill border border-hairline bg-card p-1',
+        // `flex-wrap`: con tres o más opciones de etiqueta larga no
+        // entran en una línea de teléfono, y sin esto empujaban el
+        // ancho o quedaban detrás de un arrastre lateral. Envolviendo,
+        // la píldora se parte en dos renglones y se ven todas.
+        'inline-flex flex-wrap items-center gap-1 rounded-pill border border-hairline bg-card p-1',
         className,
       )}
     >

@@ -28,9 +28,24 @@ const DESTINOS: Destino[] = [
 
 export function TabsBiblioteca({ activa }: { activa: Tab | 'aranceles' }) {
   return (
+    /*
+      Dos formas del mismo control, sin scroll horizontal en ninguna.
+
+      Las cuatro pestañas necesitan 510px y en un teléfono de 390 hay
+      358: antes la fila scrolleaba de costado y «Profesionales» —a
+      veces también «Obras sociales»— quedaba escondida detrás de un
+      arrastre que compite con el scroll vertical de la página.
+
+      Por debajo de `sm` son píldoras que envuelven en dos filas: la
+      línea de subrayado no sobrevive al envoltorio —la del renglón de
+      arriba queda flotando lejos del borde de la nav— así que ahí el
+      estado activo lo lleva el fondo, que es el mismo recurso que usa
+      la navegación de la topbar. Desde `sm` entran las cuatro y vuelve
+      el subrayado.
+    */
     <nav
       aria-label="Secciones de la biblioteca"
-      className="flex items-center gap-1 overflow-x-auto border-b border-hairline no-scrollbar"
+      className="flex flex-wrap items-center gap-1.5 sm:gap-1 sm:border-b sm:border-hairline"
     >
       {DESTINOS.map((destino) => {
         const esActiva = destino.clave === activa
@@ -40,10 +55,14 @@ export function TabsBiblioteca({ activa }: { activa: Tab | 'aranceles' }) {
             href={destino.href}
             aria-current={esActiva ? 'page' : undefined}
             className={cn(
-              'relative -mb-px whitespace-nowrap border-b-2 border-transparent px-3',
+              'relative whitespace-nowrap px-3',
               // 44px de alto: la tabbar de mobile también se toca con el dedo.
               'flex h-11 items-center font-sans text-[13px] font-medium transition-colors',
-              esActiva ? 'border-primary text-ink' : 'text-muted hover:text-ink',
+              // Mobile: píldora. Desde `sm`: subrayado.
+              'rounded-pill sm:-mb-px sm:rounded-none sm:border-b-2 sm:border-transparent',
+              esActiva
+                ? 'bg-tint text-ink sm:bg-transparent sm:border-primary'
+                : 'text-muted hover:text-ink',
             )}
           >
             {destino.etiqueta}

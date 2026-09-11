@@ -184,15 +184,47 @@
     color: var(--color-ink);
   }
 
-  /* Número héroe: el que el paciente busca. */
+  /*
+   * Número héroe: el que el paciente busca.
+   *
+   * El tamaño ESCALA con el ancho disponible. A 34px fijos, un
+   * «$ 350.000» mide 171px, y desde que los KPI de la home son una
+   * grilla de 2×2 la columna de un teléfono de 320 mide 145: el número
+   * se salía de su tarjeta y estiraba el ancho del documento, con lo
+   * que la página entera scrolleaba de costado y se llevaba puestos el
+   * FAB y la tabbar.
+   *
+   * Las tarjetas de Estadísticas tenían su propia escala suelta por
+   * este mismo motivo («$ 4.528.600» no entraba en una tarjeta de
+   * 170px): ahora usan el token, y el número héroe se define en un
+   * solo lugar.
+   */
   .t-hero-num {
     font-family: var(--font-display);
     font-weight: 600;
-    font-size: 34px;
+    font-size: 21px;
     line-height: 1.1;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
     color: var(--color-ink);
+  }
+
+  @media (min-width: 380px) {
+    .t-hero-num {
+      font-size: 23px;
+    }
+  }
+
+  @media (min-width: 640px) {
+    .t-hero-num {
+      font-size: 28px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .t-hero-num {
+      font-size: 34px;
+    }
   }
 
   .t-body {

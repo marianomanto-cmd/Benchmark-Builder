@@ -4,10 +4,10 @@ import { Skeleton } from '@/components/ui'
  * Carga de las pantallas con sesión.
  *
  * Calca la home, que es la que se abre diez veces por día: mismo ritmo
- * vertical (`gap-5`), mismo carrusel de KPIs de 42vw en mobile y misma
- * grilla 2/4 en desktop, misma barra sticky y misma tabla de diez
- * columnas. Un esqueleto que no coincide es peor que ninguno: el
- * contenido salta al llegar y ese salto se nota más que la espera.
+ * vertical (`gap-5`), misma grilla de KPIs —2×2 en mobile, 2/4 en
+ * desktop—, misma barra sticky y mismo listado. Un esqueleto que no
+ * coincide es peor que ninguno: el contenido salta al llegar y ese
+ * salto se nota más que la espera.
  */
 
 /** Anchos fijos para que el esqueleto no baile entre renders. */
@@ -18,15 +18,14 @@ const KPIS = [
   { label: 'w-28', hero: 'w-28', helper: 'w-24' },
 ]
 
-const CHIPS = [70, 88, 76, 92, 84, 80]
-
 function TarjetaKpi({ i }: { i: number }) {
   const k = KPIS[i]
   return (
     <div className="flex h-full flex-col gap-1.5 rounded-card border border-hairline bg-card p-4 sm:p-5">
       <Skeleton className={`h-3 ${k.label} max-w-full`} />
-      {/* 34px de `t-hero-num`, para que el número no empuje al llegar. */}
-      <Skeleton className={`h-[34px] ${k.hero} max-w-full`} />
+      {/* El alto de `t-hero-num` en mobile (21px abajo de 380, 23 desde
+          ahí), para que el número no empuje al llegar. */}
+      <Skeleton className={`h-[21px] min-[380px]:h-[23px] md:h-[28px] lg:h-[34px] ${k.hero} max-w-full`} />
       <Skeleton className={`h-3 ${k.helper} max-w-full`} />
     </div>
   )
@@ -43,13 +42,13 @@ export default function Cargando() {
         <Skeleton className="mt-1.5 h-4 w-[26rem] max-w-full" />
       </div>
 
-      {/* KPIs: carrusel de 42vw en mobile, grilla 2/4 en desktop. */}
+      {/* KPIs: grilla 2×2 en mobile, 2/4 en desktop. Calca a `Kpis`: si
+          el esqueleto no tiene la misma forma, al llegar los datos
+          salta todo. */}
       <section>
-        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 no-scrollbar md:hidden">
+        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3 md:hidden">
           {KPIS.map((_, i) => (
-            <div key={i} className="w-[42vw] shrink-0">
-              <TarjetaKpi i={i} />
-            </div>
+            <TarjetaKpi key={i} i={i} />
           ))}
         </div>
         <div className="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-4">
@@ -66,18 +65,12 @@ export default function Cargando() {
             <Skeleton className="h-11 w-full rounded-input md:h-9" />
           </div>
 
-          {/* Mobile: botón de filtros + chips de estado. */}
-          <div className="flex items-center gap-2 md:hidden">
-            <Skeleton className="h-11 w-[104px] shrink-0 rounded-pill" />
-            <div className="-mr-4 flex gap-2 overflow-hidden pr-4">
-              {CHIPS.map((ancho, i) => (
-                <Skeleton
-                  key={i}
-                  className="h-11 shrink-0 rounded-pill"
-                  style={{ width: ancho }}
-                />
-              ))}
-            </div>
+          {/* Mobile: sólo el botón de filtros. Los chips de al lado
+              existen únicamente cuando hay algo puesto, y al abrir la
+              home sin filtros no hay ninguno: dibujarlos haría que la
+              barra se achique al llegar los datos. */}
+          <div className="md:hidden">
+            <Skeleton className="h-11 w-[104px] rounded-pill" />
           </div>
 
           {/* Desktop: estado, profesional, obra social, fechas. */}

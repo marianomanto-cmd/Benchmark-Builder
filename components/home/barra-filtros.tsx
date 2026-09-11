@@ -52,6 +52,31 @@ import { OBRA_SOCIAL_PARTICULAR, type FiltrosHome, type OpcionFiltro } from './t
 /** Sentinela de los `Select`: Radix no acepta `value=""`. */
 const TODOS = 'todos'
 
+/**
+ * Cuántos filtros puestos se dibujan en la barra de mobile antes de
+ * plegarse en un «+N».
+ *
+ * La barra es sticky: lo que crece acá le come pantalla al listado en
+ * todo momento, no sólo al llegar. Con los ocho estados puestos más
+ * obra social y fechas eran seis filas —270px, más que los cuatro
+ * KPIs— y el primer presupuesto quedaba abajo del pliegue. Tres chips
+ * cubren el caso real (uno o dos estados) y le ponen techo al resto.
+ */
+const TOPE_CHIPS = 3
+
+/**
+ * Un filtro puesto, sin la función que lo saca.
+ *
+ * Los datos van separados del `onClick` a propósito: armar acá los
+ * callbacks obligaría a leer `actualRef.current` durante el render, que
+ * es justo lo que `react-hooks/refs` marca —y con razón: el valor del
+ * ref no dispara re-render, así que un chip podría quedar quitando el
+ * filtro de hace dos navegaciones—.
+ */
+type ChipFiltro =
+  | { clave: string; texto: string; tipo: 'estado'; estado: EstadoPresupuesto }
+  | { clave: string; texto: string; tipo: 'profesional' | 'obraSocial' | 'fechas' }
+
 const RETARDO_BUSQUEDA = 350
 
 /**
@@ -200,6 +225,21 @@ export function BarraFiltros({
     mandar(FILTROS_VACIOS, 'push')
   }, [mandar])
 
+  /**
+   * Saca los filtros pero deja lo tipeado.
+   *
+   * Es el "Limpiar" de la barra de mobile, que está al lado de los
+   * chips de filtro y no del campo de búsqueda: borrar de paso lo que
+   * la persona acababa de escribir sería sacarle algo que no pidió
+   * sacar.
+   */
+  const limpiarAvanzados = React.useCallback(() => {
+    mandar(
+      { ...actualRef.current, estados: [], profesional: '', obraSocial: '', desde: '', hasta: '' },
+      'push',
+    )
+  }, [mandar])
+
   function alternarEstado(estado: EstadoPresupuesto) {
     // En el orden canónico de la máquina de estados, que es el que
     // devuelve `parseFiltros`: así la URL que pedimos es igual a la que
@@ -251,6 +291,41 @@ export function BarraFiltros({
     actual.obraSocial === OBRA_SOCIAL_PARTICULAR
       ? 'Particular'
       : (obrasSociales.find((o) => o.value === actual.obraSocial)?.label ?? 'Obra social')
+
+  /**
+   * Los chips de la barra de mobile, en el orden de la barra de
+   * desktop: la app no se lee distinta según el aparato.
+   *
+   * Son más que `avanzados` —ahí los ocho estados cuentan como un solo
+   * filtro, que es el número del botón «Filtros»— porque cada estado
+   * se saca por su cuenta.
+   */
+  const chips: ChipFiltro[] = actual.estados.map((estado) => ({
+    clave: `estado-${estado}`,
+    texto: ETIQUETA_ESTADO[estado],
+    tipo: 'estado',
+    estado,
+  }))
+  if (actual.profesional) {
+    chips.push({ clave: 'profesional', texto: etiquetaProfesional, tipo: 'profesional' })
+  }
+  if (actual.obraSocial) {
+    chips.push({ clave: 'obra-social', texto: etiquetaObraSocial, tipo: 'obraSocial' })
+  }
+  if (actual.desde || actual.hasta) {
+    chips.push({ clave: 'fechas', texto: etiquetaFechas, tipo: 'fechas' })
+  }
+
+  const chipsVisibles = chips.slice(0, TOPE_CHIPS)
+  const chipsPlegados = chips.length - chipsVisibles.length
+
+  /** Saca el filtro de un chip. Fuera del render: lee `actualRef`. */
+  function quitarChip(chip: ChipFiltro) {
+    if (chip.tipo === 'estado') alternarEstado(chip.estado)
+    else if (chip.tipo === 'profesional') aplicar({ profesional: '' })
+    else if (chip.tipo === 'obraSocial') aplicar({ obraSocial: '' })
+    else aplicar({ desde: '', hasta: '' })
+  }
 
   const selectProfesional = (
     <Select
@@ -329,8 +404,26 @@ export function BarraFiltros({
             />
           </div>
 
-          {/* ── Mobile: filtros en sheet + chips de estado ────────── */}
-          <div className="flex items-center gap-2 md:hidden">
+          {/*
+            ── Mobile: un botón, y lo que está puesto ──────────────
+
+            Acá había una fila con los ocho estados más «Todos»: 866px
+            de chips metidos en 270 con `overflow-x-auto`, así que
+            «Aceptado», «Iniciado» y «Perdido» vivían detrás de un
+            arrastre lateral que encima compite con el scroll vertical
+            de la página. Envolverlos sacó el arrastre pero los apiló en
+            cinco filas: 280px de barra pegajosa —más alta que los
+            KPIs— para elegir un filtro que se usa una vez cada tanto,
+            con el listado empujado abajo de todo.
+
+            Los ocho estados están en el sheet, que es donde ya vivían
+            los otros cuatro filtros y donde se ven los ocho juntos sin
+            pelearse por el ancho. Lo que queda fijo arriba es lo que sí
+            hay que poder leer sin abrir nada: qué filtros están
+            puestos, y cómo sacarlos. Sin ninguno, es una sola fila de
+            44px.
+          */}
+          <div className="flex flex-wrap items-center gap-2 md:hidden">
             <Button
               variant="secondary"
               size="touch"
@@ -347,20 +440,34 @@ export function BarraFiltros({
               )}
             </Button>
 
-            <div className="-mr-4 flex gap-2 overflow-x-auto pb-1 pr-4 no-scrollbar">
-              <Chip activo={actual.estados.length === 0} onClick={() => aplicar({ estados: [] })}>
-                Todos
-              </Chip>
-              {ESTADOS.map((estado) => (
-                <Chip
-                  key={estado}
-                  activo={actual.estados.includes(estado)}
-                  onClick={() => alternarEstado(estado)}
-                >
-                  {ETIQUETA_ESTADO[estado]}
-                </Chip>
-              ))}
-            </div>
+            {chipsVisibles.map((chip) => (
+              <ChipAplicado key={chip.clave} onQuitar={() => quitarChip(chip)}>
+                {chip.texto}
+              </ChipAplicado>
+            ))}
+
+            {/* Los que no entraron no se esconden sin decirlo: el
+                número dice cuántos son y el sheet los muestra todos. */}
+            {chipsPlegados > 0 && (
+              <Button
+                variant="ghost"
+                size="touch"
+                className="px-3"
+                onClick={() => setSheetPedido(true)}
+                aria-haspopup="dialog"
+                aria-label={`Ver los otros ${chipsPlegados} filtros`}
+              >
+                +{chipsPlegados} {chipsPlegados === 1 ? 'filtro' : 'filtros'}
+              </Button>
+            )}
+
+            {/* Con un solo chip sobra: ese filtro se saca tocándolo. */}
+            {chips.length > 1 && (
+              <Button variant="ghost" size="touch" className="px-3" onClick={limpiarAvanzados}>
+                <X aria-hidden />
+                Limpiar
+              </Button>
+            )}
           </div>
 
           {/* ── Desktop: la barra completa ────────────────────────── */}
@@ -657,28 +764,32 @@ function CampoBusqueda({
   )
 }
 
-function Chip({
-  activo,
-  onClick,
-  children,
-}: {
-  activo: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
+/**
+ * Un filtro puesto, con su forma de sacarlo.
+ *
+ * Contesta dos preguntas de una: por qué la lista se ve más corta de lo
+ * esperado, y cómo volver atrás. Antes la barra de mobile sólo tenía el
+ * contador del botón «Filtros», así que un link pegado con `?prof=`
+ * mostraba «1» sin decir de quién.
+ *
+ * La × nunca va sola: siempre pegada al nombre del filtro, y el
+ * `aria-label` dice la acción entera, porque una × leída por un lector
+ * de pantalla no dice qué se estaría quitando.
+ *
+ * `truncate` con `max-w-full`: los nombres largos —«OSDE 210», una obra
+ * social con plan— se recortan en vez de estirar la barra y traerse de
+ * vuelta el scroll horizontal por otro lado.
+ */
+function ChipAplicado({ children, onQuitar }: { children: string; onQuitar: () => void }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      aria-pressed={activo}
-      className={cn(
-        'inline-flex h-11 shrink-0 items-center rounded-pill border px-4 font-sans text-[13px] font-medium transition-colors press',
-        activo
-          ? 'border-primary bg-primary text-white'
-          : 'border-hairline bg-card text-muted hover:bg-tint hover:text-ink',
-      )}
+      onClick={onQuitar}
+      aria-label={`Quitar el filtro ${children}`}
+      className="press inline-flex h-11 max-w-full items-center gap-1.5 rounded-pill border border-primary/40 bg-tint pl-4 pr-3 font-sans text-[13px] font-medium text-ink transition-colors hover:bg-primary/15"
     >
-      {children}
+      <span className="min-w-0 truncate">{children}</span>
+      <X aria-hidden className="size-4 shrink-0 text-muted" />
     </button>
   )
 }

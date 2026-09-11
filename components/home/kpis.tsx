@@ -121,13 +121,16 @@ function TarjetaKpi({ kpi, estado }: { kpi: DefinicionKpi; estado: EstadoDatos }
 
   const contenido = (
     <>
-      {/* La etiqueta se parte en dos líneas en vez de cortarse.
-          Truncada, el carrusel de mobile mostraba "EMITIDOS DEL …" y
-          "PENDIENTES D…": una etiqueta a medias no dice qué se está
-          mirando, que es todo lo que la etiqueta tiene que hacer.
-          `min-h` de dos líneas para que los números queden a la misma
-          altura en todas las tarjetas, se parta la etiqueta o no. */}
-      <p className="t-label flex min-h-[2.6em] items-start gap-1.5">
+      {/* La etiqueta se parte en dos líneas en vez de cortarse. Truncada,
+          mostraba "EMITIDOS DEL …" y "PENDIENTES D…": una etiqueta a
+          medias no dice qué se está mirando, que es todo lo que la
+          etiqueta tiene que hacer.
+
+          El `min-h` de dos líneas alinea los números entre las tarjetas
+          de una misma fila, se parta la etiqueta o no. Abajo de 360px
+          no hay fila —las tarjetas se apilan— y esa altura reservada
+          sería un hueco entre la etiqueta y el número. */}
+      <p className="t-label flex items-start gap-1.5 min-[360px]:min-h-[2.6em]">
         <span
           className={cn(
             'mt-px shrink-0',
@@ -187,14 +190,28 @@ export function Kpis({ kpis, estado = 'ok' }: { kpis: KpisHome; estado?: EstadoD
 
   return (
     <section aria-label="Resumen del consultorio">
-      {/* Mobile: carrusel con 2,5 tarjetas a la vista. El corte de la
-          tercera es la señal de que hay más para el costado. */}
-      {/* El `-mx-4 px-4` sangra hasta el borde del `<main>` del layout. */}
-      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 no-scrollbar md:hidden">
+      {/*
+        Una grilla, no un carrusel.
+
+        Antes en mobile eran cuatro tarjetas en fila con scroll
+        horizontal y 2,5 a la vista: el corte de la tercera era la señal
+        de que había más para el costado. Funcionaba, pero el resumen
+        del consultorio es lo primero que se mira al abrir la app, y
+        tener que arrastrar para ver la mitad —«Tasa de aceptación» y
+        «Monto en pipeline» quedaban siempre escondidos— es pedirle un
+        gesto a alguien que sólo quería saber cómo viene el mes.
+
+        En 2×2 entran las cuatro de una. Abajo de 360px se apilan: en
+        dos columnas la tarjeta mide 138 y le quedan 106 para el número,
+        y «$ 12.345.678» —un pipeline de ocho cifras, que este
+        consultorio alcanza— necesita 139 y se salía por la derecha
+        arrastrando a la página. Achicar más la tipografía no alcanza:
+        a 16px un monto así sigue sin entrar, y un monto ilegible no
+        sirve para nada.
+      */}
+      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3 md:hidden">
         {definiciones.map((k) => (
-          <div key={k.id} className="w-[42vw] shrink-0 snap-start">
-            <TarjetaKpi kpi={k} estado={estado} />
-          </div>
+          <TarjetaKpi key={k.id} kpi={k} estado={estado} />
         ))}
       </div>
 

@@ -1,6 +1,6 @@
 # Estado del proyecto — Smile Lab · Presupuestos
 
-> **Última actualización:** 2026-09-10
+> **Última actualización:** 2026-09-11
 > Este documento es la fuente de verdad del estado del proyecto. Si cambia el
 > esquema, el pipeline, una pantalla o una variable de entorno, se actualiza
 > acá **en el mismo commit**.
@@ -276,6 +276,16 @@ Notas de diseño cerradas:
 - Mobile nunca usa tabla. Área táctil mínima 44px, FAB 56px. En el detalle,
   la barra fija **muestra** el estado en vez de nombrar la acción: es el dato
   que queda fuera de la vista al scrollear.
+- **Nada scrollea de costado: ni la página ni un contenedor de adentro.** No
+  hay carruseles ni rieles: los KPIs de la home son una grilla 2×2 —una sola
+  columna abajo de 360px, para que entre un monto de ocho cifras—, las
+  pestañas de biblioteca envuelven, y los filtros de estado de mobile viven en
+  el sheet. Lo que no entra a lo ancho se apila, envuelve o se pliega en un
+  «+N» — nunca se esconde detrás de un arrastre lateral.
+- La barra de filtros de mobile lista **lo que está puesto**, no lo que se
+  puede poner: un chip por filtro aplicado, que se saca tocándolo, y el resto
+  en el sheet. Sin filtros es una sola fila. Es una barra sticky: lo que crece
+  ahí le come pantalla al listado todo el tiempo.
 - En mobile la última pestaña de la tabbar es **Cuenta**, y no es un destino:
   abre una hoja con «Mi contraseña», «Equipo y accesos» (si administra) y
   «Cerrar sesión». El menú de usuario vive en la topbar, que es `hidden md:`,
@@ -520,7 +530,7 @@ antes de aceptarlo. Los que resultaron reales:
 | El tablero cambiaba la lista de sensores de dnd-kit según el viewport, y `useSensorSetup()` la usa **como array de dependencias**: en cada carga en desktop React tiraba «the final argument passed to useEffect changed size between renders» | Los sensores son siempre los mismos: el kanban vive dentro de un `display:none` en mobile, de donde no se arrastra |
 | `/pipeline` re-renderizaba entero al hidratar: dnd-kit numera el `aria-describedby` con un contador de módulo, que en el servidor sigue creciendo entre requests | `DndContext id` fijo |
 | La matrícula salía **«MP MP 34.567»** en la cabecera del detalle, en la firma del PDF y en el WhatsApp: el campo es texto libre y se prefijaba sin mirar | `matricula()` en `lib/formato.ts`, que respeta lo que ya trae prefijo —MN incluida— y es la única que arma ese texto |
-| En el carrusel de KPIs de mobile las etiquetas se cortaban: «EMITIDOS DEL …», «PENDIENTES D…» | Se parten en dos líneas, con la altura reservada para que los números queden alineados |
+| En las tarjetas de KPI de mobile las etiquetas se cortaban: «EMITIDOS DEL …», «PENDIENTES D…» | Se parten en dos líneas, con la altura reservada para que los números queden alineados |
 | En el paso 3 del wizard en mobile, «Cuándo» se encogía a cero y su etiqueta se imprimía encima de «Porcentaje» | El campo ocupa la fila completa hasta `sm`; el resto va abajo |
 | En la grilla de aranceles, la banda de rubro se iba de pantalla al scrollear a la derecha: lo sticky era la celda, que mide lo que la tabla entera | Lo sticky pasa a ser el texto de adentro |
 | En mobile el «Total a cargo» del pipeline quedaba flotando en el medio, arriba y a la derecha de su propio número | Alineado a la izquierda hasta `sm`, a la derecha desde ahí |
@@ -547,7 +557,7 @@ antes de aceptarlo. Los que resultaron reales:
 | Un rango de fechas dado vuelta (`?desde=` posterior a `?hasta=`) devolvía cero y se leía como «no hay» | `parseFiltros` lo endereza |
 | Con la lectura caída los KPIs decían «todavía no cargaste nada»: `falla` colapsaba en `vacío` y las cuatro tarjetas mostraban la misma raya | Tres estados distintos (`ok`, `vacío`, `falla`), cada raya con su explicación en `sr-only` |
 | Tocar un filtro con la búsqueda a medio escribir perdía lo tipeado y disparaba dos navegaciones | El cambio de filtro arrastra lo tipeado y cancela el debounce en vuelo |
-| Encadenar dos filtros perdía el primero: cada elección se armaba sobre lo que había contestado el servidor, que durante la navegación está atrasado. Tocar dos chips de estado seguidos en el celular dejaba sólo el segundo, y tipear después de elegir un filtro lo borraba | La barra guarda lo que ya pidió y arma la próxima URL sobre eso; además el control se prende al tocarlo y no al volver el servidor |
+| Encadenar dos filtros perdía el primero: cada elección se armaba sobre lo que había contestado el servidor, que durante la navegación está atrasado. Tildar dos estados seguidos en el celular dejaba sólo el segundo, y tipear después de elegir un filtro lo borraba | La barra guarda lo que ya pidió y arma la próxima URL sobre eso; además el control se prende al tocarlo y no al volver el servidor |
 | Desde el celular no había forma de filtrar por obra social, profesional ni fecha, y un link con `?prof=` traía filtros invisibles e imposibles de sacar | Sheet de filtros con contador, que se cierra solo si la ventana pasa a desktop |
 | Un click en la fila navegaba aunque se estuviera seleccionando texto (leer un DNI y marcarlo abría el detalle) o viniera con Cmd/Ctrl | El click se guarda contra selección, modificadores y descendientes interactivos |
 | El esqueleto de la home no coincidía con la home: al llegar los datos saltaba todo | `app/(app)/loading.tsx` calca ritmo, KPIs, barra y listado |
@@ -606,6 +616,11 @@ antes de aceptarlo. Los que resultaron reales:
 | **La grilla de aranceles era una matriz prestación × obra social.** Con las 42 obras sociales del consultorio son 2.451 celdas para 110 precios: el 95 % de la pantalla decía «Sin cargar», y cada tarjeta ofrecía «Faltan 38 obras sociales» como si fuera deuda, cuando es el estado normal —el consultorio negocia con unas pocas | Una lista por prestación, la misma en desktop y en mobile: nombre y precio particular en una fila, los precios de obra social que EXISTEN como pastillas, y una sola acción para agregar otro. Más un selector de obra social que reemplaza a las columnas: se elige una y cada prestación muestra el particular y esa, que es como se carga una lista de precios entera |
 | **Dos obras sociales con el mismo nombre convivían.** `unique (nombre, plan)` no impide el duplicado que importa: en Postgres dos NULL no son iguales, y la mayoría de las obras sociales de un consultorio no tienen plan. Los aranceles cuelgan de una de las dos filas y los pacientes se reparten entre las dos: los que caen del lado sin aranceles se presupuestan como particulares —con el precio de lista completo— sin que nada avise. Lo encontré cargando los datos reales del consultorio: mi propio script de importación duplicó las 42 obras sociales al correrlo dos veces | Índices únicos parciales sobre `lower(nombre)`, sin distinguir mayúsculas porque estos nombres se tipean a mano. Lo mismo para `prestaciones`, donde `codigo` es único pero acepta null (migración 24) |
 | **La misma omisión del PDF, viva en el detalle**: `cargarDetalle()` chequeaba `resCabecera.error` pero leía los ítems con `?? []`. Un timeout en esa lectura dibujaba «A CARGO DEL PACIENTE $ 260.400» arriba de una tabla vacía — y el detalle es imprimible, así que ese papel puede terminar en la mano del paciente. La encontró el escéptico revisando el arreglo del PDF | Los ítems son el documento: su lectura corta la pantalla como la de la cabecera. Cuotas e historial son accesorios y degradan avisando, en vez de afirmar «no hay condiciones de pago» o «todavía no hay movimientos» sobre lecturas que nunca llegaron |
+| **Tres rieles que scrolleaban de costado seguían vivos después de sacárselo a las tablas**: el carrusel de KPIs de la home (390 de ancho, 732 de contenido), los chips de estado de esa misma barra (270 → 866) y las pestañas de biblioteca (358 → 510). No los levantaba el QA porque medía el scroll de la PÁGINA, y estos tres son contenedores con `overflow-x-auto`: la página no se movía, el contenido sí. Escondían la mitad de los KPIs —«Tasa de aceptación» y «Monto en pipeline»—, tres estados —«Aceptado», «Iniciado», «Perdido»— y dos pestañas | Grilla 2×2, sheet y pestañas que envuelven. Y el barrido ahora mira **cada contenedor**, no sólo el `body`: 13 pantallas × 4 anchos, más el wizard y las hojas, todas limpias |
+| Con los KPIs en 2×2, `.t-hero-num` a 34px fijos hacía que «$ 350.000» midiera 171px en una columna de 145: a 320 y 360 la home volvía a desbordar, y esta vez arrastraba al FAB y a la tabbar fuera del viewport | El número héroe escala con el ancho (21 / 23 / 28 / 34px), y las tarjetas de Estadísticas —que tenían su propia escala suelta por este mismo motivo— vuelven a usar el token: una sola definición. Un tamaño fijo dentro de una grilla fluida es una bomba de tiempo: entra hasta que el dato crece |
+| Aun escalado, «$ 12.345.678» necesita 139px y en dos columnas a 320px la tarjeta deja 106: los KPIs de la home y las tarjetas de Estadísticas desbordaban con un monto de siete u ocho cifras, que este consultorio alcanza. Achicar más la tipografía no arregla nada —a 16px sigue sin entrar, y un monto ilegible no sirve— | Abajo de 360px las tarjetas se apilan en una columna: 288px de ancho, donde entra cualquier cifra que se pueda facturar. Medido inyectando montos de hasta nueve cifras en la home y en Estadísticas, a 320, 360 y 390 |
+| Envolver los nueve chips de estado sacó el arrastre pero los apiló en **cinco filas dentro de una barra sticky**: 280px —más que los cuatro KPIs juntos— comiéndose la pantalla en todo momento, con el primer presupuesto abajo del pliegue y el botón «Filtros» flotando en el medio del bloque | La barra de mobile deja de listar los ocho estados y pasa a listar **lo que está puesto**: un chip por filtro aplicado, que se saca tocándolo. Sin filtros es una sola fila de 44px. Los estados se eligen en el sheet, donde ya vivían los otros cuatro filtros, y a partir de tres chips el resto se pliega en un «+N filtros» para que la barra tenga techo |
+| La barra de mobile sólo mostraba el contador del botón «Filtros», así que un link pegado con `?prof=` o `?os=` decía «1» sin decir de quién ni de cuál | Cada filtro puesto es un chip con su nombre. Contesta las dos preguntas de una: por qué la lista se ve más corta de lo esperado, y cómo volver atrás |
 
 ### Pendiente
 
@@ -673,6 +688,13 @@ antes de aceptarlo. Los que resultaron reales:
   ninguno. Hacer QA sólo en 390 y 1440 dejaba ciego justo el hueco de los
   768–1024 —un iPad, media pantalla de laptop—, que es donde estaban la topbar
   desbordada y las tablas que no entraban.
+- **El barrido mide el scroll de cada contenedor, no sólo el de la página.**
+  Un riel con `overflow-x-auto` deja el `body` quieto: la página no se mueve y
+  el contenido igual está escondido de costado. Medir sólo el documento daba
+  «todo limpio» con tres rieles vivos —los KPIs, los chips de estado y las
+  pestañas de biblioteca—. Ahora se recorre todo el árbol buscando
+  `scrollWidth > clientWidth` con `overflow-x` scrolleable; `hidden` no cuenta,
+  que es lo que hace un `truncate` y no se arrastra.
 - **QA con navegador, en mobile (390×844) y desktop (1440×900).** Se abre la
   app real —no un mock— contra un Postgres local con el seed, se entra con
   usuario y contraseña, se recorre cada pantalla y se carga un presupuesto

@@ -580,15 +580,18 @@ export function SheetWhatsApp({
           <Monto valor={datos.montoACargo} jerarquia="fuerte" className="text-[20px]" />
         </div>
 
-        {/* Plantillas */}
+        {/*
+          Plantillas. Sin `overflow-x-auto`: en un teléfono angosto las
+          tres etiquetas no entran en una línea y el envoltorio las
+          mandaba a un arrastre lateral, con «Actualización» escondida.
+          El `Segmented` envuelve solo.
+        */}
         <Field label="Plantilla" helper={plantillaActual?.cuando}>
-          <div className="overflow-x-auto no-scrollbar">
-            <Segmented
-              value={plantilla}
-              onChange={elegirPlantilla}
-              opciones={PLANTILLAS.map((p) => ({ value: p.id, label: p.etiqueta }))}
-            />
-          </div>
+          <Segmented
+            value={plantilla}
+            onChange={elegirPlantilla}
+            opciones={PLANTILLAS.map((p) => ({ value: p.id, label: p.etiqueta }))}
+          />
         </Field>
 
         {/* Mensaje: primero como le llega, y a un toque para editarlo.
