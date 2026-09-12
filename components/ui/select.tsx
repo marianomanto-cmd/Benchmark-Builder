@@ -19,7 +19,7 @@ export function SelectTrigger({
     <SelectPrimitive.Trigger
       aria-invalid={invalido || undefined}
       className={cn(
-        'flex h-9 w-full items-center justify-between gap-2 rounded-input border border-hairline bg-card px-3',
+        'flex h-9 w-full items-center gap-2 rounded-input border border-hairline bg-card px-3',
         // El alto es fijo: si la etiqueta no entra, se corta con puntos
         // suspensivos y no parte el control en dos líneas.
         'whitespace-nowrap',
@@ -33,7 +33,24 @@ export function SelectTrigger({
       )}
       {...props}
     >
-      {children}
+      {/*
+        El valor va envuelto y ENCOGIBLE, y la flecha después.
+
+        Antes eran hermanos directos con `justify-between`, y el `span`
+        que pinta Radix para el valor es `inline`: no le entra un
+        `overflow`, así que no se recortaba nunca y su ancho completo
+        empujaba a la flecha. Con «Todos los profesionales» —152px de
+        texto en un control de 180 que deja 132— la flecha terminaba 9px
+        FUERA del borde del control, y la de al lado 2px: dos flechas a
+        distinta distancia del borde, que es exactamente lo que se ve
+        como desalineado.
+
+        `flex-1 min-w-0` hace que el texto ceda lugar, `truncate` lo
+        corta con puntos suspensivos —lo que el comentario de arriba ya
+        prometía— y la flecha queda clavada a `px-3` del borde en TODOS
+        los selects de la app, entre en el texto o no.
+      */}
+      <span className="min-w-0 flex-1 truncate text-left">{children}</span>
       <SelectPrimitive.Icon asChild>
         <ChevronDown className="size-4 shrink-0 text-faint" />
       </SelectPrimitive.Icon>

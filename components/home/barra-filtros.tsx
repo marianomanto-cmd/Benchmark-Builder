@@ -339,13 +339,14 @@ export function BarraFiltros({
         {/* Con `children` y no con `asChild`: `asChild` mete un `Slot`
             de Radix que termina pasándole props a un Fragment, y React
             lo marca en consola en cada render. Pasando el texto como
-            hijo se consigue lo mismo sin el envoltorio.
+            hijo se consigue lo mismo sin el envoltorio. El recorte y la
+            alineación de la flecha los pone `SelectTrigger`.
 
             Sin `text-faint`: los cuatro controles de la fila están sin
             elegir y pintar dos de gris los hacía ver deshabilitados al
             lado de Estado y Fechas. Que un filtro está puesto lo dice
             el borde, no el color del texto. */}
-        <SelectValue className="min-w-0 truncate">{etiquetaProfesional}</SelectValue>
+        <SelectValue>{etiquetaProfesional}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={TODOS}>Todos los profesionales</SelectItem>
@@ -367,7 +368,7 @@ export function BarraFiltros({
         aria-label="Filtrar por obra social"
         className={cn('w-full md:w-[168px]', actual.obraSocial && 'border-primary/40 bg-tint')}
       >
-        <SelectValue className="min-w-0 truncate">{etiquetaObraSocial}</SelectValue>
+        <SelectValue>{etiquetaObraSocial}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={TODOS}>Todas las obras sociales</SelectItem>

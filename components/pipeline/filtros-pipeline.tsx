@@ -64,6 +64,25 @@ export function FiltrosPipeline({
     [filtros, router],
   )
 
+  /**
+   * El trigger dice «Profesional», no «Todos los profesionales».
+   *
+   * Radix pinta en el trigger el texto del ítem elegido, y el ítem por
+   * defecto es «Todos los profesionales»: 152px de texto en un control
+   * de 180 que deja 132, así que se recortaba a «Todos los profesio…».
+   * Es la misma decisión que ya tomó la barra de la Home —los otros
+   * controles de la fila son sustantivos sueltos, «Emitido»— y con el
+   * sustantivo entra entero. El «Todos los…» sigue estando adentro de
+   * la lista, que es donde significa «sacá el filtro».
+   */
+  const etiquetaProfesional =
+    profesionales.find((p) => p.value === filtros.profesional)?.label ?? 'Profesional'
+
+  const etiquetaObraSocial =
+    filtros.obraSocial === OBRA_SOCIAL_PARTICULAR
+      ? 'Particular'
+      : (obrasSociales.find((o) => o.value === filtros.obraSocial)?.label ?? 'Obra social')
+
   const activos = hayFiltros(filtros)
 
   return (
@@ -82,7 +101,7 @@ export function FiltrosPipeline({
           aria-label="Filtrar por profesional"
           className={cn('w-[180px]', filtros.profesional && 'border-primary/40 bg-tint')}
         >
-          <SelectValue placeholder="Profesional" />
+          <SelectValue>{etiquetaProfesional}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={TODOS}>Todos los profesionales</SelectItem>
@@ -102,7 +121,7 @@ export function FiltrosPipeline({
           aria-label="Filtrar por obra social"
           className={cn('w-[190px]', filtros.obraSocial && 'border-primary/40 bg-tint')}
         >
-          <SelectValue placeholder="Obra social" />
+          <SelectValue>{etiquetaObraSocial}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={TODOS}>Todas las obras sociales</SelectItem>
