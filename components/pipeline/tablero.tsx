@@ -1,23 +1,20 @@
 'use client'
 
 import {
-  closestCorners,
   DndContext,
   DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
-  pointerWithin,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type Announcements,
-  type CollisionDetection,
   type DragEndEvent,
+  type DragPendingEvent,
   type DragStartEvent,
   type Over,
   type ScreenReaderInstructions,
   type UniqueIdentifier,
 } from '@dnd-kit/core'
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import * as React from 'react'
 import { toast } from 'sonner'
 
@@ -32,13 +29,13 @@ import { Encabezado } from './encabezado'
 import { FiltrosPipeline } from './filtros-pipeline'
 import { FranjaPerdido } from './franja-perdido'
 import { ModalMotivo } from './modal-motivo'
+import { SensorTeclado } from './sensor-teclado'
 import { idTarjeta, TarjetaFantasma } from './tarjeta'
 import {
   agruparPorColumna,
   CLAVES_COLUMNA,
   columnaDeEstado,
   diasTrasMover,
-  esZonaDeDrop,
   estadoDeColumna,
   hayFiltros,
   resumir,
@@ -48,7 +45,7 @@ import {
   type FilaPipeline,
   type OpcionFiltro,
 } from './tipos'
-import { useAltoTablero } from './use-alto-tablero'
+import { deteccionTablero, destapar } from './zonas'
 
 /**
  * Pantalla 12 · el tablero.
@@ -76,9 +73,34 @@ interface Optimista {
 const INSTRUCCIONES: ScreenReaderInstructions = {
   draggable:
     'Presioná la barra espaciadora o enter para levantar la tarjeta. ' +
-    'Movela entre columnas con las flechas y volvé a presionar la barra espaciadora para soltarla. ' +
+    'Con las flechas izquierda y derecha la llevás de una columna a otra, y volvé a presionar la barra espaciadora para soltarla. ' +
     'Con escape cancelás el movimiento y la tarjeta queda donde estaba. ' +
-    'La franja de perdidos está debajo de las columnas: soltar ahí abre el selector de motivo.',
+    'La franja de perdidos está debajo de las columnas: con la flecha abajo llegás a ella, y soltar ahí abre el selector de motivo.',
+}
+
+/**
+ * Cuánto hay que mantener apretada una tarjeta con el dedo para que
+ * levante, y cuánto se puede mover el dedo mientras tanto.
+ *
+ * En una pantalla táctil el mismo gesto —apoyar el dedo sobre una
+ * tarjeta y deslizarlo— quiere decir dos cosas: scrollear el tablero o
+ * mover la tarjeta. Antes ganaba siempre mover: con 6px de recorrido la
+ * tarjeta ya levantaba, y como era `touch-action: none` la página nunca
+ * se enteraba del gesto. En una tablet no había forma de scrollear
+ * apoyando el dedo sobre una tarjeta, que es casi toda la pantalla, y
+ * un deslizamiento en diagonal cambiaba el estado de un presupuesto.
+ *
+ * Ahora deslizar scrollea, y para mover hay que mantener apretado: el
+ * mismo gesto que en cualquier lista del teléfono. Si el dedo se mueve
+ * más de `TOLERANCIA_TACTIL` antes de tiempo, era un scroll.
+ */
+const ESPERA_TACTIL = 250
+const TOLERANCIA_TACTIL = 8
+
+/** Marca la tarjeta que un dedo está apretando (`data-apretada`), o ninguna. */
+function marcarApretada(id: string | null) {
+  document.querySelector('[data-apretada]')?.removeAttribute('data-apretada')
+  if (id) document.getElementById(idTarjeta(id))?.setAttribute('data-apretada', '')
 }
 
 export function TableroPipeline({
@@ -97,9 +119,10 @@ export function TableroPipeline({
   const [optimistas, setOptimistas] = React.useState<Record<string, Optimista>>({})
   const [enVuelo, setEnVuelo] = React.useState<Record<string, boolean>>({})
   const [activa, setActiva] = React.useState<FilaPipeline | null>(null)
+  /** Alto de la tarjeta levantada: el hueco del destino mide lo mismo. */
+  const [altoActiva, setAltoActiva] = React.useState<number | null>(null)
   const [pendientePerdido, setPendientePerdido] = React.useState<FilaPipeline | null>(null)
   const [guardandoPerdido, setGuardandoPerdido] = React.useState(false)
-  const [refZona, altoZona] = useAltoTablero()
 
   /**
    * Cuando llega el servidor, los overrides ya vencidos se tiran.
@@ -283,48 +306,31 @@ export function TableroPipeline({
   const sensores = useSensors(
     // 6px de umbral: sin esto, un clic en el nombre del paciente se
     // interpretaría como el arranque de un arrastre.
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    // Con el dedo, mantener apretado: deslizar es scrollear.
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: ESPERA_TACTIL, tolerance: TOLERANCIA_TACTIL },
+    }),
+    useSensor(SensorTeclado),
   )
 
-  /**
+  /*
+   * Destino de la tarjeta: `deteccionTablero` (zonas.ts).
+   *
    * Sólo las zonas gruesas —las cinco columnas y la franja— son
-   * destino.
+   * destino, nunca una tarjeta: con `pointerWithin` sobre todos los
+   * droppables, `over` era la tarjeta de abajo del puntero y ninguna
+   * columna se prendía. Y con puntero manda el puntero y nada más:
+   * `closestCorners` como reserva inventaba el destino más cercano
+   * aunque se soltara a 150px del tablero, y eso escribía un cambio de
+   * estado real en el historial append-only. Soltar donde no hay zona
+   * es cancelar.
    *
-   * BUG QUE ARREGLA: las tarjetas también son droppables (el
-   * `KeyboardSensor` las necesita como mapa para moverse con las
-   * flechas), y `pointerWithin` devolvía primero la tarjeta que estaba
-   * debajo del puntero. Como `over` era esa tarjeta y no su columna,
-   * `isOver` daba falso en todas las columnas: arrastrar sobre una
-   * columna con tarjetas —o sea, casi siempre— no prendía nada y el
-   * tablero no decía dónde iba a caer. Filtrando acá, `over` es siempre
-   * una zona y el resaltado sale solo.
-   *
-   * SEGUNDO BUG QUE ARREGLA: el `closestCorners` de reserva se usaba
-   * también con mouse, y esa función SIEMPRE devuelve algo — inventa el
-   * destino más cercano aunque el puntero esté a 150px del borde del
-   * tablero, sobre el fondo de la página. Con eso, soltar afuera
-   * escribía un cambio de estado real, con su RPC y su línea en el
-   * historial append-only, sin confirmar nada. Medido: soltar en
-   * (1430, 500) —152px a la derecha del tablero, sobre el `bg-page`—
-   * pasaba el presupuesto a «Aceptado».
-   *
-   * Y de paso, la rama defensiva de `alSoltar` y el anuncio «lo soltaste
-   * fuera del tablero: quedó donde estaba» eran inalcanzables: código
-   * que existía para un caso que nunca llegaba.
-   *
-   * Con puntero, entonces, manda el puntero y nada más: soltar donde no
-   * hay zona es cancelar, que es lo que cualquiera espera de un
-   * arrastre. `closestCorners` queda para el teclado, que no tiene
-   * puntero y necesita que siempre haya un destino para moverse con las
-   * flechas.
+   * Lo nuevo es que las zonas se miden en el momento y sólo en la parte
+   * que se ve: el tablero scrollea con la página, los encabezados y la
+   * franja quedan pegados, y lo que dnd-kit midió al levantar dejaba de
+   * coincidir con la pantalla.
    */
-  const deteccion = React.useCallback<CollisionDetection>((args) => {
-    const zonas = args.droppableContainers.filter((c) => esZonaDeDrop(String(c.id)))
-    const argsZonas = { ...args, droppableContainers: zonas }
-    if (args.pointerCoordinates) return pointerWithin(argsZonas)
-    return closestCorners(argsZonas)
-  }, [])
 
   const anuncios = React.useMemo<Announcements>(() => {
     const nombre = (id: UniqueIdentifier) =>
@@ -358,8 +364,34 @@ export function TableroPipeline({
     }
   }, [])
 
+  /**
+   * Mientras un dedo mantiene apretada una tarjeta, la tarjeta lo
+   * muestra con un anillo. Sin eso, la espera de `ESPERA_TACTIL` se
+   * siente como que no pasa nada y la gente suelta antes de tiempo. Sólo
+   * con el dedo: con el mouse el arrastre arranca por distancia, no por
+   * tiempo.
+   *
+   * Es un atributo en el DOM y no estado de React a propósito: cada
+   * scroll que empieza con el dedo sobre una tarjeta pasa por acá —y
+   * otra vez al soltarse—, y con estado eso eran dos renders del
+   * tablero entero, hasta 500 tarjetas, al principio de cada scroll.
+   */
+  function alApretar(evento: DragPendingEvent) {
+    if ('delay' in evento.constraint) marcarApretada(String(evento.id))
+  }
+
   function alLevantar(evento: DragStartEvent) {
+    marcarApretada(null)
     setActiva(porId.get(String(evento.active.id)) ?? null)
+    // Del DOM y no de `active.rect`: dnd-kit lo completa recién después
+    // de este callback, y acá todavía tiene el de la tarjeta anterior.
+    const tarjeta = document.getElementById(idTarjeta(String(evento.active.id)))
+    setAltoActiva(tarjeta ? tarjeta.getBoundingClientRect().height : null)
+    // Con el dedo, la tarjeta levantada queda debajo de la yema: el
+    // toque de vibración (Android) es lo que confirma que agarró.
+    if (typeof TouchEvent !== 'undefined' && evento.activatorEvent instanceof TouchEvent) {
+      navigator.vibrate?.(10)
+    }
   }
 
   /**
@@ -455,6 +487,17 @@ export function TableroPipeline({
 
   const franjaHabilitada = activa === null || puedeMarcarsePerdido(activa.estado)
 
+  /**
+   * El foco del teclado no queda debajo de lo que está pegado: ver
+   * `destapar`. Sólo con foco de teclado (`:focus-visible`): un clic
+   * sobre una tarjeta a medio tapar no tiene que mover la página.
+   */
+  function alEnfocar(evento: React.FocusEvent<HTMLElement>) {
+    const destino = evento.target
+    const tarjeta = destino.closest('article')
+    if (tarjeta && destino.matches(':focus-visible')) destapar(tarjeta)
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <Encabezado
@@ -465,26 +508,23 @@ export function TableroPipeline({
       />
 
       {/*
-        El tablero aparece en `lg`, no en `md`.
+        El tablero aparece en `md`, que es una tablet vertical.
 
-        En `md` la caja mide 768 y las cinco columnas necesitan 940: el
-        envoltorio tenía `overflow-x-auto`, así que en un iPad vertical
-        el tablero se arrastraba de costado — y arrastrar de costado un
-        tablero donde además hay que arrastrar tarjetas es pedirle al
-        mouse dos gestos que se pisan. Debajo de `lg`, el mismo camino
-        que en el teléfono: el listado de Home filtrado por los estados
-        que están en juego.
-
-        A 1024 justo entra: 960 de caja contra 940 de piso, o sea
-        columnas de 182px. Por eso el piso bajó de 980 a 940 en vez de
-        correr el corte a `xl` y dejar sin tablero a media pantalla de
-        laptop.
+        Antes aparecía en `lg`: en `md` las cinco columnas pedían 940px
+        de piso y la caja mide 768, y el envoltorio scrolleaba de
+        costado. La salida fue esconderlo, y un iPad vertical —la tablet
+        de la recepción— se quedaba con un aviso de «se usa en
+        escritorio» en lugar del tablero. Ahora no hay piso: las
+        columnas se reparten el ancho, la tarjeta está hecha para entrar
+        en 130px y lo largo se parte en dos líneas o se corta con puntos
+        suspensivos. Debajo de `md`, un teléfono, el pipeline sigue
+        siendo el listado de Home filtrado.
       */}
-      <div className="lg:hidden">
+      <div className="md:hidden">
         <AvisoMobile filtros={filtros} />
       </div>
 
-      <div className="hidden flex-col gap-4 lg:flex">
+      <div className="hidden flex-col gap-4 md:flex">
         <FiltrosPipeline
           filtros={filtros}
           profesionales={profesionales}
@@ -499,73 +539,75 @@ export function TableroPipeline({
              re-renderizaba el tablero entero al hidratar. */
           id="pipeline"
           sensors={sensores}
-          collisionDetection={deteccion}
+          collisionDetection={deteccionTablero}
+          /* Sin autoscroll: todos los destinos están siempre a la vista
+             —cada columna ocupa el alto entero del tablero y la franja
+             está pegada al pie—, así que no hay adónde llevar la
+             página. Con autoscroll, acercarse a la franja o a un
+             encabezado para soltar correría el tablero por debajo. */
+          autoScroll={false}
           accessibility={{ announcements: anuncios, screenReaderInstructions: INSTRUCCIONES }}
+          onDragPending={alApretar}
+          onDragAbort={() => marcarApretada(null)}
           onDragStart={alLevantar}
           onDragEnd={alSoltar}
           onDragCancel={() => setActiva(null)}
         >
-          {/* El tablero entra en el viewport: las columnas scrollean por
-              adentro y la franja queda siempre al pie, sin que la página
-              crezca con la columna más larga. El alto se mide, no se
-              adivina (`useAltoTablero`). */}
-          <div
-            ref={refZona}
-            /* Alto definido y no `max-height`: las columnas resuelven su
-               `h-full` contra este número, así las cinco miden lo mismo
-               y la franja queda clavada al pie. El `calc` es sólo el
-               primer cuadro, hasta que `useAltoTablero` mide de verdad. */
-            style={{ height: altoZona ?? 'calc(100dvh - 330px)' }}
-            className="flex min-h-[320px] flex-col gap-3"
-          >
-            {/* Sangra hasta los bordes del `<main>` para que las
-                tarjetas de las columnas de los extremos respiren. Sin
-                `overflow-x`: el tablero sólo se dibuja donde las cinco
-                columnas entran, así que no hay nada que arrastrar. */}
-            <div className="-mx-8 min-h-0 flex-1 px-8 pb-1">
-              {/*
-                `grid-rows-1` es `grid-template-rows: minmax(0, 1fr)`, y
-                sin él nada de esto funciona: el `h-full` del grid le
-                daba 574px al contenedor, pero la fila implícita se
-                dimensiona POR CONTENIDO, así que medía 2138px y el
-                `h-full` de cada columna se resolvía contra ESO. Las
-                columnas quedaban de 2138px, su `ul` con
-                `overflow-y-auto` nunca llegaba a scrollear, y quien
-                scrolleaba era el envoltorio entero: girar la rueda se
-                llevaba puestos los cinco encabezados con el nombre de
-                la etapa, el conteo y el monto.
+          {/*
+            UN SOLO SCROLL: el de la página.
 
-                Y de yapa: con las columnas de 2138px, sus rects de
-                colisión cubrían casi toda la página, así que dnd-kit
-                encontraba una columna «debajo del puntero» en cualquier
-                lado —soltar sobre la barra de filtros cambiaba el
-                estado— y con teclado la franja de perdidos ganaba
-                siempre el `closestCorners`.
-              */}
-              <div className="grid h-full min-w-[940px] grid-cols-5 grid-rows-1 gap-3">
-                {CLAVES_COLUMNA.map((clave) => (
-                  <Columna
-                    key={clave}
-                    clave={clave}
-                    filas={columnas[clave]}
-                    enVuelo={enVuelo}
-                    activa={activa}
-                  />
-                ))}
-              </div>
+            Antes el tablero medía lo que quedaba de la ventana
+            (`useAltoTablero`) y cada columna scrolleaba por adentro.
+            Eran cinco scrolls más el de la página, que igual se movía
+            44px: la rueda hacía cosas distintas según dónde estuviera
+            el mouse, y en una tablet horizontal cada columna mostraba
+            DOS tarjetas enteras de 22. Ahora las columnas crecen con su
+            contenido y scrollea la página, con la rueda en cualquier
+            lado o con el dedo en cualquier lado. Lo que el scroll por
+            columna cuidaba se sigue cuidando: el encabezado de cada
+            columna —etapa, conteo y monto— queda pegado debajo de la
+            topbar, y la franja de perdidos, pegada al pie.
+
+            Las cinco columnas miden lo mismo (el grid las estira a la
+            más alta): así el encabezado de cada una se queda pegado
+            hasta el final del tablero, y cualquier columna es destino
+            en cualquier punto del scroll.
+
+            En `md` el tablero se come la mitad de la sangría del
+            `<main>`: son 32px más para repartir entre cinco columnas
+            de ~135, donde cada píxel es una letra más del nombre.
+          */}
+          <div className="flex flex-col md:-mx-4 lg:mx-0">
+            <div className="grid grid-cols-5 gap-2 lg:gap-3" onFocus={alEnfocar}>
+              {CLAVES_COLUMNA.map((clave) => (
+                <Columna
+                  key={clave}
+                  clave={clave}
+                  filas={columnas[clave]}
+                  enVuelo={enVuelo}
+                  activa={activa}
+                  altoActiva={altoActiva}
+                />
+              ))}
             </div>
 
-            <FranjaPerdido
-              resumen={perdidos}
-              periodo={periodoPerdidos}
-              arrastrando={activa !== null}
-              habilitada={franjaHabilitada}
-            />
+            {/* Pegada al pie: es resumen y es destino, y las dos cosas
+                tienen que estar a mano sin scrollear hasta el final del
+                tablero. El degradé de arriba deja ver que las tarjetas
+                siguen por debajo. */}
+            <div className="sticky bottom-0 z-20 bg-linear-to-b from-page/0 to-page to-[14px] pb-3 pt-3">
+              <FranjaPerdido
+                resumen={perdidos}
+                periodo={periodoPerdidos}
+                arrastrando={activa !== null}
+                habilitada={franjaHabilitada}
+              />
+            </div>
           </div>
 
           {/* Sin animación de vuelta: la tarjeta ya está en su columna
               nueva, animarla hacia la vieja contaría otra historia. */}
-          <DragOverlay dropAnimation={null}>
+          <DragOverlay dropAnimation={null} className="@container">
             {activa ? <TarjetaFantasma fila={activa} /> : null}
           </DragOverlay>
         </DndContext>

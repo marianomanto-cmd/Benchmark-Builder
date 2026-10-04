@@ -17,8 +17,11 @@ import { Logo } from './logo'
 import { MenuUsuario } from './menu-usuario'
 import { DESTINOS_DESKTOP, esRutaActiva } from './navegacion'
 
-/** `h-16`. Lo necesita el `scroll-padding` de abajo. */
-const ALTO_TOPBAR = 64
+/**
+ * `h-16`. Lo necesitan el `scroll-padding` de abajo y los encabezados de
+ * las columnas del tablero, que se quedan pegados justo debajo.
+ */
+export const ALTO_TOPBAR = 64
 
 /**
  * Topbar de desktop (>= 768px). En mobile no existe: ahí manda la tabbar

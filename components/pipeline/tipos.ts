@@ -67,27 +67,18 @@ export function idColumna(clave: ClaveColumna): string {
 export const ID_FRANJA_PERDIDO = 'franja:perdido'
 
 /**
- * Las zonas donde algo puede caer: las cinco columnas y la franja.
- *
- * Las tarjetas también son droppables —el `KeyboardSensor` las necesita
- * como mapa para moverse con las flechas—, pero NO son destino: la
- * detección de colisiones se limita a esta lista. Ver `deteccion` en
- * `tablero.tsx`.
+ * Lo que cada zona cuelga en `data` para resolver el destino. Las zonas
+ * son seis —las cinco columnas y la franja— y son los únicos
+ * droppables del tablero: una tarjeta nunca es destino, el lugar dentro
+ * de la columna lo decide el orden por días de espera. Ver `zonas.ts`.
  */
-const IDS_ZONA: ReadonlySet<string> = new Set<string>([
-  ...CLAVES_COLUMNA.map(idColumna),
-  ID_FRANJA_PERDIDO,
-])
+export type DatosDrop = { tipo: 'columna'; columna: ClaveColumna } | { tipo: 'perdido' }
 
-export function esZonaDeDrop(id: string): boolean {
-  return IDS_ZONA.has(id)
+/** Lo que cuelga cada tarjeta: de qué columna sale. Lo lee `SensorTeclado`. */
+export interface DatosTarjeta {
+  tipo: 'tarjeta'
+  columna: ClaveColumna
 }
-
-/** Lo que cada droppable cuelga en `data` para resolver el destino. */
-export type DatosDrop =
-  | { tipo: 'columna'; columna: ClaveColumna }
-  | { tipo: 'tarjeta'; columna: ClaveColumna }
-  | { tipo: 'perdido' }
 
 /* ═══════════════════════════════════════════════════════════
    Fila del tablero

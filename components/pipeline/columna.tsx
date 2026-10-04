@@ -1,9 +1,9 @@
 'use client'
 
 import { useDroppable } from '@dnd-kit/core'
-import { SortableContext, type SortingStrategy } from '@dnd-kit/sortable'
 import * as React from 'react'
 
+import { ALTO_TOPBAR } from '@/components/shell/topbar'
 import { Monto } from '@/components/ui'
 import { ETIQUETA_COLUMNA } from '@/lib/estados'
 import { cn } from '@/lib/utils'
@@ -19,41 +19,24 @@ import {
   type ClaveColumna,
   type FilaPipeline,
 } from './tipos'
+import { ATRIBUTO_CABECERA, ATRIBUTO_ZONA } from './zonas'
 
 /**
- * El orden dentro de la columna es por días en el estado y no se
- * persiste a mano: la estrategia devuelve `null` para que las tarjetas
- * no se corran mientras se arrastra. Igual usamos `SortableContext`
- * porque es lo que le da al `KeyboardSensor` un mapa de destinos para
- * moverse con las flechas.
+ * Fondo de la columna. Va inline y no en `globals.css` porque es propio
+ * de esta pantalla. Lo usa también el encabezado pegado, que tiene que
+ * ser opaco: las tarjetas pasan por debajo.
  */
-const SIN_REORDEN: SortingStrategy = () => null
+const FONDO_COLUMNA = '#F8FBFC'
 
 /**
- * Sombras de scroll vertical, sin JavaScript: los dos degradados van
- * `local` —viajan con el contenido y tapan la sombra cuando se llegó al
- * extremo— y los dos radiales van `scroll`, clavados al borde de la
- * caja. Resultado: la sombra aparece sólo del lado donde todavía hay
- * tarjetas.
- *
- * (La hoja global tenía la versión horizontal de este mismo truco para
- * las tablas que scrolleaban de costado. Ya no hay ninguna.)
- *
- * Va inline y no en `globals.css` porque el color tiene que ser el del
- * fondo de la columna, que es propio de esta pantalla.
+ * El tinte de «va a caer acá», como capa sobre el fondo y no en lugar de
+ * él: el encabezado pegado tiene que seguir siendo opaco. Un poco más
+ * fuerte en el encabezado, que es lo que se ve cuando la columna sigue
+ * de largo por arriba o por abajo de la pantalla.
  */
-const FONDO = '#F8FBFC'
-const SOMBRAS_VERTICALES: React.CSSProperties = {
-  backgroundImage: [
-    `linear-gradient(to bottom, ${FONDO} 30%, rgba(248, 251, 252, 0))`,
-    `linear-gradient(to top, ${FONDO} 30%, rgba(248, 251, 252, 0))`,
-    'radial-gradient(farthest-side at 50% 0, rgba(21, 58, 68, 0.13), rgba(21, 58, 68, 0))',
-    'radial-gradient(farthest-side at 50% 100%, rgba(21, 58, 68, 0.13), rgba(21, 58, 68, 0))',
-  ].join(', '),
-  backgroundPosition: 'top center, bottom center, top center, bottom center',
-  backgroundRepeat: 'no-repeat',
-  backgroundSize: '100% 28px, 100% 28px, 100% 11px, 100% 11px',
-  backgroundAttachment: 'local, local, scroll, scroll',
+function tinte(opacidad: number): string {
+  const color = `rgba(47, 166, 180, ${opacidad})`
+  return `linear-gradient(${color}, ${color})`
 }
 
 export function Columna({
@@ -61,6 +44,7 @@ export function Columna({
   filas,
   enVuelo,
   activa,
+  altoActiva,
 }: {
   clave: ClaveColumna
   filas: FilaPipeline[]
@@ -68,14 +52,16 @@ export function Columna({
   enVuelo: Record<string, boolean>
   /** Tarjeta que se está arrastrando ahora mismo, o `null`. */
   activa: FilaPipeline | null
+  /** Alto de esa tarjeta, para que el hueco ocupe lo mismo que ella. */
+  altoActiva: number | null
 }) {
+  const id = idColumna(clave)
   const { setNodeRef, isOver } = useDroppable({
-    id: idColumna(clave),
+    id,
     data: { tipo: 'columna', columna: clave },
   })
 
   const { cantidad, monto } = resumir(filas)
-  const ids = React.useMemo(() => filas.map((f) => f.id), [filas])
   const etiqueta = ETIQUETA_COLUMNA[clave]
 
   /**
@@ -98,12 +84,13 @@ export function Columna({
     })
   }, [isOver, activa, filas, clave])
 
-  // Alto parecido al de una tarjeta, para que la columna no pegue un
+  // El alto de la tarjeta que viaja, para que la columna no pegue un
   // salto cuando la de verdad ocupe el lugar.
   const hueco = (
     <li
       aria-hidden
-      className="flex h-[84px] shrink-0 items-center justify-center rounded-input border-2 border-dashed border-primary/45 bg-primary/8 px-3"
+      style={{ height: altoActiva ?? 96 }}
+      className="flex shrink-0 items-center justify-center rounded-input border-2 border-dashed border-primary/45 bg-primary/8 px-2"
     >
       <span className="truncate font-sans text-[12px] font-semibold text-primary-hover">
         {activa?.paciente_nombre ?? 'Acá'}
@@ -114,69 +101,105 @@ export function Columna({
   return (
     <section
       ref={setNodeRef}
+      {...{ [ATRIBUTO_ZONA]: id }}
       aria-label={`${etiqueta}: ${cantidad} ${plural(cantidad, 'presupuesto', 'presupuestos')}`}
       className={cn(
-        'relative flex h-full min-w-0 flex-col rounded-card border transition-colors duration-150',
-        destino !== null
-          ? 'border-primary/45 ring-2 ring-primary/25'
-          : 'border-hairline',
-      )}
-      style={{ backgroundColor: FONDO }}
-    >
-      {/* El tinte va en una capa aparte y no en el fondo de la columna:
-          las sombras de scroll se dibujan con el color de abajo y con la
-          columna teñida quedarían de otro color que el contenido. */}
-      {destino !== null && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-card bg-primary/6"
-        />
-      )}
+        /*
+          `@container`: la columna mide de 135 a 215px según el ancho de
+          la pantalla, y lo que se acomoda —el encabezado, la tarjeta—
+          se acomoda a la columna y no al viewport.
 
+          `overflow-clip` y no `overflow-hidden`: las dos redondean el
+          contenido contra el borde, pero `hidden` convierte a la
+          columna en un contenedor de scroll y el encabezado dejaría de
+          pegarse debajo de la topbar.
+        */
+        '@container flex min-w-0 flex-col overflow-clip rounded-card border transition-colors duration-150',
+        destino !== null ? 'border-primary/45 ring-2 ring-primary/25' : 'border-hairline',
+      )}
+      style={{
+        backgroundColor: FONDO_COLUMNA,
+        backgroundImage: destino !== null ? tinte(0.06) : undefined,
+      }}
+    >
+      {/*
+        Pegado debajo de la topbar mientras la columna esté a la vista:
+        es lo que dice qué etapa es, cuántos hay y cuánto suman cuando
+        se scrollea por la mitad del tablero. Opaco, porque las tarjetas
+        pasan por debajo, y con un desvanecido al pie —el mismo fondo,
+        tinte incluido, que se apaga— para que no se corten de golpe.
+      */}
       <header
-        className={cn(
-          'relative shrink-0 rounded-t-card px-3 pb-2 pt-3 transition-colors duration-150',
-          destino !== null && 'bg-primary/8',
-        )}
+        {...{ [ATRIBUTO_CABECERA]: '' }}
+        className="sticky z-10 shrink-0 px-2.5 pb-2 pt-2.5 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-2 after:[background:inherit] after:[mask-image:linear-gradient(black,transparent)] @min-[11rem]:px-3 @min-[11rem]:pt-3"
+        style={{
+          top: ALTO_TOPBAR,
+          backgroundColor: FONDO_COLUMNA,
+          backgroundImage: destino !== null ? tinte(0.08) : undefined,
+        }}
       >
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 className="truncate font-display text-[14px] font-semibold leading-tight text-ink">
+        {/*
+          La etiqueta puede partirse en dos líneas: «Aceptado / Iniciado»
+          no entra en una columna de tablet, y cortarla en «Aceptado /
+          Ini…» escondía justo la mitad que explica por qué hay
+          tratamientos iniciados ahí. Para que las cinco columnas
+          empiecen a la misma altura, cuando la columna es angosta TODAS
+          reservan las dos líneas.
+
+          El conteo va al lado de la etiqueta en una columna angosta y al
+          lado del monto en una ancha: así el monto siempre tiene la fila
+          entera cuando la necesita. Al lado del conteo, un total de
+          nueve cifras («$ 135.802.458») no entra en 120px, bajaba de
+          línea y ese encabezado quedaba más alto que los otros cuatro.
+        */}
+        <div className="flex items-start justify-between gap-1.5">
+          <h2 className="min-w-0 font-display text-[14px] font-semibold leading-tight text-ink [overflow-wrap:anywhere] @max-[11rem]:min-h-[2lh]">
             {etiqueta}
           </h2>
-          <span className="shrink-0 rounded-pill bg-card px-2 py-0.5 font-sans text-[11.5px] font-semibold tabular-nums text-muted ring-1 ring-hairline">
-            {cantidad}
-          </span>
+          <Conteo cantidad={cantidad} className="@min-[11rem]:hidden" />
         </div>
-        <Monto valor={monto} jerarquia="normal" className="text-[12.5px]" />
+        <div className="mt-1 flex items-center justify-between gap-1.5">
+          <Monto valor={monto} jerarquia="normal" className="text-[12.5px]" />
+          <Conteo cantidad={cantidad} className="hidden @min-[11rem]:inline-block" />
+        </div>
       </header>
 
-      <ul
-        style={SOMBRAS_VERTICALES}
-        className="relative flex min-h-0 flex-1 list-none flex-col gap-2 overflow-y-auto rounded-b-card px-2 pb-2.5 pt-0.5"
-      >
-        <SortableContext items={ids} strategy={SIN_REORDEN}>
-          {filas.map((fila, i) => (
-            <React.Fragment key={fila.id}>
-              {destino === i && hueco}
-              <li className="shrink-0">
-                <Tarjeta
-                  fila={fila}
-                  columna={clave}
-                  enVuelo={Boolean(enVuelo[fila.id])}
-                />
-              </li>
-            </React.Fragment>
-          ))}
-        </SortableContext>
+      <ul className="flex flex-1 list-none flex-col gap-2 px-1.5 pb-2 pt-1 @min-[11rem]:px-2 @min-[11rem]:pb-2.5">
+        {filas.map((fila, i) => (
+          <React.Fragment key={fila.id}>
+            {destino === i && hueco}
+            <li className="@container shrink-0">
+              <Tarjeta
+                fila={fila}
+                columna={clave}
+                enVuelo={Boolean(enVuelo[fila.id])}
+              />
+            </li>
+          </React.Fragment>
+        ))}
 
         {destino !== null && destino >= filas.length && hueco}
 
         {filas.length === 0 && destino === null && (
-          <li className="flex flex-1 items-center justify-center rounded-input border border-dashed border-hairline px-2 py-6 text-center font-sans text-[12px] text-faint">
+          <li className="flex items-center justify-center rounded-input border border-dashed border-hairline px-2 py-6 text-center font-sans text-[12px] text-faint">
             {activa ? 'Soltá acá' : 'Nada en esta etapa'}
           </li>
         )}
       </ul>
     </section>
+  )
+}
+
+/** El conteo de la columna, en su pastilla. */
+function Conteo({ cantidad, className }: { cantidad: number; className?: string }) {
+  return (
+    <span
+      className={cn(
+        'shrink-0 rounded-pill bg-card px-2 py-0.5 font-sans text-[11.5px] font-semibold leading-none tabular-nums text-muted ring-1 ring-hairline',
+        className,
+      )}
+    >
+      {cantidad}
+    </span>
   )
 }

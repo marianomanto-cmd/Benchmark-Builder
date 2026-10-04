@@ -10,33 +10,31 @@ import { Skeleton } from '@/components/ui'
  *
  * Éste calca lo que viene: encabezado con el total a la derecha, fila de
  * filtros, cinco columnas con su cabecera (etiqueta, conteo y monto) y
- * la franja de perdidos al pie.
+ * la franja de perdidos al pie. Desde `md`, igual que el tablero, y sin
+ * piso de ancho: las columnas se reparten lo que hay.
  */
 
 /** Cuántas tarjetas dibuja cada columna. Distinto por columna, como en
  *  la realidad: cinco pilas iguales se leen como una plantilla. */
 const TARJETAS = [4, 3, 5, 2, 3]
 
-const ANCHOS_ETIQUETA = ['w-20', 'w-16', 'w-20', 'w-[76px]', 'w-[104px]']
+const ANCHOS_ETIQUETA = ['w-[70%]', 'w-[60%]', 'w-[72%]', 'w-[76%]', 'w-[86%]']
 
 function TarjetaFantasma() {
   return (
-    <div className="flex flex-col gap-2 rounded-input border border-hairline bg-card p-3 shadow-rest">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1 space-y-1.5">
-          {/* 14px del nombre del paciente + la prestación en helper. */}
-          <Skeleton className="h-[15px] w-28 max-w-full" />
-          <Skeleton className="h-3 w-20 max-w-full" />
-        </div>
-        <div className="w-[72px] shrink-0 space-y-1.5">
-          <Skeleton className="ml-auto h-2.5 w-12" />
-          <Skeleton className="ml-auto h-[15px] w-[68px]" />
-        </div>
+    <div className="flex flex-col gap-1.5 rounded-input border border-hairline bg-card p-2.5 shadow-rest lg:gap-2 lg:p-3">
+      {/* Nombre del paciente (14px) y la prestación en helper. */}
+      <div className="space-y-1.5">
+        <Skeleton className="h-[15px] w-[85%]" />
+        <Skeleton className="h-3 w-[60%]" />
       </div>
-      <div className="flex items-center gap-1.5">
-        <Skeleton className="h-[18px] w-[84px] rounded-pill" />
-        <Skeleton className="ml-auto h-3 w-12" />
+      {/* El monto a cargo y los días en el estado. */}
+      <div className="flex items-center justify-between gap-2">
+        <Skeleton className="h-[15px] w-[55%]" />
+        <Skeleton className="h-3 w-[25%]" />
       </div>
+      {/* La obra social. */}
+      <Skeleton className="h-6 w-[60%] rounded-pill" />
     </div>
   )
 }
@@ -61,7 +59,7 @@ export default function Cargando() {
         </div>
       </div>
 
-      {/* Mobile: el aviso de «esto se usa en escritorio». */}
+      {/* Teléfono: el aviso de «se usa en una pantalla más ancha». */}
       <div className="flex flex-col items-center gap-3 rounded-card border border-dashed border-hairline bg-card/60 px-6 py-14 md:hidden">
         <Skeleton className="size-8 rounded-full" />
         <Skeleton className="h-5 w-56 max-w-full" />
@@ -77,23 +75,23 @@ export default function Cargando() {
           <Skeleton className="h-[38px] w-[292px] rounded-input" />
         </div>
 
-        {/* Las cinco columnas. */}
-        <div className="-mx-8 overflow-x-hidden px-8">
-          <div className="grid min-w-[980px] grid-cols-5 gap-3">
+        <div className="flex flex-col gap-3 md:-mx-4 lg:mx-0">
+          {/* Las cinco columnas. */}
+          <div className="grid grid-cols-5 gap-2 lg:gap-3">
             {TARJETAS.map((cuantas, i) => (
               <section
                 key={i}
                 className="flex min-w-0 flex-col rounded-card border border-hairline bg-[#F8FBFC]"
               >
-                <header className="shrink-0 px-3 pb-2 pt-3">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <Skeleton className={`h-[15px] ${ANCHOS_ETIQUETA[i]}`} />
-                    <Skeleton className="h-[18px] w-7 rounded-pill" />
+                <header className="shrink-0 px-2.5 pb-2 pt-2.5 lg:px-3 lg:pt-3">
+                  <Skeleton className={`h-[15px] max-w-full ${ANCHOS_ETIQUETA[i]}`} />
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <Skeleton className="h-3 w-[60%]" />
+                    <Skeleton className="h-[18px] w-7 shrink-0 rounded-pill" />
                   </div>
-                  <Skeleton className="mt-1.5 h-3 w-24" />
                 </header>
 
-                <div className="flex flex-col gap-2 px-2 pb-2.5 pt-0.5">
+                <div className="flex flex-col gap-2 px-1.5 pb-2 pt-1 lg:px-2 lg:pb-2.5">
                   {Array.from({ length: cuantas }, (_, j) => (
                     <TarjetaFantasma key={j} />
                   ))}
@@ -101,22 +99,22 @@ export default function Cargando() {
               </section>
             ))}
           </div>
-        </div>
 
-        {/* La franja de perdidos. */}
-        <div className="flex items-center gap-5 rounded-card border border-dashed border-hairline bg-card px-4 py-3">
-          <Skeleton className="size-8 shrink-0 rounded-pill" />
-          <div className="space-y-1.5">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-3 w-32" />
-          </div>
-          <div className="space-y-1.5 border-l border-hairline pl-5">
-            <Skeleton className="h-2.5 w-24" />
-            <Skeleton className="h-4 w-28" />
-          </div>
-          <div className="space-y-1.5 border-l border-hairline pl-5">
-            <Skeleton className="h-2.5 w-28" />
-            <Skeleton className="h-4 w-36" />
+          {/* La franja de perdidos. */}
+          <div className="flex items-center gap-4 rounded-card border border-dashed border-hairline bg-card px-4 py-3 lg:gap-5">
+            <Skeleton className="size-8 shrink-0 rounded-pill" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+            <div className="space-y-1.5 border-l border-hairline pl-4 lg:pl-5">
+              <Skeleton className="h-2.5 w-24" />
+              <Skeleton className="h-4 w-28" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-1.5 border-l border-hairline pl-4 lg:pl-5">
+              <Skeleton className="h-2.5 w-28" />
+              <Skeleton className="h-4 w-36 max-w-full" />
+            </div>
           </div>
         </div>
       </div>

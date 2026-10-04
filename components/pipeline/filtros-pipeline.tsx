@@ -176,9 +176,15 @@ export function FiltrosPipeline({
         </Button>
       )}
 
-      {/* El tablero se maneja sin mouse, pero eso no se descubre solo. */}
-      <p className="ml-auto hidden items-center gap-1.5 whitespace-nowrap font-sans text-[12px] text-faint lg:flex">
+      {/* Cómo se mueve una tarjeta no se descubre solo. Con mouse lo
+          dice el cursor; sin mouse y con el dedo, nada. En una pantalla
+          táctil, además, deslizar sobre una tarjeta scrollea: hay que
+          saber que para moverla se la mantiene apretada. */}
+      <p className="ml-auto hidden items-center gap-1.5 whitespace-nowrap font-sans text-[12px] text-faint lg:pointer-fine:flex">
         Sin mouse: <Kbd>Tab</Kbd> hasta la tarjeta, <Kbd>Espacio</Kbd> y flechas
+      </p>
+      <p className="ml-auto hidden font-sans text-[12px] text-faint pointer-coarse:block">
+        Para mover una tarjeta, mantenela apretada y arrastrala.
       </p>
     </div>
   )

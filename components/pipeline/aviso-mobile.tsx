@@ -9,9 +9,9 @@ import { Button, EmptyState } from '@/components/ui'
 import { urlHomePipeline } from './tipos'
 
 /**
- * En mobile el kanban no existe como experiencia: arrastrar tarjetas
- * entre cinco columnas con el pulgar no es usable, y partirlo en una
- * sola columna con selector sería otra pantalla, no ésta.
+ * En el teléfono el kanban no existe como experiencia: cinco columnas
+ * no entran en 390px, y partirlo en una sola columna con selector sería
+ * otra pantalla, no ésta. Desde una tablet vertical (768) sí entra.
  *
  * La ruta sigue existiendo (un link compartido no tiene que romperse),
  * pero manda a lo que sí es el pipeline en el teléfono: la home
@@ -21,8 +21,8 @@ export function AvisoMobile({ filtros }: { filtros: FiltrosHome }) {
   return (
     <EmptyState
       icono={<LayoutGrid className="size-8" />}
-      titulo="El kanban se usa en escritorio"
-      descripcion="Las cinco columnas necesitan una pantalla ancha, y arrastrar tarjetas necesita mouse. Mientras tanto, el pipeline es el listado de Home filtrado por los estados que están en juego: los mismos presupuestos, en una lista."
+      titulo="El kanban se usa en una pantalla más ancha"
+      descripcion="Las cinco columnas entran desde una tablet. En el teléfono, el pipeline es el listado de Home filtrado por los estados que están en juego: los mismos presupuestos, en una lista."
       acciones={
         <Button asChild variant="primary" size="touch" full>
           <Link href={urlHomePipeline(filtros)}>

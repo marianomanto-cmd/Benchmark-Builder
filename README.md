@@ -102,7 +102,7 @@ app/
   (auth)/login/            Pantalla 01 · usuario + contraseña
   (app)/layout.tsx         Shell: topbar desktop / tabbar+FAB mobile
   (app)/page.tsx           Pantallas 02-03 · Home (con datos / vacía)
-  (app)/pipeline/          Pantalla 12 · Kanban (desktop)
+  (app)/pipeline/          Pantalla 12 · Kanban (tablet y desktop)
   (app)/presupuestos/[id]/ Pantalla 11 · Detalle
   (app)/biblioteca/        Pantalla 09 · tabs de entidades
   (app)/biblioteca/aranceles/  Pantalla 10 · grilla + drawer de vigencias

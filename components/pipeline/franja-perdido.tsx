@@ -8,6 +8,7 @@ import { ETIQUETA_MOTIVO } from '@/lib/estados'
 import { cn } from '@/lib/utils'
 
 import { ID_FRANJA_PERDIDO, plural, type ResumenPerdidos } from './tipos'
+import { ATRIBUTO_ZONA } from './zonas'
 
 /**
  * Perdido NO es una columna, es esta franja al pie.
@@ -20,7 +21,9 @@ import { ID_FRANJA_PERDIDO, plural, type ResumenPerdidos } from './tipos'
  * una pila de tarjetas.
  *
  * Sigue siendo zona de drop: arrastrar una tarjeta hasta acá abre el
- * selector de motivo.
+ * selector de motivo. Y va pegada al pie de la pantalla (el `sticky`
+ * lo pone el tablero): como destino tiene que estar a mano desde
+ * cualquier punto del scroll, sin bajar hasta el final del tablero.
  */
 export function FranjaPerdido({
   resumen,
@@ -46,10 +49,11 @@ export function FranjaPerdido({
   return (
     <section
       ref={setNodeRef}
+      {...{ [ATRIBUTO_ZONA]: ID_FRANJA_PERDIDO }}
       aria-label="Perdidos"
       className={cn(
         'flex shrink-0 flex-col gap-2 rounded-card border px-4 py-3 transition-colors duration-150',
-        'sm:flex-row sm:items-center sm:gap-5',
+        'sm:flex-row sm:items-center sm:gap-4 lg:gap-5',
         activa
           ? 'border-warm-line border-dashed bg-warm ring-2 ring-warm-line/40'
           : arrastrando && habilitada
@@ -61,7 +65,10 @@ export function FranjaPerdido({
               'border-dashed border-hairline bg-card',
       )}
     >
-      <div className="flex items-center gap-2.5">
+      {/* En una tablet vertical los cuatro bloques compiten por 700px:
+          los números no ceden —un «12 / perdidos» partido en dos no se
+          lee—, el motivo se recorta y la pista se angosta. */}
+      <div className="flex shrink-0 items-center gap-2.5">
         <span
           aria-hidden
           className={cn(
@@ -72,21 +79,21 @@ export function FranjaPerdido({
           <CircleSlash className="size-4" />
         </span>
         <div>
-          <p className="font-sans text-[13.5px] font-semibold text-warm-ink">
+          <p className="whitespace-nowrap font-sans text-[13.5px] font-semibold text-warm-ink">
             {resumen.cantidad} {plural(resumen.cantidad, 'perdido', 'perdidos')}
           </p>
-          <p className="t-helper">{periodo}</p>
+          <p className="t-helper whitespace-nowrap">{periodo}</p>
         </div>
       </div>
 
-      <div className="sm:border-l sm:border-hairline sm:pl-5">
-        <span className="t-label block text-[9.5px] tracking-[0.12em] text-muted">
+      <div className="shrink-0 sm:border-l sm:border-hairline sm:pl-4 lg:pl-5">
+        <span className="t-label block whitespace-nowrap text-[9.5px] tracking-[0.12em] text-muted">
           No se concretó
         </span>
         <Monto valor={resumen.monto} jerarquia="normal" className="text-[14px]" />
       </div>
 
-      <div className="min-w-0 sm:border-l sm:border-hairline sm:pl-5">
+      <div className="min-w-0 sm:flex-1 sm:border-l sm:border-hairline sm:pl-4 lg:pl-5">
         <span className="t-label block text-[9.5px] tracking-[0.12em] text-muted">
           Motivo dominante
         </span>
@@ -108,7 +115,7 @@ export function FranjaPerdido({
 
       <p
         className={cn(
-          'flex items-center gap-1.5 font-sans text-[12px] leading-snug sm:ml-auto sm:max-w-[230px] sm:justify-end sm:text-right',
+          'flex items-center gap-1.5 font-sans text-[12px] leading-snug sm:ml-auto sm:max-w-[9.5rem] sm:shrink-0 sm:justify-end sm:text-right lg:max-w-[230px]',
           activa
             ? 'font-semibold text-warm-ink'
             : arrastrando && !habilitada

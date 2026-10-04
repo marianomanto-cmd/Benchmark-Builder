@@ -1,6 +1,6 @@
 # Estado del proyecto — Smile Lab · Presupuestos
 
-> **Última actualización:** 2026-09-12
+> **Última actualización:** 2026-10-04
 > Este documento es la fuente de verdad del estado del proyecto. Si cambia el
 > esquema, el pipeline, una pantalla o una variable de entorno, se actualiza
 > acá **en el mismo commit**.
@@ -76,7 +76,7 @@ Consecuencias que el código respeta hoy:
 | Combobox | cmdk |
 | Formularios | react-hook-form + zod |
 | Datos | @supabase/ssr + TanStack Query |
-| Kanban | dnd-kit |
+| Kanban | dnd-kit (`@dnd-kit/core`: sensores de mouse y touch, y uno propio de teclado) |
 | PDF | @react-pdf/renderer |
 | Fechas | date-fns (locale `es`) |
 | Toasts | sonner |
@@ -226,7 +226,7 @@ borrador → realizado → enviado → pendiente → interesado → aceptado →
 | 09 | `/biblioteca` | Tabs de entidades |
 | 10 | `/biblioteca/aranceles` | Lista por prestación (particular + obras sociales con precio), drawer de vigencias, aumento masivo |
 | 11 | `/presupuestos/[id]` | Detalle, banner de precio, timeline |
-| 12 | `/pipeline` | Kanban desktop, franja de perdidos al pie |
+| 12 | `/pipeline` | Kanban desde tablet (≥ 768px): un solo scroll, encabezados de columna y franja de perdidos pegados |
 | 13 | `/api/presupuestos/[id]/pdf` | A4, cacheado en Storage mientras el presupuesto esté emitido |
 | 14 | — | Sheet de WhatsApp (`?whatsapp=1` en el detalle) |
 | 15 | `/estadisticas` | Embudo, series mensuales, tiempos por etapa, motivos de pérdida, antigüedad de lo abierto y tablas por obra social, tratamiento y profesional |
@@ -238,16 +238,29 @@ Notas de diseño cerradas:
 - El wizard es un **modal sobre la ruta actual** (`?nuevo=1`), no una ruta
   propia: al cerrar, el listado de atrás no se recarga.
 - El pipeline **no es un cuarto destino de navegación**: filtro de estado en
-  mobile, vista alternativa en desktop.
+  el teléfono, vista alternativa desde tablet.
 - **Perdido va al pie del kanban**, no como columna.
 - En el kanban, cada arrastre confirma con un toast que ofrece **Deshacer**: el
   gesto es barato y el historial es append-only, así que deshacer escribe el
   paso inverso —queda en el timeline— en vez de borrar nada.
 - Una tarjeta `iniciado` **no levanta**: el «no» llega antes del gesto y no
   después de soltar. El estado se corrige desde el detalle.
-- El tablero entra en el viewport: las columnas scrollean por adentro (para que
-  su encabezado con conteo y monto quede siempre a la vista) y la franja queda
-  al pie. El alto se mide, no se estima.
+- **El tablero scrollea con la página, y nada más.** Las columnas crecen con
+  su contenido —las cinco miden lo de la más alta— y el encabezado de cada una
+  (etapa, conteo y monto) queda pegado debajo de la topbar; la franja de
+  perdidos, pegada al pie. Un solo scroll, con la rueda o el dedo en cualquier
+  parte. Antes cada columna scrolleaba por adentro, en un tablero del alto de
+  la ventana: en una tablet horizontal eran dos tarjetas enteras por columna.
+- **Desde una tablet vertical (768px) se ve el tablero entero**, sin scroll de
+  costado: las columnas se reparten el ancho y la tarjeta está armada para
+  ~130px —nombre en dos líneas, obra social recortada adentro de su
+  pastilla—. Debajo de 768, el pipeline es el listado de Home filtrado.
+- **Con el dedo, deslizar scrollea y mantener apretado mueve** (250 ms, con un
+  anillo que avisa que la tarjeta está por levantar). Con mouse se arrastra;
+  con teclado, Espacio y flechas: ← → entre columnas, ↓ a la franja.
+- **Soltar donde no hay zona es cancelar**, y una zona es destino sólo en la
+  parte que se ve: soltar sobre la topbar no cuenta como la columna que pasa
+  por debajo. Las zonas se miden en el momento (`components/pipeline/zonas.ts`).
 - Crear una prestación **exige** cargar su arancel en el mismo flujo.
 - El wizard se maneja con teclado: `/` vuelve al buscador de prestaciones,
   ⌘/Ctrl + ⏎ dispara la acción principal del paso, y en desktop el buscador
@@ -433,7 +446,8 @@ En **Storage**: bucket privado `presupuestos`, signed URL de 7 días.
       override de cobertura y guardado con snapshot (04-08)
 - [x] Biblioteca y grilla de aranceles con "Qué va a pasar" y aumento masivo (09-10)
 - [x] Detalle con banner de precio desactualizado, timeline y nota interna (11)
-- [x] Pipeline kanban con dnd-kit y franja de perdidos (12)
+- [x] Pipeline kanban con dnd-kit y franja de perdidos (12), desde tablet,
+      con mouse, touch y teclado
 - [x] PDF A4 cacheado en Storage (13)
 - [x] Sheet de WhatsApp con plantillas y `navigator.share` (14)
 - [x] Cron `enviado → pendiente`
@@ -635,11 +649,23 @@ antes de aceptarlo. Los que resultaron reales:
 | Aun escalado, «$ 12.345.678» necesita 139px y en dos columnas a 320px la tarjeta deja 106: los KPIs de la home y las tarjetas de Estadísticas desbordaban con un monto de siete u ocho cifras, que este consultorio alcanza. Achicar más la tipografía no arregla nada —a 16px sigue sin entrar, y un monto ilegible no sirve— | Abajo de 360px las tarjetas se apilan en una columna: 288px de ancho, donde entra cualquier cifra que se pueda facturar. Medido inyectando montos de hasta nueve cifras en la home y en Estadísticas, a 320, 360 y 390 |
 | Envolver los nueve chips de estado sacó el arrastre pero los apiló en **cinco filas dentro de una barra sticky**: 280px —más que los cuatro KPIs juntos— comiéndose la pantalla en todo momento, con el primer presupuesto abajo del pliegue y el botón «Filtros» flotando en el medio del bloque | La barra de mobile deja de listar los ocho estados y pasa a listar **lo que está puesto**: un chip por filtro aplicado, que se saca tocándolo. Sin filtros es una sola fila de 44px. Los estados se eligen en el sheet, donde ya vivían los otros cuatro filtros, y a partir de tres chips el resto se pliega en un «+N filtros» para que la barra tenga techo |
 | La barra de mobile sólo mostraba el contador del botón «Filtros», así que un link pegado con `?prof=` o `?os=` decía «1» sin decir de quién ni de cuál | Cada filtro puesto es un chip con su nombre. Contesta las dos preguntas de una: por qué la lista se ve más corta de lo esperado, y cómo volver atrás |
+| **El tablero tenía seis scrolls.** Medía lo que quedaba de la ventana (`useAltoTablero`) y cada columna scrolleaba por adentro; además la página igual se movía 44px. La rueda hacía cosas distintas según dónde estuviera el mouse, y en una tablet horizontal (1024×768) cada columna mostraba DOS tarjetas enteras | Un solo scroll, el de la página. Las columnas crecen con su contenido, el encabezado de cada una queda pegado debajo de la topbar y la franja pegada al pie: lo que el scroll por columna cuidaba se sigue cuidando, sin la caja de alto fijo. Reemplaza al alto medido y al `grid-rows-1` de las filas de arriba |
+| **En una tablet, deslizar el dedo sobre una tarjeta la levantaba.** El `PointerSensor` arrancaba con 6px de recorrido y la tarjeta era `touch-action: none`: no había forma de scrollear apoyando el dedo en casi ningún lado, y un deslizamiento en diagonal cambiaba el estado de un presupuesto. Medido con touch: un swipe hacia arriba sobre «Pendiente» levantaba la tarjeta y la columna no se movía | `MouseSensor` + `TouchSensor`: con el dedo, mantener apretado 250ms (con 8px de tolerancia) mueve y deslizar scrollea. La tarjeta es `touch-manipulation` y sin el menú de iOS, y mientras espera muestra un anillo que llega justo cuando levanta. Es un atributo en el DOM y no estado: si no, cada scroll que empezara sobre una tarjeta re-renderizaba el tablero entero dos veces |
+| **Un iPad vertical no tenía tablero.** Aparecía en `lg`, y debajo un aviso de «se usa en escritorio» — con la topbar y el toggle de Kanban mandando ahí desde 768. La tablet de la recepción daba una vuelta para terminar en la lista | El tablero aparece en `md` y sin piso de ancho: columnas de 140px a 768, con la tarjeta y el encabezado armados para eso por container queries, que miran la columna y no el viewport. El aviso queda para el teléfono, y dice eso |
+| Con columnas angostas, «Aceptado / Iniciado» se cortaba en «Aceptado / Ini…», y con nueve cifras en el total de una columna el conteo bajaba de línea: ese encabezado quedaba más alto que los otros cuatro y las columnas empezaban a distinta altura | La etiqueta se parte en dos líneas y, cuando la columna es angosta, las cinco reservan las dos. El conteo va al lado de la etiqueta en una columna angosta y al lado del monto en una ancha: el monto siempre tiene la fila entera cuando la necesita |
+| La pastilla de la obra social no recortaba: «SWISS MEDICAL SMG20» se partía en dos líneas adentro de una pastilla de 24px de alto, y el nombre largo del gremio en cuatro, desbordándose por arriba encima del nombre del paciente. Y el candado de un tratamiento iniciado quedaba solo en una línea cuando la fila no alcanzaba | El nombre se corta con puntos suspensivos adentro de su pastilla. El candado va pegado al badge «Iniciado»: si no entran, bajan juntos |
+| Con el tablero en el scroll de la página, el `KeyboardSensor` de dnd-kit deja de servir: cuando el destino pasa la mitad de la pantalla, en vez de mover la tarjeta SCROLLEA (`handleKeyDown`), así que ↓ correría la página en lugar de llegar a la franja, que está pegada y no se acerca | `SensorTeclado` (`components/pipeline/sensor-teclado.ts`): ← → de columna en columna, ↓ a la franja y ↑ de vuelta, calculado sobre lo que se ve y sin tocar el scroll. Las tarjetas pasan a `useDraggable`: el `SortableContext` existía sólo para darle un mapa de tarjetas al sensor viejo, y `@dnd-kit/sortable`, `utilities` y `modifiers` salen del `package.json` |
+| Con los encabezados y la franja pegados, la detección de dnd-kit deja de coincidir con la pantalla: mide las zonas al levantar y después las corre con el scroll, pero la franja `sticky` no se mueve; y el hueco punteado agranda la columna destino mientras se arrastra | `deteccionTablero` lee las seis zonas del DOM en cada movimiento y sólo en la parte visible: el encabezado pegado es el borde de arriba de cada columna y la franja, el de abajo. Sin autoscroll: con cada columna del alto entero del tablero y la franja pegada, todos los destinos están siempre a la vista |
+| Con Tab, la tarjeta siguiente podía recibir el foco DEBAJO de la franja pegada: el navegador scrollea hasta lo enfocado sólo si está fuera de la pantalla, y no sabe que el pie lo tapa la franja | `destapar()` corre la página lo justo para que la tarjeta enfocada no quede debajo del encabezado de su columna ni de la franja. Sólo con foco de teclado: un clic no mueve la página. Medido: 140 pasos de Tab y Shift+Tab en cuatro tamaños, cero tarjetas tapadas |
 
 ### Pendiente
 
 - [ ] Tests de componentes y de integración (hoy la suite cubre el núcleo de
       cálculo, formato y estados, no la UI).
+- [ ] Probar el arrastre táctil del kanban en un iPad de verdad, con Safari.
+      El QA se hizo con touch emulado en Chromium; el `TouchSensor` con
+      espera es lo que dnd-kit recomienda para iOS, pero el menú del sistema
+      al mantener apretado y la barra de Safari no se emulan.
 - [ ] Extender `npm run test:paridad` al reparto de cuotas: hoy barre
       `calcularItem` contra `calcular_cobertura()`, pero `repartirCuotas` vs
       `crear_presupuesto()` se verificó a mano. Es la misma clase de bug (un
@@ -697,6 +723,15 @@ antes de aceptarlo. Los que resultaron reales:
 - **La idempotencia del alta se prueba con dos pedidos simultáneos**, no con
   dos seguidos: dos transacciones con la misma `clave_alta` tienen que dejar
   UN documento y devolverle el mismo id a las dos.
+- **El kanban se prueba con los tres sensores**, en una página de QA que monta
+  el tablero real con datos falsos y contesta las server actions con
+  `{ ok: true }`: deslizar con el dedo scrollea y no levanta; mantener apretado
+  muestra el anillo, levanta y suelta en la columna; la rueda scrollea la
+  página y ninguna columna; con la página scrolleada los encabezados quedan a
+  64px; soltar sobre la topbar o entre dos columnas no escribe nada; la franja
+  pegada recibe la tarjeta; con teclado ← → ↓ ↑ llegan a cada zona sin mover
+  la página, Escape no escribe, el foco vuelve a la tarjeta y aparece el
+  «Deshacer». 29 chequeos, más 140 pasos de Tab en cuatro tamaños.
 - **Barrido de anchos**: 320, 360, 390, 414, 640, 768, 834, 900, 1024, 1180,
   1275, 1280, 1366, 1440 y 1920. Ninguna pantalla puede scrollear de costado en
   ninguno. Hacer QA sólo en 390 y 1440 dejaba ciego justo el hueco de los

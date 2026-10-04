@@ -796,8 +796,8 @@ function ChipAplicado({ children, onQuitar }: { children: string; onQuitar: () =
 }
 
 /**
- * Lista / Kanban. Sólo desktop: el kanban con drag & drop no tiene
- * sentido con el pulgar, así que en mobile ni se ofrece.
+ * Lista / Kanban. Desde `md`, que es donde aparece el tablero: en el
+ * teléfono las cinco columnas no entran, así que ni se ofrece.
  */
 function VistaToggle() {
   return (
