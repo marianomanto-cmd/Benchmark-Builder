@@ -1,6 +1,6 @@
 # Estado del proyecto — Smile Lab · Presupuestos
 
-> **Última actualización:** 2026-10-04
+> **Última actualización:** 2026-10-12
 > Este documento es la fuente de verdad del estado del proyecto. Si cambia el
 > esquema, el pipeline, una pantalla o una variable de entorno, se actualiza
 > acá **en el mismo commit**.
@@ -29,13 +29,14 @@ Consecuencias que el código respeta hoy:
 
 | # | Regla | Dónde está garantizada |
 |---|---|---|
-| 1 | `aranceles` es append-only | RPC `nueva_vigencia`, sin policy de DELETE, trigger `trg_arancel_no_delete` |
-| 2 | Un arancel usado no se edita | Trigger `trg_arancel_inmutable` + sello "no editable" en la UI |
-| 3 | Precio desactualizado → banner informativo, sólo duplicar | Pantalla 11 + RPC `duplicar_presupuesto` |
+| 1 | Un cambio de precio es una vigencia nueva que cierra la anterior | RPC `nueva_vigencia`, `aumento_masivo` e `importar_aranceles` |
+| 2 | Un arancel se corrige o se borra sólo por RPC, y queda escrito | `corregir_arancel` / `borrar_arancel` + registro append-only `aranceles_cambios`. Desde una sesión ninguna columna se edita ni se borra a mano (`trg_arancel_inmutable`, `trg_arancel_no_delete`, sin policy de DELETE). Si el arancel ya se usó, el motivo es obligatorio |
+| 3 | Precio desactualizado → banner informativo, sólo duplicar | Pantalla 11 + RPC `duplicar_presupuesto`. Cuenta como desactualizado que el arancel citado ya no sea el vigente, que se haya corregido después de emitir, o que se haya borrado |
 | 4 | Los overrides viven en el ítem | Columnas `cobertura_original_*` y `motivo_override` en `presupuesto_items` |
 | 5 | Un presupuesto emitido no vuelve a borrador, ni cambia de contenido | Trigger `trg_presupuesto_emitido` (no sólo la RPC: PostgREST expone un UPDATE por tabla) |
 | 6 | El historial no se borra ni se edita | Trigger `trg_evento_inmutable`, policies sólo SELECT/INSERT |
-| 7 | Un arancel usado no cambia de prestación ni de obra social | `guard_arancel_inmutable` |
+| 7 | Un arancel no cambia de prestación ni de obra social | `corregir_arancel` no lo ofrece y `guard_arancel_inmutable` lo bloquea desde una sesión |
+| 7b | Una vigencia cubre los días de los presupuestos emitidos que la citan: no empieza después ni termina antes | `guard_arancel_cierre_valido` |
 | 8 | Un ítem no puede quedar con a-cargo negativo | Checks de `presupuesto_items` + tope en `calcular_cobertura` y `calcularItem` |
 
 ---
@@ -81,6 +82,7 @@ Consecuencias que el código respeta hoy:
 | Fechas | date-fns (locale `es`) |
 | Toasts | sonner |
 | Íconos | lucide-react (stroke 1.75) |
+| Excel | read-excel-file (`/browser`, carga diferida en el modal de importación) |
 
 ---
 
@@ -115,6 +117,8 @@ Migraciones en `supabase/migrations/`, en este orden:
 | `20260101002200_buscar_sin_acentos.sql` | `unaccent` + `sin_acentos()` · columna `busqueda` generada en `pacientes` y `presupuestos` con índice trigram · la vista `presupuestos_listado` la expone sumándole la prestación principal |
 | `20260101002300_catalogo_sin_duplicados.sql` | Unicidad real del catálogo: dos NULL no son iguales en Postgres, así que `unique (nombre, plan)` dejaba pasar dos obras sociales con el mismo nombre y sin plan. Índices parciales sobre `lower(nombre)`, y lo mismo para `prestaciones` |
 | `20260101002400_afiliado_de_su_obra_social.sql` | El nro de afiliado se congela sólo si el presupuesto es para la MISMA obra social que la ficha. Con la cobertura cambiada a mano, el documento salía con el número de la otra |
+| `20260101002500_aranceles_editables.sql` | Corregir y borrar aranceles: `aranceles_cambios` (registro append-only que escribe un trigger, con origen y motivo) · `corregir_arancel` y `borrar_arancel` acomodan a la vigencia vecina · `aranceles.corregido_at` · `presupuesto_items.arancel_id` deja de ser FK (es una cita: sobrevive al borrado, y `guard_item_arancel` exige que exista al emitir) · una vigencia tampoco puede empezar después de un presupuesto que la cita · `nueva_vigencia`, `aumento_masivo` y `duplicar_presupuesto` actualizados |
+| `20260101002600_importar_aranceles.sql` | La planilla mensual: `clave_catalogo()` + índice `prestaciones_clave_idx` · `importar_aranceles(filas, desde, aplicar, omitir, archivo)`, la misma función para la vista previa y para aplicar |
 
 **Sin la CLI**: `supabase/instalar.sql` e `instalar-storage.sql` son las mismas
 migraciones concatenadas en orden, para pegar en el SQL Editor de Supabase. Se
@@ -131,9 +135,10 @@ que las toca.
 | `pacientes` | Ficha. `obra_social_id` precarga el paso 1 del wizard |
 | `prestaciones` | Catálogo. `descripcion` es la plantilla que se copia |
 | `prestacion_cuotas` | Plantilla de condiciones de pago (suma 100 %) |
-| `aranceles` | **Append-only** con vigencias. `obra_social_id` null = particular |
+| `aranceles` | Vigencias por (prestación, obra social). `obra_social_id` null = particular. Un precio nuevo es una fila nueva; corregir o borrar va por RPC. `corregido_at` marca una corrección en el lugar |
+| `aranceles_cambios` | **Append-only.** Cada alta, corrección y baja de un arancel con la fila antes y después, origen (`vigencia`, `aumento`, `excel`, `correccion`, `baja`, `directo`), motivo, autor y hora. Sin FK a `aranceles`: el registro de un arancel borrado sobrevive |
 | `presupuestos` | Cabecera + snapshot de contexto + totales congelados. `clave_alta` es la clave de idempotencia del alta (única, parcial) |
-| `presupuesto_items` | **El documento**: snapshot completo de cada prestación |
+| `presupuesto_items` | **El documento**: snapshot completo de cada prestación. `arancel_id` es una cita al arancel que se usó, sin FK: si ese arancel se borra, el id queda y su contenido está en `aranceles_cambios` |
 | `presupuesto_cuotas` | Condiciones de pago congeladas |
 | `presupuesto_eventos` | Historial append-only que alimenta el timeline |
 
@@ -151,6 +156,12 @@ que las toca.
 - `pacientes_nombre_fts` / `prestaciones_nombre_fts` — GIN sobre
   `to_tsvector('spanish', nombre)` para los comboboxes.
 - `presupuestos (estado, fecha_emision desc)` — listado y pipeline.
+- `prestaciones_nombre_key` — único sobre `lower(nombre)`.
+  `prestaciones_clave_idx` — sobre `clave_catalogo(nombre)` (sin acentos,
+  signos ni espacios de más): es por donde la importación reconoce un subtipo
+  que ya existe aunque esté escrito distinto. No es único a propósito: si la
+  biblioteca ya tiene dos prestaciones con la misma clave, la importación no
+  adivina, marca la fila y pide unificarlas.
 - `presupuestos_clave_alta_key` — único parcial sobre `clave_alta`: es lo que
   convierte un reintento del wizard en el mismo documento en vez de en uno
   nuevo. Parcial porque los presupuestos anteriores y los duplicados no
@@ -165,6 +176,12 @@ que las toca.
 | `actor_nombre()` | Nombre legible del usuario para los eventos |
 | `nueva_vigencia(...)` | Cierra la vigencia abierta e inserta la nueva, atómico |
 | `aumento_masivo(rubro, os, solo_particular, pct, desde)` | Una llamada a `nueva_vigencia` por fila, en una transacción |
+| `importar_aranceles(filas, desde, aplicar, omitir, archivo)` | La planilla del mes. Con `aplicar = false` devuelve qué pasa con cada fila (`crear`, `actualizar`, `corregir`, `igual`, `repetida`, `omitida`, `error`) sin escribir; con `true` escribe eso mismo en una transacción, con un advisory lock para que dos importaciones no se pisen |
+| `corregir_arancel(id, monto, cob_tipo, cob_valor, desde, motivo)` | Corrige un error de carga en el lugar. Si mueve el «desde», estira o achica la vigencia anterior contigua. Motivo obligatorio si el arancel ya se usó en un presupuesto emitido |
+| `borrar_arancel(id, motivo)` | Borra un arancel; la vigencia anterior contigua hereda su tramo. Misma regla de motivo |
+| `clave_catalogo(texto)` | Identidad de un nombre del catálogo: sin acentos, minúsculas, signos y espacios colapsados |
+| `usos_emitidos_arancel(id)` | Presupuestos emitidos que citan un arancel |
+| `marcar_origen_arancel(origen, motivo, pisar)` · `registrar_cambio_arancel()` | Las RPC marcan origen y motivo en la transacción; el trigger `trg_arancel_cambios` es el único que escribe `aranceles_cambios` |
 | `crear_presupuesto(jsonb)` | Congela cabecera + ítems + cuotas + evento. Inserta como borrador y promueve el estado al final (lo exige `guard_item_emitido`). **Idempotente por `clave_alta`**: si esa clave ya emitió un documento devuelve ese mismo, incluso si dos pedidos llegan a la vez |
 | `duplicar_presupuesto(uuid)` | Copia re-resolviendo contra los aranceles vigentes hoy |
 | `cambiar_estado(id, estado, motivo, nota)` | Transición + evento. Bloquea la vuelta a borrador |
@@ -183,7 +200,8 @@ que las toca.
   Sin esta vista, arreglar la anterior los haría desaparecer de la pantalla.
 - `aranceles_usos` — cuántos presupuestos emitidos usan cada arancel. Es una
   fila por arancel: contar sobre `presupuesto_items` se corta en el `max_rows`
-  de PostgREST, y de ese número depende el sello «no editable».
+  de PostgREST, y de ese número depende que corregir o borrar una vigencia
+  usada pida el motivo.
 - `presupuestos_listado` — agrega `prestacion_principal`, `items_count` y
   `dias_en_estado` para Home y pipeline.
 
@@ -224,7 +242,7 @@ borrador → realizado → enviado → pendiente → interesado → aceptado →
 | 04-06 | `/?nuevo=1` | Wizard 3 pasos, modal sobre la ruta actual |
 | 07-08 | — | Comboboxes con creación al vuelo; prestación encadena arancel |
 | 09 | `/biblioteca` | Tabs de entidades |
-| 10 | `/biblioteca/aranceles` | Lista por prestación (particular + obras sociales con precio), drawer de vigencias, aumento masivo |
+| 10 | `/biblioteca/aranceles` | Lista por prestación (particular + obras sociales con precio), drawer de vigencias con corregir, borrar y registro de cambios, importación del Excel del mes, aumento masivo |
 | 11 | `/presupuestos/[id]` | Detalle, banner de precio, timeline |
 | 12 | `/pipeline` | Kanban desde tablet (≥ 768px): un solo scroll, encabezados de columna y franja de perdidos pegados |
 | 13 | `/api/presupuestos/[id]/pdf` | A4, cacheado en Storage mientras el presupuesto esté emitido |
@@ -234,6 +252,41 @@ borrador → realizado → enviado → pendiente → interesado → aceptado →
 | 16 | `/equipo/mi-cuenta` | Cambiar la propia contraseña |
 
 Notas de diseño cerradas:
+
+- **La lista de precios del mes entra por Excel** (`Importar Excel`, atajo
+  `I`). La planilla trae Tipo (rubro), Subtipo (prestación) y Efectivo (precio
+  particular); las obras sociales no se tocan. El navegador lee el `.xlsx`
+  con `read-excel-file` —que se baja recién al abrir el modal— y
+  `lib/importar-aranceles.ts` convierte las celdas: encabezados en cualquier
+  fila de las primeras 15 y con sinónimos (Rubro, Prestación, Precio…),
+  precios en formato de EE.UU. o argentino, Tipo heredado de la fila de
+  arriba, rubros en mayúsculas pasados a oración. Antes de escribir nada se
+  muestra qué pasa con cada fila, y esa vista previa la arma la misma RPC que
+  después aplica.
+- **Un subtipo nunca queda duplicado.** Se reconoce contra la biblioteca sin
+  acentos, mayúsculas, signos ni espacios de más (`clave_catalogo`); dentro
+  del mismo Excel, una fila repetida con el mismo precio se carga una vez y con
+  precios distintos es un error. El rubro de una prestación nueva toma la
+  grafía que ya tiene la biblioteca (`CIRUGIA` → `Cirugía`). A una prestación
+  existente sólo se le completa el rubro si no tenía.
+- **Los precios que se ven mal arrancan destildados**: menos de $ 1.000 (el
+  síntoma de una celda que perdió los ceros, como `$800.00` en vez de
+  `$800.000`), o más del doble, o menos de la mitad del precio de hoy. No se
+  corrigen solos; se tildan si están bien.
+- **Volver a subir el Excel del mes es seguro**: lo que ya está cargado sale
+  «sin cambios», y un precio distinto para una vigencia que arranca ese mismo
+  día se corrige en el lugar en vez de apilar otra.
+- **Si un precio de hoy ya se usó en un presupuesto emitido hoy**, no se puede
+  cerrar hoy: la vista previa lo marca y ofrece que la lista rija desde el día
+  siguiente, con un botón.
+- **Corregir no es aumentar.** El historial de cada celda ofrece «Corregir» y
+  «Borrar» en cada vigencia, con texto y no sólo ícono. Corregir reescribe la
+  vigencia —para un error de carga— y arranca recordando que un aumento es
+  una vigencia nueva. Borrar dice antes qué pasa con la celda: vuelve a regir
+  la vigencia anterior, o queda sin precio esos días. Las dos piden motivo si
+  el arancel ya se usó, y las dos quedan en el «Registro de cambios» del
+  drawer. Desde el «Histórico completo», el nombre de la prestación abre ese
+  mismo drawer.
 
 - El wizard es un **modal sobre la ruta actual** (`?nuevo=1`), no una ruta
   propia: al cerrar, el listado de atrás no se recarga.
@@ -445,6 +498,11 @@ En **Storage**: bucket privado `presupuestos`, signed URL de 7 días.
 - [x] Wizard de 3 pasos con draft, comboboxes con creación al vuelo,
       override de cobertura y guardado con snapshot (04-08)
 - [x] Biblioteca y grilla de aranceles con "Qué va a pasar" y aumento masivo (09-10)
+- [x] Importación mensual de aranceles desde Excel: vista previa por fila,
+      creación de prestaciones sin duplicados, precios sospechosos afuera
+      hasta confirmarlos, todo en una transacción (10)
+- [x] Corregir y borrar cualquier arancel a mano, con motivo cuando ya se usó
+      y registro de cambios por celda (10)
 - [x] Detalle con banner de precio desactualizado, timeline y nota interna (11)
 - [x] Pipeline kanban con dnd-kit y franja de perdidos (12), desde tablet,
       con mouse, touch y teclado
@@ -660,6 +718,15 @@ antes de aceptarlo. Los que resultaron reales:
 
 ### Pendiente
 
+- [ ] El alta manual de prestaciones (biblioteca y wizard) sigue validando
+      la unicidad sólo con `lower(nombre)`: «Fluor» y «Flúor» pueden
+      convivir. La importación del Excel no crea duplicados —compara con
+      `clave_catalogo()`— y si encuentra dos así marca la fila para que se
+      unifiquen, pero el índice único todavía no lo impide desde las otras
+      puertas.
+- [ ] `supabase/config.toml` todavía describe el login por magic link y
+      deja apagado el proveedor Email: con `supabase start` no se puede
+      entrar con usuario y contraseña hasta habilitarlo a mano.
 - [ ] Tests de componentes y de integración (hoy la suite cubre el núcleo de
       cálculo, formato y estados, no la UI).
 - [ ] Probar el arrastre táctil del kanban en un iPad de verdad, con Safari.
@@ -695,8 +762,18 @@ antes de aceptarlo. Los que resultaron reales:
 ## 10 · Cómo se verifica
 
 - `npm run build` · `npm run typecheck` · `npm run lint` — sin errores.
-- `npm test` — 67 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts`,
-  `lib/estadisticas.ts`, `lib/busqueda.ts` y `lib/zod.ts`.
+- `npm test` — 90 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts`,
+  `lib/estadisticas.ts`, `lib/busqueda.ts`, `lib/zod.ts`,
+  `lib/importar-aranceles.ts` y `lib/cambios-aranceles.ts`. La lectura del
+  Excel se prueba contra `tests/fixtures/planilla-aranceles.xlsx`, una
+  planilla sintética con las mañas de la real: precios como texto en formato
+  de EE.UU., números sueltos, una celda combinada en Tipo, un título de grupo,
+  filas vacías, un precio sin ceros y una columna de más.
+- La importación, la corrección y el borrado se verificaron contra un
+  Supabase local (`supabase start`) con la planilla real del consultorio:
+  vista previa, aplicar, volver a importar (todo «sin cambios»), el bloqueo
+  por un presupuesto emitido el mismo día, corregir y borrar un arancel ya
+  citado, el banner del detalle y el duplicado con un arancel borrado.
 - `npm run sql:instalar` — regenera los scripts del SQL Editor desde las
   migraciones. Correr después de tocar cualquier migración.
 - `npm run test:paridad` — 2374 casos contra una base real: `calcularItem`

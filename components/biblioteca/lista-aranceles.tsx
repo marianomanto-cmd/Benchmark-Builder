@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarClock, Lock, Plus } from 'lucide-react'
+import { CalendarClock, Plus } from 'lucide-react'
 import * as React from 'react'
 
 import { Button, Card, MicroBadge, Monto } from '@/components/ui'
@@ -265,8 +265,6 @@ function Precio({
   onAbrir: (celda: Celda) => void
   onCargar: (celda: Celda) => void
 }) {
-  const usado = (celda.vigente?.usos ?? 0) > 0
-
   if (!celda.vigente && !celda.programada) {
     return (
       <button
@@ -292,7 +290,6 @@ function Precio({
       <span className="min-w-0">
         <span className="flex items-center gap-1.5">
           <span className="t-label">{etiqueta}</span>
-          {usado && <Lock aria-hidden className="size-3 text-faint" />}
         </span>
         <span className="block t-helper">
           {celda.vigente
@@ -341,7 +338,6 @@ function PastillaObraSocial({
       <span className="font-sans text-[13px] font-semibold tnum text-ink">
         {money(arancel.monto)}
       </span>
-      {(celda.vigente?.usos ?? 0) > 0 && <Lock aria-hidden className="size-3 text-faint" />}
       {esProgramada && <CalendarClock aria-hidden className="size-3 text-warm-ink" />}
     </button>
   )

@@ -9,16 +9,20 @@
  * 1. Nada del catálogo se borra. Una prestación vieja vive dentro de
  *    presupuestos emitidos: se desactiva, no se elimina. Por eso hay
  *    `toggleActivaPrestacion` y no `borrarPrestacion`.
- * 2. Los aranceles son append-only. Un cambio de precio NO es un update:
- *    es una vigencia nueva que cierra la anterior. Eso tiene que pasar
- *    en una sola transacción, así que va por RPC (`nueva_vigencia` y
- *    `aumento_masivo`), nunca por inserts sueltos desde acá.
+ * 2. Un cambio de precio NO es un update: es una vigencia nueva que
+ *    cierra la anterior. Eso tiene que pasar en una sola transacción,
+ *    así que va por RPC (`nueva_vigencia`, `aumento_masivo`,
+ *    `importar_aranceles`), nunca por inserts sueltos desde acá.
+ *    Corregir o borrar un arancel mal cargado también va por RPC
+ *    (`corregir_arancel`, `borrar_arancel`): acomodan a la vigencia
+ *    vecina en la misma transacción y quedan en `aranceles_cambios`.
  */
 
 import { revalidatePath } from 'next/cache'
 
 import { palabrasBusqueda, patronDeDigitos } from '@/lib/busqueda'
 import { paraMostrar } from '@/lib/errores'
+import { MAX_FILAS, normalizarPlan, type PlanImportacion } from '@/lib/importar-aranceles'
 import { createClient, getUsuario } from '@/lib/supabase/server'
 import type { ObraSocial, Paciente, Prestacion, Profesional } from '@/lib/types'
 import { z } from '@/lib/zod'
@@ -113,11 +117,14 @@ function mensajeDeError(crudo: string): string {
   if (m.includes('aranceles_una_vigente')) {
     return 'Esa prestación ya tiene una vigencia abierta para esa obra social. Cargá la nueva con una fecha posterior.'
   }
-  if (m.includes('ya usado en presupuestos')) {
-    return 'Ese arancel ya se usó en presupuestos emitidos: no se edita, se abre una vigencia nueva.'
+  if (m.includes('ya usado en presupuestos') || m.includes('los aranceles no se editan')) {
+    return 'Los aranceles se corrigen desde su historial, en la grilla de aranceles.'
   }
-  if (m.includes('append-only')) {
-    return 'Los aranceles no se borran. Cerrá la vigencia abriendo una nueva.'
+  if (m.includes('aranceles_solapado') || m.includes('no pueden regir dos precios')) {
+    return paraMostrar(
+      crudo,
+      'Esa fecha pisa otra vigencia de la misma prestación: no pueden regir dos precios el mismo día.',
+    )
   }
   if (m.includes('aranceles_cobertura_valor_check') || m.includes('cobertura_valor >= 0')) {
     return 'La cobertura no puede ser negativa.'
@@ -649,4 +656,183 @@ export async function aplicarAumentoMasivo(
 
   revalidarCatalogo()
   return { ok: true, data: n }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Aranceles — corregir y borrar un error de carga
+   ═══════════════════════════════════════════════════════════ */
+
+/** El motivo es texto libre corto: va al registro de cambios. */
+const motivo = textoOpcional(300)
+
+const correccionSchema = z
+  .object({
+    id: uuidRequerido,
+    monto: z
+      .number()
+      .int('Los montos van en pesos enteros.')
+      .min(0, 'Un monto no puede ser negativo.')
+      .max(999_999_999),
+    cobertura_tipo: tipoCobertura,
+    cobertura_valor: z
+      .number()
+      .min(0, 'La cobertura no puede ser negativa.')
+      .max(999_999_999),
+    desde: fecha,
+    motivo,
+  })
+  .refine((v) => v.cobertura_tipo !== 'porcentaje' || v.cobertura_valor <= 100, {
+    message: 'Una cobertura por porcentaje no puede pasar de 100 %.',
+    path: ['cobertura_valor'],
+  })
+
+export type EntradaCorreccion = z.input<typeof correccionSchema>
+
+/**
+ * Corrige un arancel en el lugar: monto, cobertura y desde cuándo rige.
+ *
+ * Es para arreglar un error de carga, no para un aumento: el aumento es
+ * `crearVigencia`, que deja el precio viejo en el historial. Los
+ * presupuestos emitidos no cambian —tienen su copia— y la corrección
+ * queda en `aranceles_cambios` con el motivo, que la base exige cuando
+ * el arancel ya se usó.
+ */
+export async function corregirArancel(entrada: EntradaCorreccion): Promise<Resultado<string>> {
+  const supabase = await conSesion()
+  if (!supabase) return { ok: false, error: SIN_SESION }
+
+  const parseado = correccionSchema.safeParse(entrada)
+  if (!parseado.success) return { ok: false, error: mensajeDeZod(parseado.error) }
+
+  const c = parseado.data
+
+  const { data, error } = await supabase.rpc('corregir_arancel', {
+    p_id: c.id,
+    p_monto: c.monto,
+    p_cob_tipo: c.cobertura_tipo,
+    p_cob_valor: c.cobertura_tipo === 'ninguna' ? 0 : c.cobertura_valor,
+    p_desde: c.desde,
+    p_motivo: c.motivo,
+  })
+
+  if (error) return { ok: false, error: mensajeDeError(error.message) }
+
+  revalidarCatalogo()
+  return { ok: true, data: typeof data === 'string' ? data : c.id }
+}
+
+const bajaSchema = z.object({ id: uuidRequerido, motivo })
+
+export type EntradaBajaArancel = z.input<typeof bajaSchema>
+
+/**
+ * Borra un arancel. Si la vigencia anterior terminaba justo antes,
+ * vuelve a regir en su lugar: es lo que se quiere al deshacer un precio
+ * mal cargado. Devuelve el id de esa vigencia, o null si la combinación
+ * quedó sin precio en esos días.
+ */
+export async function borrarArancel(
+  entrada: EntradaBajaArancel,
+): Promise<Resultado<string | null>> {
+  const supabase = await conSesion()
+  if (!supabase) return { ok: false, error: SIN_SESION }
+
+  const parseado = bajaSchema.safeParse(entrada)
+  if (!parseado.success) return { ok: false, error: mensajeDeZod(parseado.error) }
+
+  const { data, error } = await supabase.rpc('borrar_arancel', {
+    p_id: parseado.data.id,
+    p_motivo: parseado.data.motivo,
+  })
+
+  if (error) return { ok: false, error: mensajeDeError(error.message) }
+
+  revalidarCatalogo()
+  return { ok: true, data: typeof data === 'string' ? data : null }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Aranceles — la planilla del mes
+   ═══════════════════════════════════════════════════════════ */
+
+const importacionSchema = z.object({
+  filas: z
+    .array(
+      z.object({
+        fila: z.number().int().min(1),
+        rubro: z.string().trim().max(120).nullable(),
+        nombre: z.string().trim().max(300),
+        monto: z.number().int().min(0).max(999_999_999).nullable(),
+      }),
+    )
+    .min(1, 'La planilla no trae filas para importar.')
+    .max(MAX_FILAS, `Más de ${MAX_FILAS} filas no es una lista de precios: partila en dos.`),
+  desde: fecha,
+  /** Filas del Excel que la persona sacó de la importación. */
+  omitir: z.array(z.number().int().min(1)).max(MAX_FILAS).default([]),
+  /** Nombre del archivo, para el registro de cambios. */
+  archivo: textoOpcional(200),
+})
+
+export type EntradaImportacion = z.input<typeof importacionSchema>
+
+async function correrImportacion(
+  entrada: EntradaImportacion,
+  aplicar: boolean,
+): Promise<Resultado<PlanImportacion>> {
+  const supabase = await conSesion()
+  if (!supabase) return { ok: false, error: SIN_SESION }
+
+  const parseado = importacionSchema.safeParse(entrada)
+  if (!parseado.success) return { ok: false, error: mensajeDeZod(parseado.error) }
+
+  const v = parseado.data
+
+  const { data, error } = await supabase.rpc('importar_aranceles', {
+    p_filas: v.filas,
+    p_desde: v.desde,
+    p_aplicar: aplicar,
+    p_omitir: v.omitir,
+    p_archivo: v.archivo,
+  })
+
+  if (error) return { ok: false, error: mensajeDeError(error.message) }
+
+  const plan = normalizarPlan(data)
+  if (!plan) {
+    return {
+      ok: false,
+      error: 'La base no devolvió el detalle de la importación. Probá de nuevo en un momento.',
+    }
+  }
+
+  if (aplicar) {
+    revalidarCatalogo()
+    // El wizard y la home leen prestaciones y precios: las nuevas tienen
+    // que aparecer en el próximo presupuesto sin recargar a mano.
+    revalidatePath('/')
+  }
+  return { ok: true, data: plan }
+}
+
+/**
+ * Vista previa de la planilla: qué pasaría con cada fila, sin escribir
+ * nada. Es la misma RPC que aplica, con `p_aplicar = false`: lo que se
+ * ve es lo que se va a hacer.
+ */
+export async function previsualizarImportacion(
+  entrada: EntradaImportacion,
+): Promise<Resultado<PlanImportacion>> {
+  return correrImportacion(entrada, false)
+}
+
+/**
+ * Aplica la planilla en una sola transacción: crea las prestaciones que
+ * faltan, abre las vigencias nuevas y corrige las del mismo día. O pasa
+ * todo, o no pasa nada.
+ */
+export async function importarAranceles(
+  entrada: EntradaImportacion,
+): Promise<Resultado<PlanImportacion>> {
+  return correrImportacion(entrada, true)
 }

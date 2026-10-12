@@ -25,8 +25,8 @@ export const metadata: Metadata = {
  * Pantalla 10 — Aranceles.
  *
  * La grilla se arma en el servidor con `aranceles_vigentes`, que ya
- * trae el conteo de usos por vigencia: es lo que decide si una celda
- * lleva el sello de «no editable».
+ * trae el conteo de usos por vigencia: es lo que dice cuántos
+ * presupuestos conservan su copia si el precio se corrige o se borra.
  *
  * El histórico completo es una lectura aparte y bajo demanda (`?vista=`)
  * porque trae todas las vigencias cerradas, que son muchas más que las
@@ -211,8 +211,8 @@ export default async function ArancelesPage(props: PageProps<'/biblioteca/arance
       // Una fila por arancel, no una por ítem: PostgREST corta en
       // `max_rows` (1000 por defecto) y, pasado ese punto, traer
       // `presupuesto_items` entero devolvía conteos de más abajo de los
-      // reales. De ese conteo depende el sello «no editable», así que
-      // mentir hacia abajo dejaría editable una vigencia ya usada.
+      // reales. De ese conteo depende que corregir o borrar una vigencia
+      // usada pida el motivo: mentir hacia abajo lo saltearía.
       supabase.from('aranceles_usos').select('arancel_id, usos'),
     ])
 

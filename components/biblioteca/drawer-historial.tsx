@@ -1,25 +1,28 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { Lock, TriangleAlert } from 'lucide-react'
+import { Pencil, Trash2, TriangleAlert } from 'lucide-react'
+import * as React from 'react'
 
-import { Banner, Button, Drawer, MicroBadge, Monto, Skeleton } from '@/components/ui'
+import { Banner, Button, Drawer, Monto, Skeleton } from '@/components/ui'
+import {
+  describirCambio,
+  normalizarFoto,
+  type AccionCambio,
+  type CambioArancel,
+} from '@/lib/cambios-aranceles'
 import { calcularItem } from '@/lib/calculo'
-import { fechaCorta, fechaLarga, isoDate, numero } from '@/lib/formato'
+import { fechaCorta, fechaHora, fechaLarga, isoDate, numero } from '@/lib/formato'
 import { createClient } from '@/lib/supabase/client'
-import type { CoberturaTipo } from '@/lib/types'
 
-import { etiquetaCoberturaLarga, soloFecha, type Celda } from './tipos'
+import { etiquetaCoberturaLarga, soloFecha, type Celda, type VigenciaCelda } from './tipos'
 
-interface Vigencia {
-  id: string
-  monto: number
-  cobertura_tipo: CoberturaTipo
-  cobertura_valor: number
-  vigente_desde: string
-  vigente_hasta: string | null
-  usos: number
-}
+type Vigencia = VigenciaCelda
+
+/** Cambios que se muestran antes de «Ver todos». */
+const CAMBIOS_A_LA_VISTA = 5
+/** Tope del registro que se trae: más que esto no se lee en un panel. */
+const CAMBIOS_MAX = 60
 
 /**
  * Historial de vigencias de una celda de la grilla.
@@ -33,14 +36,25 @@ export function DrawerHistorial({
   celda,
   onCerrar,
   onNuevaVigencia,
+  onCorregir,
+  onBorrar,
 }: {
   celda: Celda
   onCerrar: () => void
   onNuevaVigencia: () => void
+  /** Corregir un error de carga en esta vigencia. */
+  onCorregir: (vigencia: Vigencia, vigencias: Vigencia[]) => void
+  /** Borrar esta vigencia. */
+  onBorrar: (vigencia: Vigencia, vigencias: Vigencia[]) => void
 }) {
   const consulta = useQuery({
     queryKey: ['vigencias', celda.prestacion_id, celda.obra_social_id],
     queryFn: () => traerVigencias(celda.prestacion_id, celda.obra_social_id),
+  })
+
+  const cambios = useQuery({
+    queryKey: ['cambios-arancel', celda.prestacion_id, celda.obra_social_id],
+    queryFn: () => traerCambios(celda.prestacion_id, celda.obra_social_id),
   })
 
   const vigencias = consulta.data ?? []
@@ -55,6 +69,13 @@ export function DrawerHistorial({
   const programadas = vigencias.filter((v) => v.vigente_desde > hoy)
   const cerradas = vigencias.filter(
     (v) => v.vigente_hasta !== null && v.vigente_hasta < hoy,
+  )
+
+  const acciones = (v: Vigencia) => (
+    <AccionesVigencia
+      onCorregir={() => onCorregir(v, vigencias)}
+      onBorrar={() => onBorrar(v, vigencias)}
+    />
   )
 
   return (
@@ -88,7 +109,11 @@ export function DrawerHistorial({
         </Banner>
       ) : (
         <div className="space-y-6">
-          {actual ? <VigenciaActual vigencia={actual} /> : <SinArancel />}
+          {actual ? (
+            <VigenciaActual vigencia={actual} acciones={acciones(actual)} />
+          ) : (
+            <SinArancel />
+          )}
 
           {programadas.length > 0 && (
             <section>
@@ -97,12 +122,15 @@ export function DrawerHistorial({
                 {programadas.map((v) => (
                   <li
                     key={v.id}
-                    className="flex items-baseline justify-between gap-3 rounded-input border border-warm-line/25 bg-warm-soft px-3 py-2.5"
+                    className="rounded-input border border-warm-line/25 bg-warm-soft px-3 py-2.5"
                   >
-                    <span className="t-helper text-warm-ink">
-                      Rige desde el {fechaCorta(v.vigente_desde)}
-                    </span>
-                    <Monto valor={v.monto} jerarquia="fuerte" />
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="t-helper text-warm-ink">
+                        Rige desde el {fechaCorta(v.vigente_desde)}
+                      </span>
+                      <Monto valor={v.monto} jerarquia="fuerte" />
+                    </div>
+                    <div className="mt-1.5">{acciones(v)}</div>
                   </li>
                 ))}
               </ul>
@@ -147,6 +175,7 @@ export function DrawerHistorial({
                         {etiquetaCoberturaLarga(v.cobertura_tipo, Number(v.cobertura_valor))} ·{' '}
                         {textoUsos(v.usos)}
                       </p>
+                      <div className="mt-1">{acciones(v)}</div>
                     </div>
                   </li>
                 ))}
@@ -154,17 +183,18 @@ export function DrawerHistorial({
             )}
           </section>
 
+          <RegistroCambios consulta={cambios} />
+
           <section className="rounded-card border border-hairline bg-tint/60 p-4">
-            <h3 className="t-label">Por qué no se edita</h3>
+            <h3 className="t-label">Vigencia nueva o corrección</h3>
             <p className="mt-2 text-[13px] leading-relaxed text-body">
-              Un presupuesto emitido guarda su propia copia del precio: es el documento que se le
-              mostró al paciente. Si el arancel se pudiera editar, ese documento cambiaría solo y
-              el consultorio no podría sostener lo que prometió.
+              Si el precio cambió —un aumento, la lista del mes—, cargá una vigencia nueva: la
+              actual se cierra y el precio de antes queda en el historial.
             </p>
             <p className="mt-2 text-[13px] leading-relaxed text-body">
-              Por eso un cambio de precio abre una vigencia nueva y cierra la anterior. El
-              historial queda entero y cada presupuesto sigue mostrando el número con el que se
-              emitió.
+              Si se cargó mal, corregilo o borralo. Los presupuestos ya emitidos no cambian:
+              cada uno guarda su propia copia del precio, que es lo que se le mostró al paciente.
+              La corrección queda en el registro, con quién, cuándo y por qué.
             </p>
           </section>
         </div>
@@ -173,8 +203,39 @@ export function DrawerHistorial({
   )
 }
 
+/**
+ * Corregir y borrar, con texto: una acción destructiva nunca va con el
+ * ícono solo.
+ */
+function AccionesVigencia({
+  onCorregir,
+  onBorrar,
+}: {
+  onCorregir: () => void
+  onBorrar: () => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button type="button" variant="ghost" size="sm" onClick={onCorregir}>
+        <Pencil aria-hidden />
+        Corregir
+      </Button>
+      <Button type="button" variant="danger" size="sm" onClick={onBorrar}>
+        <Trash2 aria-hidden />
+        Borrar
+      </Button>
+    </div>
+  )
+}
+
 /** La vigencia abierta, destacada: es la que cotiza hoy el wizard. */
-function VigenciaActual({ vigencia }: { vigencia: Vigencia }) {
+function VigenciaActual({
+  vigencia,
+  acciones,
+}: {
+  vigencia: Vigencia
+  acciones: React.ReactNode
+}) {
   const { cobertura, aCargo } = calcularItem(
     Math.round(vigencia.monto),
     vigencia.cobertura_tipo,
@@ -190,12 +251,7 @@ function VigenciaActual({ vigencia }: { vigencia: Vigencia }) {
             Desde el {fechaLarga(vigencia.vigente_desde)}
           </p>
         </div>
-        {vigencia.usos > 0 && (
-          <MicroBadge tono="warm" className="gap-1">
-            <Lock aria-hidden className="size-3" />
-            No editable
-          </MicroBadge>
-        )}
+
       </div>
 
       <p className="mt-3">
@@ -229,10 +285,12 @@ function VigenciaActual({ vigencia }: { vigencia: Vigencia }) {
 
       {vigencia.usos > 0 && (
         <p className="mt-3 t-helper">
-          Ya se emitieron presupuestos con este arancel, así que no se toca: el cambio de precio va
-          en una vigencia nueva.
+          Ya hay presupuestos con este arancel. Si lo corregís o lo borrás, esos no cambian:
+          guardan su copia del precio.
         </p>
       )}
+
+      <div className="mt-3 border-t border-hairline pt-3">{acciones}</div>
     </section>
   )
 }
@@ -245,6 +303,67 @@ function SinArancel() {
         Esta combinación todavía no tiene precio. Hasta que lo tenga, el wizard no la puede
         cotizar sola: hay que escribir el monto a mano en cada presupuesto.
       </p>
+    </section>
+  )
+}
+
+/**
+ * Quién cambió qué y cuándo. Es lo que permite defender un presupuesto
+ * aunque el arancel que citó se haya corregido o borrado después.
+ */
+function RegistroCambios({
+  consulta,
+}: {
+  consulta: { isPending: boolean; isError: boolean; data?: CambioArancel[] }
+}) {
+  const [todos, setTodos] = React.useState(false)
+
+  if (consulta.isPending) return <Skeleton className="h-20 w-full rounded-card" />
+
+  if (consulta.isError) {
+    return (
+      <section>
+        <h3 className="t-label">Registro de cambios</h3>
+        <p className="mt-2 t-helper">No se pudo leer el registro. Cerrá el panel y volvé a abrirlo.</p>
+      </section>
+    )
+  }
+
+  const lista = consulta.data ?? []
+  const visibles = todos ? lista : lista.slice(0, CAMBIOS_A_LA_VISTA)
+
+  return (
+    <section>
+      <h3 className="t-label">Registro de cambios</h3>
+      {lista.length === 0 ? (
+        <p className="mt-2 t-helper">
+          Todavía no hay cambios registrados para esta combinación.
+        </p>
+      ) : (
+        <>
+          <ul className="mt-3 space-y-3">
+            {visibles.map((c) => (
+              <li key={c.id} className="text-[13px] leading-relaxed">
+                <p className="text-ink">{describirCambio(c)}</p>
+                {c.motivo && <p className="text-body">«{c.motivo}»</p>}
+                <p className="t-helper">
+                  {c.autor_nombre} · {fechaHora(c.created_at)}
+                </p>
+              </li>
+            ))}
+          </ul>
+          {lista.length > CAMBIOS_A_LA_VISTA && (
+            <Button
+              type="button"
+              variant="link"
+              className="mt-3"
+              onClick={() => setTodos((v) => !v)}
+            >
+              {todos ? 'Ver menos' : `Ver los ${numero(lista.length)} cambios`}
+            </Button>
+          )}
+        </>
+      )}
     </section>
   )
 }
@@ -262,8 +381,8 @@ function textoUsos(usos: number): string {
  * arancel**. Contarlo trayendo `presupuesto_items` y agrupando acá se
  * cortaba en el `max_rows` de PostgREST (1000 filas por defecto): con
  * el consultorio andando, las últimas vigencias volvían con menos usos
- * de los reales o con cero, y de ese número depende el sello «no
- * editable». Mentir hacia abajo dejaba editable una vigencia ya usada.
+ * de los reales o con cero, y de ese número depende que corregir o
+ * borrar una vigencia usada pida el motivo.
  *
  * Si el conteo falla, falla el drawer entero: mostrar «0 presupuestos»
  * cuando no se pudo contar es peor que decir que no se pudo leer.
@@ -310,5 +429,43 @@ async function traerVigencias(
     vigente_desde: soloFecha(f.vigente_desde),
     vigente_hasta: f.vigente_hasta === null ? null : soloFecha(f.vigente_hasta),
     usos: usos.get(f.id) ?? 0,
+  }))
+}
+
+/**
+ * El registro de cambios de la combinación, del más nuevo al más viejo.
+ * Incluye los de aranceles ya borrados: es justamente lo que tiene que
+ * sobrevivir al borrado.
+ */
+async function traerCambios(
+  prestacionId: string,
+  obraSocialId: string | null,
+): Promise<CambioArancel[]> {
+  const supabase = createClient()
+
+  const base = supabase
+    .from('aranceles_cambios')
+    .select('id, arancel_id, accion, origen, motivo, antes, despues, autor_nombre, created_at')
+    .eq('prestacion_id', prestacionId)
+
+  const { data, error } = await (obraSocialId
+    ? base.eq('obra_social_id', obraSocialId)
+    : base.is('obra_social_id', null)
+  )
+    .order('created_at', { ascending: false })
+    .limit(CAMBIOS_MAX)
+
+  if (error) throw new Error(error.message)
+
+  return ((data ?? []) as Record<string, unknown>[]).map((c) => ({
+    id: String(c.id),
+    arancel_id: String(c.arancel_id),
+    accion: c.accion as AccionCambio,
+    origen: String(c.origen),
+    motivo: typeof c.motivo === 'string' && c.motivo !== '' ? c.motivo : null,
+    antes: normalizarFoto(c.antes),
+    despues: normalizarFoto(c.despues),
+    autor_nombre: String(c.autor_nombre ?? ''),
+    created_at: String(c.created_at),
   }))
 }

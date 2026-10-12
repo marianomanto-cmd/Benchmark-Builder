@@ -39,14 +39,24 @@ Al guardar se **copian** dentro de `presupuesto_items` el nombre de la
 prestación, su descripción, el monto, el tipo y valor de cobertura y la
 diferencia calculada. Nunca se resuelven precios por join.
 
-1. `aranceles` es **append-only**. Un cambio de precio inserta una fila
-   nueva y cierra la anterior. Nunca un `UPDATE` de monto o cobertura.
-2. Un arancel ya usado en un presupuesto **no se puede editar**
-   (bloqueado en la UI y por trigger).
-3. Si el arancel vigente hoy difiere del snapshot, el detalle muestra un
-   banner informativo. La única acción ofrecida es **duplicar**. No
-   existe "actualizar precios de este presupuesto".
-4. Los overrides de cobertura viven en el ítem (`cobertura_override_*`),
+1. Un **cambio de precio** (aumento, la lista del mes) inserta una fila
+   nueva en `aranceles` y cierra la anterior: `nueva_vigencia`,
+   `aumento_masivo`, `importar_aranceles`. Un aumento nunca se carga como
+   corrección: el precio de antes tiene que quedar en el historial.
+2. **Corregir o borrar** un arancel mal cargado se puede, con cualquier
+   arancel, pero sólo por `corregir_arancel` / `borrar_arancel`. Cada alta,
+   corrección y baja queda en `aranceles_cambios` (append-only: antes,
+   después, quién, cuándo, por qué). Si el arancel ya se usó en un
+   presupuesto emitido, el motivo es obligatorio. Desde una sesión del
+   equipo ninguna columna se edita ni se borra a mano (triggers).
+3. Corregir o borrar un arancel **nunca toca un presupuesto emitido**: el
+   ítem tiene su copia. Una vigencia no puede dejar de cubrir el día de un
+   presupuesto emitido que la cita.
+4. Si el arancel vigente hoy difiere del snapshot (otro arancel, o el
+   citado se corrigió o se borró después), el detalle muestra un banner
+   informativo. La única acción ofrecida es **duplicar**. No existe
+   "actualizar precios de este presupuesto".
+5. Los overrides de cobertura viven en el ítem (`cobertura_override_*`),
    nunca escriben en `aranceles`.
 
 Si algo de esto se relaja, el consultorio pierde la capacidad de
@@ -59,6 +69,7 @@ funcional más importante del sistema.
 |---|---|
 | Cálculo de cobertura y a-cargo | `lib/calculo.ts` **y** `calcular_cobertura()` en SQL — tienen que dar el mismo número |
 | Formato de moneda y fechas es-AR | `lib/formato.ts` |
+| Lectura del Excel mensual de aranceles | `lib/importar-aranceles.ts` (celdas → filas); qué pasa con cada fila lo decide `importar_aranceles()` en SQL |
 | Máquina de estados y colores de badge | `lib/estados.ts` |
 | Tokens de diseño | `@theme` en `app/globals.css` |
 | Esquema | `supabase/migrations/` |

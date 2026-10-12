@@ -1,5 +1,7 @@
+import { parseISO, subDays } from 'date-fns'
+
 import type { CoberturaTipo } from '@/lib/types'
-import { money, porcentaje } from '@/lib/formato'
+import { isoDate, money, porcentaje } from '@/lib/formato'
 
 /* ═══════════════════════════════════════════════════════════
    Tabs de la biblioteca (pantalla 09)
@@ -212,7 +214,7 @@ export interface Arancel {
 
 /** La vigencia que rige HOY, tal como la trae `aranceles_vigentes`. */
 export interface CeldaVigente extends Arancel {
-  /** Presupuestos emitidos que la usan. Arriba de 0 ya no se edita. */
+  /** Ítems de presupuesto que la citan. Arriba de 0, corregirla pide motivo. */
   usos: number
 }
 
@@ -263,6 +265,37 @@ export interface Celda {
    * la última.
    */
   abierta: Arancel | null
+}
+
+/**
+ * Una vigencia de una celda tal como la muestra el drawer de historial:
+ * con su conteo de usos. Es la unidad que se corrige o se borra.
+ */
+export interface VigenciaCelda {
+  id: string
+  monto: number
+  cobertura_tipo: CoberturaTipo
+  cobertura_valor: number
+  vigente_desde: string
+  vigente_hasta: string | null
+  /** Ítems de presupuesto que la citan. */
+  usos: number
+}
+
+/**
+ * La vigencia que termina justo el día antes de que arranque `v`.
+ *
+ * Es la vecina que `corregir_arancel()` y `borrar_arancel()` acomodan:
+ * si `v` arranca más tarde, ésta se estira; si `v` se borra, ésta hereda
+ * su tramo. Con un hueco de por medio no hay vecina, y la celda queda
+ * sin precio en esos días.
+ */
+export function vigenciaAnterior<T extends { vigente_desde: string; vigente_hasta: string | null }>(
+  vigencias: T[],
+  v: { vigente_desde: string },
+): T | null {
+  const diaAntes = isoDate(subDays(parseISO(v.vigente_desde), 1))
+  return vigencias.find((otra) => otra.vigente_hasta === diaAntes) ?? null
 }
 
 export type VistaAranceles = 'vigentes' | 'historico'

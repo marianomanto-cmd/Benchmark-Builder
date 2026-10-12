@@ -329,7 +329,11 @@ language plpgsql
 set search_path = public
 as $$
 begin
-  raise exception 'Los aranceles son append-only: cerrá la vigencia en lugar de borrar';
+  if current_user in ('service_role', 'supabase_admin', 'postgres') then
+    return old;
+  end if;
+  raise exception
+    'Los aranceles se borran desde la grilla de aranceles, que pide el motivo y acomoda la vigencia anterior';
 end $$;
 
 
@@ -502,6 +506,8 @@ begin
     raise exception 'No autenticado';
   end if;
 
+  perform marcar_origen_arancel('vigencia', null, false);
+
   -- La vigencia nueva no puede empezar antes o el mismo día que la abierta:
   -- dejaría un rango cerrado inválido (vigente_hasta < vigente_desde).
   if exists (
@@ -513,7 +519,7 @@ begin
   ) then
     raise exception
       'La vigencia nueva tiene que arrancar después del % de la vigencia actual',
-      (select vigente_desde from aranceles
+      (select to_char(vigente_desde, 'DD/MM/YYYY') from aranceles
         where prestacion_id = p_prestacion
           and obra_social_id is not distinct from p_obra_social
           and vigente_hasta is null);
@@ -559,6 +565,12 @@ begin
   if auth.uid() is null then
     raise exception 'No autenticado';
   end if;
+
+  perform marcar_origen_arancel(
+    'aumento',
+    case when p_pct > 0 then 'Aumento masivo de ' else 'Baja masiva de ' end ||
+    replace(trim(to_char(abs(p_pct), 'FM990D00')), '.', ',') || ' %'
+  );
 
   for r in
     select a.prestacion_id, a.obra_social_id, a.monto, a.cobertura_tipo, a.cobertura_valor
@@ -814,6 +826,7 @@ declare
   v_cuotas_n    int;
   v_acum        numeric := 0;
   v_cuota_monto numeric;
+  v_existe      boolean;
 begin
   if auth.uid() is null then
     raise exception 'No autenticado';
@@ -860,8 +873,21 @@ begin
   for v_it in
     select * from presupuesto_items where presupuesto_id = p_id order by orden
   loop
+    v_existe := false;
     if v_it.arancel_id is not null then
-      select obra_social_id into v_os_item from aranceles where id = v_it.arancel_id;
+      select a.obra_social_id into v_os_item from aranceles a where a.id = v_it.arancel_id;
+      v_existe := found;
+      if not v_existe then
+        -- Arancel borrado: su obra social quedó en el registro.
+        select c.obra_social_id into v_os_item
+          from aranceles_cambios c
+         where c.arancel_id = v_it.arancel_id
+         order by c.created_at desc
+         limit 1;
+        if not found then
+          v_os_item := v_orig.obra_social_id;
+        end if;
+      end if;
     else
       v_os_item := v_orig.obra_social_id;
     end if;
@@ -880,7 +906,7 @@ begin
       v_monto      := v_it.monto;
       v_tipo       := v_it.cobertura_tipo;
       v_valor      := v_it.cobertura_valor;
-      v_arancel_id := v_it.arancel_id;
+      v_arancel_id := case when v_existe then v_it.arancel_id end;
     end if;
 
     v_cob := calcular_cobertura(v_monto, v_tipo, v_valor);
@@ -2238,22 +2264,35 @@ create or replace function guard_arancel_cierre_valido() returns trigger
 language plpgsql
 set search_path = public
 as $$
-declare v_ultima date;
+declare
+  v_primera date;
+  v_ultima  date;
 begin
-  if new.vigente_hasta is null then
+  if tg_op = 'INSERT' then
+    -- Un arancel recién creado no puede estar citado por nadie.
     return new;
   end if;
 
-  select max(p.fecha_emision) into v_ultima
+  if new.vigente_hasta is null and new.vigente_desde <= old.vigente_desde then
+    return new;
+  end if;
+
+  select min(p.fecha_emision), max(p.fecha_emision) into v_primera, v_ultima
     from presupuesto_items i
     join presupuestos p on p.id = i.presupuesto_id
    where i.arancel_id = new.id
      and p.estado <> 'borrador';
 
-  if v_ultima is not null and new.vigente_hasta < v_ultima then
+  if v_ultima is not null and new.vigente_hasta is not null and new.vigente_hasta < v_ultima then
     raise exception
       'Ese arancel se citó en un presupuesto emitido el %: no se puede cerrar antes de esa fecha',
       to_char(v_ultima, 'DD/MM/YYYY');
+  end if;
+
+  if v_primera is not null and new.vigente_desde > v_primera then
+    raise exception
+      'Ese arancel se citó en un presupuesto emitido el %: no puede empezar a regir después de esa fecha',
+      to_char(v_primera, 'DD/MM/YYYY');
   end if;
 
   return new;
@@ -2495,3 +2534,753 @@ comment on index obras_sociales_nombre_sin_plan_key is
 
 revoke execute on function crear_presupuesto(jsonb) from public, anon;
 grant execute on function crear_presupuesto(jsonb) to authenticated;
+
+
+-- ─── aranceles editables ───────────────────────────────────────
+
+
+-- ─────────────────────────────────────────────────────────────
+-- 1) Registro de cambios
+-- ─────────────────────────────────────────────────────────────
+
+create table if not exists aranceles_cambios (
+  id              uuid primary key default gen_random_uuid(),
+  -- Sin FK a propósito: el registro de un arancel borrado es justamente
+  -- lo que tiene que sobrevivir al borrado.
+  arancel_id      uuid not null,
+  prestacion_id   uuid not null,
+  obra_social_id  uuid,                    -- null = particular
+  accion          text not null check (accion in ('alta', 'edicion', 'baja')),
+  -- Por dónde entró: vigencia | aumento | excel | correccion | baja | directo
+  origen          text not null,
+  motivo          text,
+  antes           jsonb,                   -- null en un alta
+  despues         jsonb,                   -- null en una baja
+  autor_id        uuid,
+  autor_nombre    text not null,
+  -- `clock_timestamp()` y no `now()`: una corrección escribe dos o tres
+  -- filas en la misma transacción, y `now()` les daría la misma hora.
+  created_at      timestamptz not null default clock_timestamp()
+);
+
+create index if not exists aranceles_cambios_arancel_idx
+  on aranceles_cambios (arancel_id, created_at desc);
+create index if not exists aranceles_cambios_celda_idx
+  on aranceles_cambios (prestacion_id, obra_social_id, created_at desc);
+
+comment on table aranceles_cambios is
+  'Historial append-only de cada alta, corrección y baja de un arancel. '
+  'Lo escribe sólo el trigger trg_arancel_cambios.';
+
+alter table aranceles_cambios enable row level security;
+
+drop policy if exists "equipo lee" on aranceles_cambios;
+drop policy if exists "equipo lee" on aranceles_cambios;
+create policy "equipo lee" on aranceles_cambios for select using (auth.uid() is not null);
+-- Sin policy de INSERT, UPDATE ni DELETE: escribe el trigger, que es
+-- security definer, y nadie edita ni borra el registro.
+
+
+create or replace function guard_cambio_inmutable() returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  raise exception 'El registro de cambios de aranceles es append-only';
+end $$;
+
+
+drop trigger if exists trg_cambio_inmutable on aranceles_cambios;
+create trigger trg_cambio_inmutable
+  before update or delete on aranceles_cambios
+  for each row execute function guard_cambio_inmutable();
+
+-- ─────────────────────────────────────────────────────────────
+-- Origen y motivo viajan por dos settings de la transacción
+-- (`smilelab.origen`, `smilelab.motivo`). Así el trigger es el único
+-- que escribe el registro, y cada RPC sólo tiene que decir quién es.
+--
+-- Las RPC de arriba (aumento, Excel, corrección, baja) marcan siempre.
+-- `nueva_vigencia` marca sólo si nadie lo hizo antes: el aumento masivo
+-- y el Excel la llaman por dentro, y el cambio tiene que figurar como
+-- aumento o como Excel, no como una vigencia suelta.
+-- ─────────────────────────────────────────────────────────────
+
+
+create or replace function marcar_origen_arancel(
+  p_origen  text,
+  p_motivo  text default null,
+  p_pisar   boolean default true
+) returns void
+language plpgsql
+set search_path = public
+as $$
+begin
+  if p_pisar or coalesce(current_setting('smilelab.origen', true), '') = '' then
+    perform set_config('smilelab.origen', p_origen, true);
+    perform set_config('smilelab.motivo', coalesce(nullif(btrim(p_motivo), ''), ''), true);
+  end if;
+end $$;
+
+
+revoke execute on function marcar_origen_arancel(text, text, boolean) from public, anon, authenticated;
+
+
+create or replace function registrar_cambio_arancel() returns trigger
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_origen text := coalesce(nullif(current_setting('smilelab.origen', true), ''), 'directo');
+  v_motivo text := nullif(current_setting('smilelab.motivo', true), '');
+begin
+  if tg_op = 'INSERT' then
+    insert into aranceles_cambios (arancel_id, prestacion_id, obra_social_id, accion,
+                                   origen, motivo, antes, despues, autor_id, autor_nombre)
+    values (new.id, new.prestacion_id, new.obra_social_id, 'alta',
+            v_origen, v_motivo, null, to_jsonb(new), auth.uid(), actor_nombre());
+  elsif tg_op = 'UPDATE' then
+    if new is distinct from old then
+      insert into aranceles_cambios (arancel_id, prestacion_id, obra_social_id, accion,
+                                     origen, motivo, antes, despues, autor_id, autor_nombre)
+      values (new.id, new.prestacion_id, new.obra_social_id, 'edicion',
+              v_origen, v_motivo, to_jsonb(old), to_jsonb(new), auth.uid(), actor_nombre());
+    end if;
+  else
+    insert into aranceles_cambios (arancel_id, prestacion_id, obra_social_id, accion,
+                                   origen, motivo, antes, despues, autor_id, autor_nombre)
+    values (old.id, old.prestacion_id, old.obra_social_id, 'baja',
+            v_origen, v_motivo, to_jsonb(old), null, auth.uid(), actor_nombre());
+  end if;
+  return null;
+end $$;
+
+
+drop trigger if exists trg_arancel_cambios on aranceles;
+create trigger trg_arancel_cambios
+  after insert or update or delete on aranceles
+  for each row execute function registrar_cambio_arancel();
+
+-- ─────────────────────────────────────────────────────────────
+-- 2) Marca de corrección
+--
+-- El banner de precio desactualizado del detalle decide por IDENTIDAD:
+-- «el arancel que citó el ítem ya no es el que rige». Con la
+-- corrección, el arancel citado puede seguir siendo el mismo y decir
+-- otro número. `corregido_at` es lo que le avisa al detalle que eso
+-- pasó después de emitido el presupuesto.
+-- ─────────────────────────────────────────────────────────────
+
+alter table aranceles add column if not exists corregido_at timestamptz;
+
+-- ─────────────────────────────────────────────────────────────
+-- 3) El ítem cita un arancel; no lo encadena
+--
+-- `presupuesto_items.arancel_id` era una FK con `on delete set null`.
+-- Con aranceles borrables eso no sirve: el `set null` es un UPDATE
+-- sobre el ítem de un presupuesto emitido —`guard_item_emitido` lo
+-- rechaza, con razón— y aunque pasara, borraría la única pista de qué
+-- precio citó el documento.
+--
+-- La referencia pasa a ser una cita: el id queda en el ítem para
+-- siempre, y si el arancel se borró, su contenido sigue en
+-- `aranceles_cambios` bajo ese mismo id. Lo que la FK garantizaba al
+-- emitir —que el arancel exista— lo garantiza ahora un trigger.
+-- ─────────────────────────────────────────────────────────────
+
+alter table presupuesto_items drop constraint if exists presupuesto_items_arancel_id_fkey;
+
+
+create or replace function guard_item_arancel() returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.arancel_id is not null
+     and (tg_op = 'INSERT' or new.arancel_id is distinct from old.arancel_id)
+     and not exists (select 1 from aranceles where id = new.arancel_id)
+  then
+    raise exception
+      'El arancel de «%» se borró mientras armabas el presupuesto: volvé a elegir la prestación',
+      new.nombre;
+  end if;
+  return new;
+end $$;
+
+
+drop trigger if exists trg_item_arancel on presupuesto_items;
+create trigger trg_item_arancel
+  before insert or update on presupuesto_items
+  for each row execute function guard_item_arancel();
+
+-- ─────────────────────────────────────────────────────────────
+-- 4) Guardas
+-- ─────────────────────────────────────────────────────────────
+
+-- Borrar deja de estar prohibido para las RPC (que corren como
+-- `postgres`) y sigue prohibido desde una sesión del equipo: sin policy
+-- de DELETE y con esta guarda, que además cubre un DELETE con la
+-- service role key que no pase por `borrar_arancel()`… salvo que lo
+-- haga a propósito el código del servidor.
+
+
+-- `guard_arancel_inmutable` (migración 21) queda como está: desde una
+-- sesión del equipo, ninguna columna se edita a mano. La corrección
+-- entra por `corregir_arancel()`.
+
+-- Una vigencia tiene que cubrir los días de los presupuestos emitidos
+-- que la citan: ni terminar antes (migración 21), ni empezar después.
+-- Moverle el «desde» hacia adelante dejaría a un documento citando un
+-- precio que, según la base, todavía no regía el día que se emitió.
+
+
+-- ─────────────────────────────────────────────────────────────
+-- 5) Las RPC existentes dicen de dónde viene el cambio
+-- ─────────────────────────────────────────────────────────────
+
+
+-- ─────────────────────────────────────────────────────────────
+-- 6) Corregir un arancel
+--
+-- Monto, cobertura y fecha de inicio. La celda (prestación y obra
+-- social) no se cambia: «este precio era de otra prestación» es borrar
+-- acá y cargar allá, y así queda escrito como lo que fue.
+--
+-- La fecha de fin no se toca directamente: la define la vigencia que
+-- sigue. Si se mueve el inicio y la anterior terminaba justo el día
+-- previo, la anterior se acomoda para que no quede un hueco ni un día
+-- con dos precios.
+-- ─────────────────────────────────────────────────────────────
+
+
+create or replace function usos_emitidos_arancel(p_arancel uuid) returns int
+language sql stable
+set search_path = public
+as $$
+  select count(distinct i.presupuesto_id)::int
+    from presupuesto_items i
+    join presupuestos p on p.id = i.presupuesto_id
+   where i.arancel_id = p_arancel
+     and p.estado <> 'borrador'
+$$;
+
+
+revoke execute on function usos_emitidos_arancel(uuid) from public, anon;
+grant execute on function usos_emitidos_arancel(uuid) to authenticated;
+
+
+create or replace function corregir_arancel(
+  p_id         uuid,
+  p_monto      numeric,
+  p_cob_tipo   tipo_cobertura,
+  p_cob_valor  numeric,
+  p_desde      date,
+  p_motivo     text default null
+) returns uuid
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_old       aranceles%rowtype;
+  v_prev      aranceles%rowtype;
+  v_usos      int;
+  v_cambia_precio boolean;
+begin
+  if auth.uid() is null then
+    raise exception 'No autenticado';
+  end if;
+
+  select * into v_old from aranceles where id = p_id for update;
+  if not found then
+    raise exception 'Ese arancel ya no existe: alguien lo borró mientras lo mirabas';
+  end if;
+
+  if p_monto is null or p_monto < 0 then
+    raise exception 'El monto no puede ser negativo';
+  end if;
+  if p_desde is null then
+    raise exception 'Falta la fecha desde la que rige';
+  end if;
+
+  v_cambia_precio := p_monto is distinct from v_old.monto
+                  or p_cob_tipo is distinct from v_old.cobertura_tipo
+                  or p_cob_valor is distinct from v_old.cobertura_valor;
+
+  if not v_cambia_precio and p_desde = v_old.vigente_desde then
+    return p_id;   -- No hay nada que corregir.
+  end if;
+
+  v_usos := usos_emitidos_arancel(p_id);
+  if v_usos > 0 and coalesce(btrim(p_motivo), '') = '' then
+    raise exception
+      'Ese arancel ya se usó en % presupuesto(s) emitido(s): contá en una línea por qué lo corregís',
+      v_usos;
+  end if;
+
+  perform marcar_origen_arancel('correccion', p_motivo);
+
+  if v_old.vigente_hasta is not null and p_desde > v_old.vigente_hasta then
+    raise exception
+      'Esa vigencia termina el %: no puede empezar después',
+      to_char(v_old.vigente_hasta, 'DD/MM/YYYY');
+  end if;
+
+  -- La vecina de atrás, si terminaba justo antes: es la que se acomoda.
+  select * into v_prev
+    from aranceles
+   where prestacion_id = v_old.prestacion_id
+     and obra_social_id is not distinct from v_old.obra_social_id
+     and vigente_hasta = v_old.vigente_desde - 1
+   for update;
+
+  if p_desde <> v_old.vigente_desde and v_prev.id is not null then
+    if p_desde - 1 < v_prev.vigente_desde then
+      raise exception
+        'La vigencia anterior arranca el %: ésta no puede empezar antes. Si la querés reemplazar, borrala primero',
+        to_char(v_prev.vigente_desde, 'DD/MM/YYYY');
+    end if;
+
+    -- El orden importa para la guarda de solapamiento: se achica
+    -- primero la que pierde días y después crece la otra.
+    if p_desde < v_old.vigente_desde then
+      update aranceles set vigente_hasta = p_desde - 1 where id = v_prev.id;
+    end if;
+  end if;
+
+  update aranceles
+     set monto           = p_monto,
+         cobertura_tipo  = p_cob_tipo,
+         cobertura_valor = p_cob_valor,
+         vigente_desde   = p_desde,
+         corregido_at    = case when v_cambia_precio then now() else corregido_at end
+   where id = p_id;
+
+  if p_desde > v_old.vigente_desde and v_prev.id is not null then
+    update aranceles set vigente_hasta = p_desde - 1 where id = v_prev.id;
+  end if;
+
+  return p_id;
+end $$;
+
+
+revoke execute on function corregir_arancel(uuid, numeric, tipo_cobertura, numeric, date, text) from public, anon;
+grant execute on function corregir_arancel(uuid, numeric, tipo_cobertura, numeric, date, text) to authenticated;
+
+-- ─────────────────────────────────────────────────────────────
+-- 7) Borrar un arancel
+--
+-- Si la vigencia anterior terminaba justo el día previo, hereda el
+-- tramo del arancel borrado: borrar el aumento de octubre deja rigiendo
+-- el precio de septiembre, que es lo que se quiere al deshacer un
+-- error de carga. Sin vecina anterior, la celda queda sin precio en
+-- esos días.
+--
+-- Devuelve el id de la vigencia que heredó el tramo, o null.
+-- ─────────────────────────────────────────────────────────────
+
+
+create or replace function borrar_arancel(
+  p_id      uuid,
+  p_motivo  text default null
+) returns uuid
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_old   aranceles%rowtype;
+  v_prev  aranceles%rowtype;
+  v_usos  int;
+begin
+  if auth.uid() is null then
+    raise exception 'No autenticado';
+  end if;
+
+  select * into v_old from aranceles where id = p_id for update;
+  if not found then
+    raise exception 'Ese arancel ya no existe: alguien lo borró mientras lo mirabas';
+  end if;
+
+  v_usos := usos_emitidos_arancel(p_id);
+  if v_usos > 0 and coalesce(btrim(p_motivo), '') = '' then
+    raise exception
+      'Ese arancel ya se usó en % presupuesto(s) emitido(s): contá en una línea por qué lo borrás',
+      v_usos;
+  end if;
+
+  perform marcar_origen_arancel('baja', p_motivo);
+
+  select * into v_prev
+    from aranceles
+   where prestacion_id = v_old.prestacion_id
+     and obra_social_id is not distinct from v_old.obra_social_id
+     and vigente_hasta = v_old.vigente_desde - 1
+   for update;
+
+  delete from aranceles where id = p_id;
+  if not found then
+    raise exception 'El arancel no se pudo borrar. Recargá la pantalla y probá de nuevo';
+  end if;
+
+  if v_prev.id is not null then
+    update aranceles set vigente_hasta = v_old.vigente_hasta where id = v_prev.id;
+  end if;
+
+  return v_prev.id;
+end $$;
+
+
+revoke execute on function borrar_arancel(uuid, text) from public, anon;
+grant execute on function borrar_arancel(uuid, text) to authenticated;
+
+-- ─────────────────────────────────────────────────────────────
+-- 8) Duplicar con un arancel citado que ya no existe
+--
+-- El duplicado re-cotiza cada ítem contra la obra social de SU arancel
+-- (migración 09). Si ese arancel se borró, el `select … into` no
+-- encontraba nada y dejaba la obra social en null: el ítem se
+-- re-cotizaba como particular. La obra social sale ahora del registro
+-- de cambios, y si tampoco está ahí, de la del presupuesto.
+--
+-- Y si no hay arancel vigente, el ítem conserva el precio del original
+-- pero ya no puede citar un arancel borrado (`guard_item_arancel`).
+-- ─────────────────────────────────────────────────────────────
+
+
+revoke execute on function duplicar_presupuesto(uuid) from public, anon;
+grant execute on function duplicar_presupuesto(uuid) to authenticated;
+
+comment on table aranceles is
+  'Un precio nuevo es una fila nueva; la anterior se cierra (nueva_vigencia, '
+  'aumento_masivo, importar_aranceles). Corregir o borrar un error de carga '
+  'va por corregir_arancel() y borrar_arancel(), y queda en aranceles_cambios. '
+  'Desde una sesión del equipo ninguna columna se edita a mano.';
+
+
+-- ─── importar aranceles ───────────────────────────────────────
+
+
+-- ─────────────────────────────────────────────────────────────
+-- La identidad de un nombre del catálogo: sin acentos, en minúsculas,
+-- y con cualquier racha de signos o espacios colapsada a un espacio.
+-- ─────────────────────────────────────────────────────────────
+
+
+create or replace function clave_catalogo(t text) returns text
+language sql immutable strict parallel safe
+set search_path = public, extensions
+as $$ select btrim(regexp_replace(sin_acentos(t), '[^a-z0-9]+', ' ', 'g')) $$;
+
+
+comment on function clave_catalogo(text) is
+  'Identidad de un nombre del catálogo para reconocerlo aunque se escriba '
+  'distinto: sin acentos, minúsculas, signos y espacios colapsados.';
+
+create index if not exists prestaciones_clave_idx on prestaciones (clave_catalogo(nombre));
+
+-- ─────────────────────────────────────────────────────────────
+-- La importación
+--
+-- `p_filas` es lo que leyó el navegador de la planilla:
+--   [{ "fila": 2, "rubro": "Endodoncia", "nombre": "Endodoncia premolar",
+--      "monto": 285000 }, …]
+-- `fila` es el número de fila del Excel, para poder señalarla.
+-- `monto` llega null si la celda estaba vacía o no se pudo leer.
+--
+-- `p_omitir` son las filas que la persona destildó en la vista previa
+-- (típicamente, un precio que se ve mal). No se escriben, pero se
+-- devuelven con lo que habría pasado para poder volver a incluirlas.
+--
+-- Por fila devuelve `estado`:
+--   crear       prestación nueva + su precio particular
+--   actualizar  precio nuevo: abre una vigencia y cierra la anterior
+--   corregir    ya había una vigencia que arranca ese mismo día: se
+--               corrige en el lugar (es volver a subir el Excel del mes)
+--   igual       el precio ya es ése: no se escribe nada
+--   repetida    repite otra fila del Excel con el mismo precio
+--   omitida     la persona la sacó de la importación
+--   error       no se puede cargar; `mensaje` dice por qué
+-- ─────────────────────────────────────────────────────────────
+
+
+create or replace function importar_aranceles(
+  p_filas    jsonb,
+  p_desde    date,
+  p_aplicar  boolean default false,
+  p_omitir   int[]   default '{}',
+  p_archivo  text    default null
+) returns jsonb
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  r            record;
+  v_salida     jsonb := '[]'::jsonb;
+  v_estado     text;
+  v_mensaje    text;
+  v_avisos     text[];
+  v_n          int;
+  v_nombres    text;
+  v_rubro      text;
+  v_prest      prestaciones%rowtype;
+  v_vig        aranceles%rowtype;
+  v_abierta    aranceles%rowtype;
+  v_posterior  aranceles%rowtype;
+  v_usos       int;
+  v_ultima     date;
+begin
+  if auth.uid() is null then
+    raise exception 'No autenticado';
+  end if;
+  if p_desde is null then
+    raise exception 'Falta la fecha desde la que rigen los precios';
+  end if;
+  if p_filas is null or jsonb_typeof(p_filas) <> 'array' or jsonb_array_length(p_filas) = 0 then
+    raise exception 'El Excel no trae filas para importar';
+  end if;
+  if jsonb_array_length(p_filas) > 2000 then
+    raise exception 'El Excel trae más de 2.000 filas: partilo en dos archivos';
+  end if;
+
+  if p_aplicar then
+    perform pg_advisory_xact_lock(hashtext('smilelab.importar_aranceles'));
+    -- El origen ya dice «Excel»: el motivo es el nombre del archivo,
+    -- que es lo que alguien va a buscar cuando pregunte de dónde salió
+    -- un precio.
+    perform marcar_origen_arancel('excel', nullif(btrim(p_archivo), ''));
+  end if;
+
+  for r in
+    with filas as (
+      select x.fila,
+             regexp_replace(btrim(coalesce(x.nombre, '')), '\s+', ' ', 'g') as nombre,
+             nullif(regexp_replace(btrim(coalesce(x.rubro, '')), '\s+', ' ', 'g'), '') as rubro,
+             x.monto,
+             clave_catalogo(coalesce(x.nombre, '')) as clave,
+             (x.fila = any(coalesce(p_omitir, '{}'::int[]))) as omitida
+        from jsonb_to_recordset(p_filas) as x(fila int, rubro text, nombre text, monto numeric)
+    ),
+    -- Las repeticiones se cuentan entre las filas que se van a cargar:
+    -- si la persona destilda una de dos filas en conflicto, la otra
+    -- deja de estarlo.
+    grupos as (
+      select clave,
+             count(*)               as n,
+             count(distinct monto)  as montos,
+             min(fila)              as primera,
+             string_agg(fila::text, ', ' order by fila) as filas
+        from filas
+       where not omitida and clave <> ''
+       group by clave
+    )
+    select f.*, g.n, g.montos, g.primera, g.filas as filas_grupo
+      from filas f
+      left join grupos g on g.clave = f.clave
+     order by f.fila
+  loop
+    v_estado    := null;
+    v_mensaje   := null;
+    v_avisos    := '{}';
+    v_rubro     := null;
+    v_prest     := null;
+    v_vig       := null;
+    v_abierta   := null;
+    v_posterior := null;
+    v_usos      := 0;
+    v_ultima    := null;
+
+    -- 1) Lo que trae la fila, sola.
+    if r.clave = '' then
+      v_estado := 'error';
+      v_mensaje := 'Falta el subtipo';
+    elsif length(r.nombre) > 200 then
+      v_estado := 'error';
+      v_mensaje := 'El subtipo pasa de 200 caracteres';
+    elsif r.monto is null then
+      v_estado := 'error';
+      v_mensaje := 'Falta el precio, o no se pudo leer';
+    elsif r.monto < 0 then
+      v_estado := 'error';
+      v_mensaje := 'El precio no puede ser negativo';
+    elsif r.monto > 999999999 then
+      v_estado := 'error';
+      v_mensaje := 'El precio es demasiado grande: revisá la celda';
+    elsif r.monto <> round(r.monto) then
+      v_estado := 'error';
+      v_mensaje := 'Los precios van en pesos enteros, sin centavos';
+    elsif not r.omitida and r.n > 1 and r.montos > 1 then
+      v_estado := 'error';
+      v_mensaje := format('Aparece %s veces con precios distintos (filas %s): dejá una sola',
+                          r.n, r.filas_grupo);
+    elsif not r.omitida and r.n > 1 and r.fila <> r.primera then
+      v_estado := 'repetida';
+      v_mensaje := format('Repite la fila %s con el mismo precio: se carga una sola vez', r.primera);
+    end if;
+
+    -- 2) El rubro, escrito como ya está en la biblioteca: «ENDODONCIA»
+    --    en la planilla es «Endodoncia» acá, no un rubro nuevo.
+    if r.rubro is not null then
+      select p.rubro into v_rubro
+        from prestaciones p
+       where p.rubro is not null
+         and clave_catalogo(p.rubro) = clave_catalogo(r.rubro)
+       group by p.rubro
+       order by count(*) desc, p.rubro
+       limit 1;
+      v_rubro := coalesce(v_rubro, r.rubro);
+    end if;
+
+    -- 3) La prestación.
+    if v_estado is null then
+      select count(*), string_agg(p.nombre, ' · ' order by p.nombre)
+        into v_n, v_nombres
+        from prestaciones p
+       where clave_catalogo(p.nombre) = r.clave;
+
+      if v_n > 1 then
+        v_estado := 'error';
+        v_mensaje := format(
+          'En la biblioteca hay %s prestaciones que se llaman así (%s): unificalas antes de importar',
+          v_n, v_nombres);
+      elsif v_n = 1 then
+        select * into v_prest from prestaciones p where clave_catalogo(p.nombre) = r.clave;
+      else
+        v_estado := 'crear';
+      end if;
+    end if;
+
+    -- 4) El precio particular de una prestación que ya existe.
+    if v_estado is null then
+      select * into v_vig from arancel_vigente(v_prest.id, null, p_desde);
+
+      select * into v_abierta
+        from aranceles
+       where prestacion_id = v_prest.id
+         and obra_social_id is null
+         and vigente_hasta is null;
+
+      select * into v_posterior
+        from aranceles
+       where prestacion_id = v_prest.id
+         and obra_social_id is null
+         and vigente_desde > p_desde
+       order by vigente_desde
+       limit 1;
+
+      if v_vig.id is not null and v_vig.monto = r.monto then
+        v_estado := 'igual';
+        if v_posterior.id is not null then
+          v_avisos := v_avisos || format('Ya tiene otro precio programado desde el %s: ése no se toca',
+                                         to_char(v_posterior.vigente_desde, 'DD/MM/YYYY'));
+        end if;
+      elsif v_posterior.id is not null then
+        v_estado := 'error';
+        v_mensaje := format(
+          'Ya tiene un precio cargado desde el %s, después de la fecha elegida: corregilo a mano o elegí una fecha posterior',
+          to_char(v_posterior.vigente_desde, 'DD/MM/YYYY'));
+      elsif v_vig.id is not null and v_vig.vigente_desde = p_desde then
+        -- Volver a subir el Excel del mes con un precio arreglado: la
+        -- vigencia de ese día se corrige, no se apila otra encima.
+        v_estado := 'corregir';
+        v_usos := usos_emitidos_arancel(v_vig.id);
+        if v_usos > 0 then
+          v_avisos := v_avisos || format(
+            'El precio que se corrige ya se usó en %s presupuesto(s) emitido(s): esos conservan el suyo',
+            v_usos);
+        end if;
+      elsif v_vig.id is not null and v_vig.vigente_hasta is not null then
+        -- Rige ese día pero está cerrada y no la sigue nadie: abrir otra
+        -- encima haría regir dos precios el mismo día.
+        v_estado := 'error';
+        v_mensaje := format(
+          'Tiene un precio cargado hasta el %s: corregilo o borralo a mano, o elegí una fecha posterior',
+          to_char(v_vig.vigente_hasta, 'DD/MM/YYYY'));
+      else
+        v_estado := 'actualizar';
+        if v_abierta.id is not null then
+          v_usos := usos_emitidos_arancel(v_abierta.id);
+
+          -- La misma condición que `guard_arancel_cierre_valido`, dicha
+          -- antes: un presupuesto emitido el día X citando el precio
+          -- de hoy impide cerrarlo antes de X.
+          select max(p.fecha_emision) into v_ultima
+            from presupuesto_items i
+            join presupuestos p on p.id = i.presupuesto_id
+           where i.arancel_id = v_abierta.id
+             and p.estado <> 'borrador';
+
+          if v_ultima is not null and v_ultima >= p_desde then
+            v_estado := 'error';
+            v_mensaje := format(
+              'El precio actual se usó en un presupuesto emitido el %s: elegí una fecha posterior',
+              to_char(v_ultima, 'DD/MM/YYYY'));
+          end if;
+        end if;
+      end if;
+
+      if not v_prest.activa then
+        v_avisos := v_avisos ||
+          'Está dada de baja en la biblioteca: el precio se carga, pero el wizard no la ofrece hasta que la reactives'::text;
+      end if;
+
+      if v_rubro is not null and v_prest.rubro is null then
+        v_avisos := v_avisos || format('Queda en el rubro «%s»', v_rubro);
+      elsif v_rubro is not null and clave_catalogo(v_prest.rubro) <> clave_catalogo(v_rubro) then
+        v_avisos := v_avisos || format('En la biblioteca está en «%s»: el rubro no se cambia', v_prest.rubro);
+      end if;
+    end if;
+
+    -- 5) Escribir.
+    if p_aplicar and not r.omitida then
+      if v_estado = 'crear' then
+        insert into prestaciones (nombre, rubro)
+        values (r.nombre, v_rubro)
+        returning * into v_prest;
+
+        perform nueva_vigencia(v_prest.id, null, r.monto, 'ninguna', 0, p_desde);
+      elsif v_estado = 'actualizar' then
+        perform nueva_vigencia(
+          v_prest.id, null, r.monto,
+          coalesce(v_abierta.cobertura_tipo, 'ninguna'),
+          coalesce(v_abierta.cobertura_valor, 0),
+          p_desde);
+      elsif v_estado = 'corregir' then
+        update aranceles
+           set monto = r.monto,
+               corregido_at = now()
+         where id = v_vig.id;
+      end if;
+
+      if v_estado in ('actualizar', 'corregir', 'igual')
+         and v_prest.rubro is null and v_rubro is not null then
+        update prestaciones set rubro = v_rubro where id = v_prest.id;
+      end if;
+    end if;
+
+    v_salida := v_salida || jsonb_build_object(
+      'fila',             r.fila,
+      'nombre',           r.nombre,
+      'rubro',            v_rubro,
+      'monto',            r.monto,
+      'estado',           case when r.omitida then 'omitida' else v_estado end,
+      'previsto',         v_estado,
+      'mensaje',          v_mensaje,
+      'avisos',           to_jsonb(v_avisos),
+      'prestacion_id',    v_prest.id,
+      'prestacion',       v_prest.nombre,
+      'rubro_biblioteca', v_prest.rubro,
+      'activa',           v_prest.activa,
+      'monto_actual',     v_vig.monto,
+      'desde_actual',     v_vig.vigente_desde,
+      'usos',             v_usos,
+      -- Sólo en el error de «el precio actual se usó en un presupuesto
+      -- emitido»: la pantalla ofrece arrancar el día siguiente.
+      'emitido_el',       case when v_estado = 'error' then v_ultima end
+    );
+  end loop;
+
+  return jsonb_build_object('desde', p_desde, 'aplicado', p_aplicar, 'filas', v_salida);
+end $$;
+
+
+revoke execute on function importar_aranceles(jsonb, date, boolean, int[], text) from public, anon;
+grant execute on function importar_aranceles(jsonb, date, boolean, int[], text) to authenticated;

@@ -37,12 +37,15 @@ export function HistoricoAranceles({
   truncado,
   limite,
   busquedaInicial,
+  onAbrir,
 }: {
   filas: FilaHistorico[]
   truncado: boolean
   limite: number
   /** Lo que se venía buscando en la grilla: cruza de vista con uno. */
   busquedaInicial?: string
+  /** Abre el historial de la combinación, donde se corrige o se borra. */
+  onAbrir: (fila: FilaHistorico) => void
 }) {
   const [busqueda, setBusqueda] = React.useState(busquedaInicial ?? '')
 
@@ -104,7 +107,13 @@ export function HistoricoAranceles({
           }
         />
       ) : (
-        <ListaHistorico filas={visibles} totales={filas.length} truncado={truncado} limite={limite} />
+        <ListaHistorico
+          filas={visibles}
+          totales={filas.length}
+          truncado={truncado}
+          limite={limite}
+          onAbrir={onAbrir}
+        />
       )}
     </div>
   )
@@ -161,11 +170,13 @@ function ListaHistorico({
   totales,
   truncado,
   limite,
+  onAbrir,
 }: {
   filas: FilaHistorico[]
   totales: number
   truncado: boolean
   limite: number
+  onAbrir: (fila: FilaHistorico) => void
 }) {
   // Una sola lectura del día para toda la lista: si se calculara por
   // fila, una vigencia que arranca mañana podría caer de un lado en la
@@ -211,7 +222,15 @@ function ListaHistorico({
             {filas.map((f) => (
               <Tr key={f.id}>
                 <Td className="pl-5">
-                  <span className="font-medium text-ink">{f.prestacion}</span>
+                  {/* El nombre abre el historial de la combinación: es
+                      ahí donde se corrige o se borra una vigencia. */}
+                  <button
+                    type="button"
+                    onClick={() => onAbrir(f)}
+                    className="text-left font-medium text-ink underline-offset-4 hover:text-primary hover:underline"
+                  >
+                    {f.prestacion}
+                  </button>
                   {f.rubro && <span className="block t-helper">{f.rubro}</span>}
                 </Td>
                 <Td>{f.obra_social}</Td>
@@ -258,6 +277,17 @@ function ListaHistorico({
               <p className="mt-2 flex items-center gap-2">
                 <EtiquetaVigencia fila={f} hoy={hoy} />
               </p>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                full
+                className="mt-2"
+                onClick={() => onAbrir(f)}
+              >
+                Ver historial, corregir o borrar
+              </Button>
             </Card>
           </li>
         ))}

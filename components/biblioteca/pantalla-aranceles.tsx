@@ -1,7 +1,7 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { Lock, SearchX, Stethoscope, TrendingUp } from 'lucide-react'
+import { FileSpreadsheet, History, SearchX, Stethoscope, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
@@ -22,11 +22,14 @@ import { normalizar, numero } from '@/lib/formato'
 import { useAtajos } from '@/lib/hooks/use-atajos'
 
 import { CampoBusqueda } from './campo-busqueda'
+import { DialogoBorrarArancel } from './dialogo-borrar-arancel'
 import { DrawerHistorial } from './drawer-historial'
+import { FormCorreccion } from './form-correccion'
 import { FormVigencia } from './form-vigencia'
 import { ListaAranceles } from './lista-aranceles'
 import { HistoricoAranceles } from './historico-aranceles'
 import { ModalAumentoMasivo } from './modal-aumento-masivo'
+import { ModalImportarExcel } from './modal-importar-excel'
 import {
   esAbierta,
   type Arancel,
@@ -36,6 +39,7 @@ import {
   type ColumnaObraSocial,
   type FilaHistorico,
   type PrestacionGrilla,
+  type VigenciaCelda,
   type VistaAranceles,
 } from './tipos'
 
@@ -52,10 +56,17 @@ const TODAS = '__todas__'
 /** Id del buscador de la grilla: lo enfoca el atajo `/`. */
 const ID_BUSQUEDA = 'busqueda-aranceles'
 
+/** Una vigencia elegida en el drawer para corregirla o borrarla. */
+interface Seleccion {
+  celda: Celda
+  vigencia: VigenciaCelda
+  vigencias: VigenciaCelda[]
+}
+
 /**
  * Pantalla 10 — Aranceles.
  *
- * Orquesta las cuatro piezas que hacen legible el modelo append-only:
+ * Orquesta las piezas que hacen legible el modelo de vigencias:
  * los filtros que hacen navegable una grilla de cientos de celdas, la
  * grilla de lo que rige hoy, el drawer con el historial de una
  * combinación, y el form de vigencia nueva que enumera las
@@ -96,6 +107,9 @@ export function PantallaAranceles({
   const [detalle, setDetalle] = React.useState<Celda | null>(null)
   const [formulario, setFormulario] = React.useState<Celda | null>(null)
   const [aumento, setAumento] = React.useState(false)
+  const [importar, setImportar] = React.useState(false)
+  const [correccion, setCorreccion] = React.useState<Seleccion | null>(null)
+  const [baja, setBaja] = React.useState<Seleccion | null>(null)
 
   const [busqueda, setBusqueda] = React.useState(busquedaInicial ?? '')
   const [rubro, setRubro] = React.useState<string>(TODOS)
@@ -217,6 +231,9 @@ export function PantallaAranceles({
       queryClient.invalidateQueries({
         queryKey: ['vigencias', celda.prestacion_id, celda.obra_social_id],
       })
+      queryClient.invalidateQueries({
+        queryKey: ['cambios-arancel', celda.prestacion_id, celda.obra_social_id],
+      })
       router.refresh()
     },
     [queryClient, router],
@@ -244,6 +261,7 @@ export function PantallaAranceles({
     a: () => {
       if (hayAranceles) setAumento(true)
     },
+    i: () => setImportar(true),
   })
 
   const props = { prestaciones: visibles, columnas, celdaDe, onAbrir: setDetalle, onCargar: setFormulario }
@@ -264,24 +282,43 @@ export function PantallaAranceles({
           </p>
         </div>
 
-        <Button
-          variant="primary"
-          size="touch"
-          className="sm:h-[34px]"
-          onClick={() => setAumento(true)}
-          disabled={!hayAranceles}
-        >
-          <TrendingUp aria-hidden />
-          Aumento masivo
-          <Kbd className="ml-1">A</Kbd>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {/* La lista del mes es lo que se hace todos los meses: es la
+              acción principal. El aumento masivo queda al lado. */}
+          <Button
+            variant="primary"
+            size="touch"
+            className="sm:h-[34px]"
+            onClick={() => setImportar(true)}
+          >
+            <FileSpreadsheet aria-hidden />
+            Importar Excel
+            <Kbd className="ml-1">I</Kbd>
+          </Button>
+          <Button
+            variant="secondary"
+            size="touch"
+            className="sm:h-[34px]"
+            onClick={() => setAumento(true)}
+            disabled={!hayAranceles}
+          >
+            <TrendingUp aria-hidden />
+            Aumento masivo
+            <Kbd className="ml-1">A</Kbd>
+          </Button>
+        </div>
       </header>
 
       {/* Banner permanente: es la explicación del modelo, no un aviso
           puntual, así que no se puede cerrar. */}
-      <Banner tono="info" icono={<Lock className="size-4" />} titulo="Los aranceles no se editan">
-        Cada cambio de precio abre una vigencia nueva y cierra la anterior. Así un presupuesto
-        viejo sigue mostrando lo que se le prometió al paciente.
+      <Banner
+        tono="info"
+        icono={<History className="size-4" />}
+        titulo="Cambiar un precio no cambia un presupuesto"
+      >
+        Un aumento abre una vigencia nueva y deja el precio de antes en el historial. Si un precio
+        se cargó mal, corregilo o borralo desde su historial: los presupuestos ya emitidos guardan
+        su copia y el cambio queda registrado.
       </Banner>
 
       <Segmented
@@ -308,6 +345,18 @@ export function PantallaAranceles({
           truncado={historicoTruncado}
           limite={limiteHistorico}
           busquedaInicial={busqueda}
+          onAbrir={(f) => {
+            const dato = indice.get(`${f.prestacion_id}|${f.obra_social_id ?? ''}`)
+            setDetalle({
+              prestacion_id: f.prestacion_id,
+              prestacion: f.prestacion,
+              obra_social_id: f.obra_social_id,
+              obra_social: f.obra_social,
+              vigente: dato?.vigente ?? null,
+              programada: dato?.programada ?? null,
+              abierta: dato?.abierta ?? null,
+            })
+          }}
         />
       ) : (
         <>
@@ -436,8 +485,8 @@ export function PantallaAranceles({
               />
 
               <p className="t-helper">
-                Tocá un precio para ver su historial de vigencias. Los que tienen candado ya se
-                usaron en presupuestos emitidos: se les carga una vigencia nueva, no se editan.
+                Tocá un precio para ver su historial de vigencias, cargar una nueva, corregirlo o
+                borrarlo.
               </p>
             </>
           )}
@@ -454,6 +503,68 @@ export function PantallaAranceles({
             // taparían justamente el historial que se está mirando.
             setFormulario(detalle)
             setDetalle(null)
+          }}
+          onCorregir={(vigencia, vigencias) => {
+            setCorreccion({ celda: detalle, vigencia, vigencias })
+            setDetalle(null)
+          }}
+          onBorrar={(vigencia, vigencias) => {
+            setBaja({ celda: detalle, vigencia, vigencias })
+            setDetalle(null)
+          }}
+        />
+      )}
+
+      {correccion && (
+        <FormCorreccion
+          key={correccion.vigencia.id}
+          prestacion={correccion.celda.prestacion}
+          obraSocial={correccion.celda.obra_social}
+          vigencia={correccion.vigencia}
+          vigencias={correccion.vigencias}
+          onCerrar={() => {
+            // Se vuelve al historial de donde se vino.
+            setDetalle(correccion.celda)
+            setCorreccion(null)
+          }}
+          onGuardado={() => {
+            refrescar(correccion.celda)
+            setDetalle(correccion.celda)
+            setCorreccion(null)
+          }}
+          onVigenciaNueva={() => {
+            setFormulario(correccion.celda)
+            setCorreccion(null)
+          }}
+        />
+      )}
+
+      {baja && (
+        <DialogoBorrarArancel
+          key={baja.vigencia.id}
+          prestacion={baja.celda.prestacion}
+          obraSocial={baja.celda.obra_social}
+          vigencia={baja.vigencia}
+          vigencias={baja.vigencias}
+          onCerrar={() => {
+            setDetalle(baja.celda)
+            setBaja(null)
+          }}
+          onBorrado={() => {
+            refrescar(baja.celda)
+            setDetalle(baja.celda)
+            setBaja(null)
+          }}
+        />
+      )}
+
+      {importar && (
+        <ModalImportarExcel
+          onCerrar={() => setImportar(false)}
+          onAplicado={() => {
+            queryClient.invalidateQueries({ queryKey: ['vigencias'] })
+            queryClient.invalidateQueries({ queryKey: ['cambios-arancel'] })
+            router.refresh()
           }}
         />
       )}

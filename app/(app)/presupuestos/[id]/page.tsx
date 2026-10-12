@@ -151,6 +151,11 @@ async function cargarDetalle(id: string): Promise<Lectura> {
  *    del arancel por el override, no porque haya cambiado un precio— y
  *    el banner le miente al consultorio.
  *
+ *    Con aranceles corregibles (migración 26) la identidad sola no
+ *    alcanza: el arancel citado puede seguir siendo el vigente y decir
+ *    otro número. `corregido_at` posterior al alta del presupuesto
+ *    también es «cambió».
+ *
  * 2. Cada ítem se re-cotiza contra la obra social de SU arancel, no
  *    contra la del presupuesto: el paso 2 permite cargar un ítem «con
  *    valor particular» dentro de un presupuesto con obra social. Es la
@@ -198,7 +203,7 @@ async function calcularHoy(
       .in('prestacion_id', prestacionIds)
       .order('vigente_desde', { ascending: true }),
     arancelIds.length > 0
-      ? supabase.from('aranceles').select('id, obra_social_id').in('id', arancelIds)
+      ? supabase.from('aranceles').select('id, obra_social_id, corregido_at').in('id', arancelIds)
       : Promise.resolve({ data: [], error: null }),
   ])
 
@@ -212,8 +217,35 @@ async function calcularHoy(
 
   /** Con qué obra social se cotizó cada ítem en su momento. */
   const osDelArancel = new Map<string, string | null>()
-  for (const fila of (citadosRes.data ?? []) as { id: string; obra_social_id: string | null }[]) {
+  /** Aranceles citados que se corrigieron después de emitir éste. */
+  const corregidosDespues = new Set<string>()
+  for (const fila of (citadosRes.data ?? []) as {
+    id: string
+    obra_social_id: string | null
+    corregido_at: string | null
+  }[]) {
     osDelArancel.set(fila.id, fila.obra_social_id)
+    if (fila.corregido_at && Date.parse(fila.corregido_at) > Date.parse(cabecera.created_at)) {
+      corregidosDespues.add(fila.id)
+    }
+  }
+
+  // Un arancel citado que se borró ya no está en `aranceles`, pero su
+  // obra social quedó en el registro de cambios: sin ella, el ítem se
+  // re-cotizaría contra la del presupuesto, y un ítem «con valor
+  // particular» se compararía contra el convenio.
+  const borrados = arancelIds.filter((id) => !osDelArancel.has(id))
+  if (borrados.length > 0) {
+    const { data: registro, error: errorRegistro } = await supabase
+      .from('aranceles_cambios')
+      .select('arancel_id, obra_social_id')
+      .in('arancel_id', borrados)
+    if (errorRegistro) {
+      console.error('[detalle] no se pudo leer el registro de aranceles', errorRegistro)
+    }
+    for (const fila of (registro ?? []) as { arancel_id: string; obra_social_id: string | null }[]) {
+      osDelArancel.set(fila.arancel_id, fila.obra_social_id)
+    }
   }
 
   const clave = (prestacionId: string, obraSocialId: string | null) =>
@@ -261,9 +293,10 @@ async function calcularHoy(
       return snapshot(item)
     }
 
-    // El arancel citado dejó de ser el vigente: eso, y sólo eso, es que
-    // el precio quedó desactualizado.
+    // El arancel citado dejó de ser el vigente —o se corrigió después
+    // de emitir—: eso, y sólo eso, es que el precio quedó desactualizado.
     if (item.arancel_id && item.arancel_id !== vigente.id) cambiaron = true
+    if (item.arancel_id && corregidosDespues.has(item.arancel_id)) cambiaron = true
 
     return {
       monto: vigente.monto,
