@@ -151,8 +151,11 @@ export function parsearMonto(valor: unknown): LecturaMonto {
     return { monto: null, problema: `No es un precio: «${original}»`, nota: null }
   }
 
-  const negativo = minusculas.includes('-') || /^\(.*\)$/.test(minusculas)
-  const cifras = minusculas.replace(/[^\d.,]/g, '')
+  // «$ 45.000.-» y «45.000,-» son la forma argentina de decir «sin
+  // centavos», no un signo: se sacan antes de buscar el negativo.
+  const sinGuion = minusculas.replace(/[.,]?-$/, '')
+  const negativo = sinGuion.replace(MONEDA, '').startsWith('-') || /^\(.*\)$/.test(sinGuion)
+  const cifras = sinGuion.replace(/[^\d.,]/g, '')
 
   if (!/\d/.test(cifras)) {
     return { monto: null, problema: `No es un precio: «${original}»`, nota: null }

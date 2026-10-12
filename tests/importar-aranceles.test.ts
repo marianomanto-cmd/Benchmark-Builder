@@ -35,6 +35,14 @@ test('parsearMonto lee el formato argentino', () => {
   assert.equal(parsearMonto('95000 pesos').monto, 95000)
 })
 
+test('parsearMonto entiende el «.-» argentino y no lo toma por negativo', () => {
+  assert.equal(parsearMonto('$ 45.000.-').monto, 45000)
+  assert.equal(parsearMonto('45.000,-').monto, 45000)
+  assert.equal(parsearMonto('$45000-').monto, 45000)
+  assert.match(parsearMonto('-$ 500').problema ?? '', /negativo/)
+  assert.match(parsearMonto('$-500').problema ?? '', /negativo/)
+})
+
 test('parsearMonto toma los números tal cual', () => {
   assert.equal(parsearMonto(300000).monto, 300000)
   assert.equal(parsearMonto(1007500).monto, 1007500)

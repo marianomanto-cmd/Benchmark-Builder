@@ -36,7 +36,7 @@ Consecuencias que el código respeta hoy:
 | 5 | Un presupuesto emitido no vuelve a borrador, ni cambia de contenido | Trigger `trg_presupuesto_emitido` (no sólo la RPC: PostgREST expone un UPDATE por tabla) |
 | 6 | El historial no se borra ni se edita | Trigger `trg_evento_inmutable`, policies sólo SELECT/INSERT |
 | 7 | Un arancel no cambia de prestación ni de obra social | `corregir_arancel` no lo ofrece y `guard_arancel_inmutable` lo bloquea desde una sesión |
-| 7b | Una vigencia cubre los días de los presupuestos emitidos que la citan: no empieza después ni termina antes | `guard_arancel_cierre_valido` |
+| 7b | Una vigencia cubre los días de los presupuestos emitidos que la citan: no empieza después ni termina antes | `guard_arancel_cierre_valido`, que mira sólo el borde que se achica: un presupuesto con fecha de emisión elegida hacia atrás puede citar un arancel que empezó después, y eso no tiene que trabar el cierre ni la corrección de precio de esa vigencia |
 | 8 | Un ítem no puede quedar con a-cargo negativo | Checks de `presupuesto_items` + tope en `calcular_cobertura` y `calcularItem` |
 
 ---
@@ -615,6 +615,11 @@ antes de aceptarlo. Los que resultaron reales:
 | Los rieles de las barras de estadísticas medían distinto en cada fila —el detalle de cada una se comía un ancho distinto—, así que dos barras del mismo largo no representaban el mismo valor | Columna de ancho fijo: el riel mide lo mismo en todas las filas del gráfico |
 | En mobile los montos del encabezado de estadísticas se partían después del signo y se salían de su tarjeta | El número héroe escala con el ancho; 34px son 180px de «$ 4.528.600» en una tarjeta de 170 |
 | **Un PATCH le sacaba los ítems a un presupuesto emitido.** `guard_item_emitido()` resolvía contra qué presupuesto validar con `coalesce(new, old)`, y en un UPDATE `new` nunca es null: miraba sólo el DESTINO. Mover los ítems a un borrador pasaba la guarda. Verificado: 2026-0002 quedó con 0 ítems cobrando $ 54.600 | Un ítem no cambia de presupuesto: es parte de ese documento (migración 18) |
+| Revisión de la importación y la corrección de aranceles: la guarda de «la vigencia cubre a los presupuestos que la citan» miraba el inicio en cualquier cierre. Con un presupuesto de fecha de emisión elegida hacia atrás, esa celda no aceptaba más aumentos, importaciones ni borrados, y la vista previa del Excel prometía lo que la aplicación después rechazaba entera | El inicio se mira sólo si se atrasa, y el fin sólo si se achica |
+| En el Excel, una fila con el precio ilegible contaba como repetición de su gemela válida: la buena quedaba «repetida», la mala en error, y la prestación sin precio | Las repeticiones se cuentan sólo entre filas que se pueden cargar |
+| Dos filas iguales con un precio sospechoso: se dejaba afuera la primera y la segunda pasaba a cargarse en su lugar, tildada | Las repetidas sospechosas también arrancan afuera |
+| Cambiar la fecha y apretar «Cargar» antes de que llegara la vista previa nueva aplicaba la fecha nueva con el plan de la vieja | «Cargar» espera a que la vista previa a la vista sea la de la fecha elegida |
+| «$ 45.000.-» se leía como negativo | El «.-» final se saca antes de buscar el signo |
 | **Cualquiera del equipo se hacía admin** reapuntando `profesionales.user_id` a su propio uid en dos PATCH. La migración 16 custodiaba `es_admin` y se olvidó del vínculo de identidad, que es por donde `es_admin()` resuelve quién es quién. La misma maniobra dejaba al consultorio con cero admins con acceso | `user_id` y `activo` también son permisos: sólo un admin los cambia (migración 18) |
 | **El historial se podía firmar a nombre de otro y con la fecha que uno quisiera**: el INSERT aceptaba `autor_id`, `autor_nombre` y `created_at` del body, y por diseño después nadie los puede corregir | Un trigger los reescribe con `auth.uid()`, `actor_nombre()` y `now()` |
 | **Vaciar un campo de fecha con Backspace tumbaba la pantalla entera**: `format()` de date-fns tira `RangeError: Invalid time value` y el error subía hasta el boundary con el wizard a medio cargar | Las diez funciones de fecha de `lib/formato.ts` devuelven «—» en vez de tirar. El arreglo va en la fuente: taparlo en el wizard dejaba las otras nueve pantallas esperando el mismo Backspace |
@@ -762,7 +767,7 @@ antes de aceptarlo. Los que resultaron reales:
 ## 10 · Cómo se verifica
 
 - `npm run build` · `npm run typecheck` · `npm run lint` — sin errores.
-- `npm test` — 90 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts`,
+- `npm test` — 91 casos sobre `lib/calculo.ts`, `lib/formato.ts`, `lib/estados.ts`,
   `lib/estadisticas.ts`, `lib/busqueda.ts`, `lib/zod.ts`,
   `lib/importar-aranceles.ts` y `lib/cambios-aranceles.ts`. La lectura del
   Excel se prueba contra `tests/fixtures/planilla-aranceles.xlsx`, una

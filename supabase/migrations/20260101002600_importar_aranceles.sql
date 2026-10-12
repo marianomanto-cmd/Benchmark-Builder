@@ -138,7 +138,10 @@ begin
     ),
     -- Las repeticiones se cuentan entre las filas que se van a cargar:
     -- si la persona destilda una de dos filas en conflicto, la otra
-    -- deja de estarlo.
+    -- deja de estarlo. Y sólo entre las que se PUEDEN cargar: una fila
+    -- con el precio ilegible es un error por su cuenta, y si contara
+    -- acá dejaba a su gemela válida marcada como «repetida» y la
+    -- prestación sin precio.
     grupos as (
       select clave,
              count(*)               as n,
@@ -146,7 +149,12 @@ begin
              min(fila)              as primera,
              string_agg(fila::text, ', ' order by fila) as filas
         from filas
-       where not omitida and clave <> ''
+       where not omitida
+         and clave <> ''
+         and length(nombre) <= 200
+         and monto is not null
+         and monto between 0 and 999999999
+         and monto = round(monto)
        group by clave
     )
     select f.*, g.n, g.montos, g.primera, g.filas as filas_grupo

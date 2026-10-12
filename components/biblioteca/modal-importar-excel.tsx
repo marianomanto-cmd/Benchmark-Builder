@@ -151,8 +151,14 @@ export function ModalImportarExcel({
 
       let omitidas = omitir
       if (autoExcluir && respuesta.ok) {
+        // También las repetidas: si se dejara afuera sólo la primera de
+        // dos «$ 800», la segunda pasaría a cargarse en su lugar.
         const sospechosas = respuesta.data.filas
-          .filter((f) => escribe(f.previsto) && sospechas(f.monto, f.monto_actual).length > 0)
+          .filter(
+            (f) =>
+              (escribe(f.previsto) || f.previsto === 'repetida') &&
+              sospechas(f.monto, f.monto_actual).length > 0,
+          )
           .map((f) => f.fila)
         if (sospechosas.length > 0) {
           omitidas = new Set([...omitir, ...sospechosas])
@@ -312,6 +318,13 @@ export function ModalImportarExcel({
 
   const aCargar = conteo.crear + conteo.cambia
 
+  /**
+   * La vista previa a la vista es la de la fecha elegida. Mientras se
+   * espera la nueva —o si falló— lo que se ve es el plan de otra fecha,
+   * y aplicar mandaría la fecha nueva con las casillas de ese plan.
+   */
+  const previaAlDia = plan !== null && plan.desde === desde
+
   const visibles = React.useMemo(() => {
     if (filtro === 'cambios') return filas.filter((f) => escribe(f.mostrado))
     if (filtro === 'revisar') {
@@ -340,7 +353,7 @@ export function ModalImportarExcel({
   const bloqueadasPorFecha = filas.filter((f) => f.mostrado === 'error' && f.emitido_el).length
 
   function aplicar() {
-    if (!planilla || fechaInvalida || aCargar === 0) return
+    if (!planilla || fechaInvalida || aCargar === 0 || !previaAlDia || consultando) return
     setError(null)
 
     iniciarAplicar(async () => {
@@ -389,7 +402,7 @@ export function ModalImportarExcel({
           size="touch"
           className="sm:h-[34px]"
           loading={aplicando}
-          disabled={aCargar === 0 || consultando || fechaInvalida}
+          disabled={aCargar === 0 || consultando || fechaInvalida || !previaAlDia}
           onClick={aplicar}
         >
           {aCargar === 0

@@ -225,6 +225,13 @@ end $$;
 -- que la citan: ni terminar antes (migración 21), ni empezar después.
 -- Moverle el «desde» hacia adelante dejaría a un documento citando un
 -- precio que, según la base, todavía no regía el día que se emitió.
+--
+-- Se mira sólo el borde que SE ACHICA. El wizard deja elegir la fecha de
+-- emisión, así que un presupuesto cargado hoy con fecha de la semana
+-- pasada cita el arancel de hoy, que puede haber empezado después: esa
+-- incoherencia ya existe y no la crea nadie que cierre o corrija la
+-- vigencia sin tocar su inicio. Mirar los dos bordes siempre bloqueaba
+-- para siempre el aumento, la importación y el borrado de esa celda.
 create or replace function guard_arancel_cierre_valido() returns trigger
 language plpgsql
 set search_path = public
@@ -232,13 +239,19 @@ as $$
 declare
   v_primera date;
   v_ultima  date;
+  v_achica_fin    boolean;
+  v_atrasa_inicio boolean;
 begin
   if tg_op = 'INSERT' then
     -- Un arancel recién creado no puede estar citado por nadie.
     return new;
   end if;
 
-  if new.vigente_hasta is null and new.vigente_desde <= old.vigente_desde then
+  v_achica_fin := new.vigente_hasta is not null
+                  and (old.vigente_hasta is null or new.vigente_hasta < old.vigente_hasta);
+  v_atrasa_inicio := new.vigente_desde > old.vigente_desde;
+
+  if not v_achica_fin and not v_atrasa_inicio then
     return new;
   end if;
 
@@ -248,13 +261,13 @@ begin
    where i.arancel_id = new.id
      and p.estado <> 'borrador';
 
-  if v_ultima is not null and new.vigente_hasta is not null and new.vigente_hasta < v_ultima then
+  if v_achica_fin and v_ultima is not null and new.vigente_hasta < v_ultima then
     raise exception
       'Ese arancel se citó en un presupuesto emitido el %: no se puede cerrar antes de esa fecha',
       to_char(v_ultima, 'DD/MM/YYYY');
   end if;
 
-  if v_primera is not null and new.vigente_desde > v_primera then
+  if v_atrasa_inicio and v_primera is not null and new.vigente_desde > v_primera then
     raise exception
       'Ese arancel se citó en un presupuesto emitido el %: no puede empezar a regir después de esa fecha',
       to_char(v_primera, 'DD/MM/YYYY');
